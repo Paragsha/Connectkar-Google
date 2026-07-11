@@ -1,0 +1,88 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to get user data safely
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    // Helper function to check if user has a document
+    function userExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    match /users/{userId} {
+      // Allow read: If the user reads their own profile, or is an admin, or resides in the same society
+      allow read: if request.auth != null && (
+        request.auth.uid == userId ||
+        request.auth.token.role == 'ADMIN' ||
+        (userExists() && getUserData().society == resource.data.society)
+      );
+      
+      allow create: if request.auth != null && (
+        request.auth.token.role == 'ADMIN' ||
+        (
+          request.auth.uid == userId &&
+          request.resource.data.role == 'RESIDENT' &&
+          request.resource.data.isVerified == false &&
+          request.resource.data.isPending == true
+        )
+      );
+
+      allow update: if request.auth != null && (
+        request.auth.token.role == 'ADMIN' ||
+        (
+          request.auth.uid == userId &&
+          request.resource.data.role == resource.data.role &&
+          request.resource.data.isVerified == resource.data.isVerified &&
+          request.resource.data.isPending == resource.data.isPending
+        )
+      );
+        
+      allow delete: if request.auth != null && request.auth.token.role == 'ADMIN';
+    }
+
+    match /listings/{listingId} {
+      // Read listings only if in the same society, or admin
+      allow read: if request.auth != null && (
+        request.auth.token.role == 'ADMIN' ||
+        (userExists() && getUserData().society == resource.data.society)
+      );
+      
+      // On create, enforce fields
+      allow create: if request.auth != null && (
+        request.auth.token.role == 'ADMIN' ||
+        (
+          request.resource.data.authorUid == request.auth.uid &&
+          request.resource.data.likesCount == 0 &&
+          userExists() &&
+          request.resource.data.society == getUserData().society
+        )
+      );
+      
+      // On update
+      allow update: if request.auth != null && (
+        request.auth.token.role == 'ADMIN' ||
+        (
+          // If the author themselves is updating
+          resource.data.authorUid == request.auth.uid &&
+          request.resource.data.authorUid == resource.data.authorUid &&
+          request.resource.data.society == resource.data.society
+        ) ||
+        (
+          // If a neighbor is liking/bookmarking the listing
+          userExists() &&
+          getUserData().society == resource.data.society &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'isLikedByMe', 'isBookmarked'])
+        )
+      );
+      
+      // Only author or admin can delete
+      allow delete: if request.auth != null && (
+        request.auth.token.role == 'ADMIN' ||
+        resource.data.authorUid == request.auth.uid
+      );
+    }
+  }
+}

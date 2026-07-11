@@ -1,0 +1,797 @@
+package com.example.ui
+
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.data.local.ListingEntity
+import com.example.data.local.UserEntity
+import com.example.data.local.details
+import com.example.data.local.ListingDetails
+
+// --- Brand Colors ---
+val BrandEmerald = Color(0xFF6750A4)
+val BrandEmeraldLight = Color(0xFFEADDFF)
+val BrandGold = Color(0xFF7D5260)
+val BrandGoldLight = Color(0xFFF3EDF7)
+val BrandSlate = Color(0xFF1D1B1E)
+val BrandBackground = Color(0xFFFDF8F6)
+val BrandOutline = Color(0xFFCAC4D0)
+
+// --- Onboarding Specific Colors ---
+val BrandPrimaryBlue = Color(0xFF003FB1)
+val BrandPrimaryBlueLight = Color(0xFF1A56DB)
+val BrandSuccessGreen = Color(0xFF006C49)
+
+// --- Shared Societies List ---
+val TownshipSocieties = listOf(
+    "Aqualily Estate",
+    "Nova Apartments",
+    "Iris Court",
+    "Happiness Apartments",
+    "Lakewoods Apartments",
+    "Sylvan County"
+)
+
+@Composable
+fun AvatarImage(
+    avatarIndex: Int,
+    modifier: Modifier = Modifier,
+    size: Int = 48
+) {
+    val colors = listOf(
+        Color(0xFF3F51B5), // Indigo
+        Color(0xFFE91E63), // Pink
+        Color(0xFF009688), // Teal
+        Color(0xFFFF9800), // Orange
+        Color(0xFF9C27B0), // Purple
+        Color(0xFF4CAF50)  // Green
+    )
+    val initials = listOf("AS", "RG", "SR", "MN", "AS", "PK")
+    
+    val colorIndex = avatarIndex.coerceIn(0, colors.lastIndex)
+    val initial = initials.getOrElse(avatarIndex) { "R" }
+    
+    Box(
+        modifier = modifier
+            .size(size.dp)
+            .clip(CircleShape)
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        colors[colorIndex],
+                        colors[colorIndex].copy(alpha = 0.7f)
+                    )
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = initial,
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = (size * 0.4f).sp
+        )
+    }
+}
+
+@Composable
+fun VerifiedBadge(
+    modifier: Modifier = Modifier,
+    isVerified: Boolean,
+    isPending: Boolean
+) {
+    when {
+        isVerified -> {
+            Row(
+                modifier = modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(BrandEmeraldLight)
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = "Verified Resident",
+                    tint = BrandEmerald,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "VERIFIED",
+                    color = BrandEmerald,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+        isPending -> {
+            Row(
+                modifier = modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(BrandGoldLight)
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Pending,
+                    contentDescription = "Pending Verification",
+                    tint = BrandGold,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "PENDING VERIFICATION",
+                    color = BrandGold,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+        else -> {
+            Row(
+                modifier = modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFFF1F5F9))
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ErrorOutline,
+                    contentDescription = "Unverified",
+                    tint = Color.Gray,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "UNVERIFIED",
+                    color = Color.Gray,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SocietyBadge(society: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFFEEF2F6))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.Home,
+            contentDescription = "Society",
+            tint = BrandSlate,
+            modifier = Modifier.size(14.dp)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = society,
+            color = BrandSlate,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+fun SyncStatusBanner(
+    syncState: SyncState,
+    onRetrySync: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    when (syncState) {
+        is SyncState.Syncing -> {
+            Surface(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                color = Color(0xFFEFF6FF),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color(0xFFBFDBFE))
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = Color(0xFF3B82F6)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Synchronizing with community network...",
+                        color = Color(0xFF1E40AF),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+        is SyncState.Failed -> {
+            Surface(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                color = Color(0xFFFEF2F2),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color(0xFFFCA5A5))
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CloudOff,
+                            contentDescription = "Sync Error Indicator",
+                            tint = Color(0xFFEF4444),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "Firestore Sync Failed",
+                                color = Color(0xFF991B1B),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Viewing stale/offline local data. ${syncState.message}",
+                                color = Color(0xFFB91C1C),
+                                fontSize = 11.sp,
+                                lineHeight = 14.sp
+                            )
+                        }
+                    }
+                    if (onRetrySync != null) {
+                        TextButton(
+                            onClick = onRetrySync,
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF3B82F6))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Retry Sync Button",
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Retry Sync", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+        else -> {
+            // Idle or Success
+        }
+    }
+}
+
+@Composable
+fun StatusBanner(
+    user: UserEntity,
+    onSimulateApprove: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (user.isPending) {
+        Card(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            colors = CardDefaults.cardColors(containerColor = BrandGoldLight),
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.HourglassEmpty,
+                        contentDescription = "Pending Status",
+                        tint = Color(0xFFD48800),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Verification Pending",
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFD48800),
+                            fontSize = 16.sp
+                        )
+                        Text(
+                            text = "Your profile is under review by ${user.society} admin. You can browse listings but cannot create posts or contact residents.",
+                            color = Color(0xFF595959),
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp
+                        )
+                    }
+                }
+                if (com.example.BuildConfig.DEBUG) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = onSimulateApprove,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF374151)), // Distinct Dark Slate
+                        border = BorderStroke(1.dp, Color(0xFFF97316)), // Eye-catching developer border
+                        modifier = Modifier
+                            .align(Alignment.End)
+                            .testTag("simulate_verify_button"),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Surface(
+                            color = Color(0xFFF97316),
+                            shape = RoundedCornerShape(4.dp),
+                            modifier = Modifier.padding(end = 6.dp)
+                        ) {
+                            Text(
+                                "DEV",
+                                color = Color.White,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Simulate Verification",
+                            modifier = Modifier.size(16.dp),
+                            tint = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Instant Self-Verify (Demo)", fontSize = 12.sp, color = Color.White)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ListingCard(
+    listing: ListingEntity,
+    onLike: () -> Unit,
+    onBookmark: () -> Unit,
+    isCurrentUserVerified: Boolean,
+    modifier: Modifier = Modifier
+) {
+    var showContactInfo by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        shape = RoundedCornerShape(24.dp),
+        border = BorderStroke(1.dp, BrandOutline)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Header: Author Info, Timestamp, Bookmark
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AvatarImage(avatarIndex = listing.id % 6, size = 40)
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = listing.authorName,
+                            fontWeight = FontWeight.Bold,
+                            color = BrandSlate,
+                            fontSize = 14.sp
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(BrandEmerald)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = listing.authorFlat,
+                            color = Color.Gray,
+                            fontSize = 12.sp
+                        )
+                    }
+                    Text(
+                        text = "Posted in ${listing.society}",
+                        color = Color.Gray,
+                        fontSize = 11.sp
+                    )
+                }
+
+                IconButton(
+                    onClick = onBookmark,
+                    modifier = Modifier.testTag("bookmark_button_${listing.id}")
+                ) {
+                    Icon(
+                        imageVector = if (listing.isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                        contentDescription = "Bookmark",
+                        tint = if (listing.isBookmarked) BrandEmerald else Color.Gray
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Body: Title & Description
+            Text(
+                text = listing.title,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                color = BrandSlate,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = listing.description,
+                color = Color(0xFF475569),
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Custom Layout based on Module Type
+            ModuleSpecificContent(listing)
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Divider
+            Divider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Footer actions: Like, Share, Contact/Connect
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = onLike,
+                        modifier = Modifier.testTag("like_button_${listing.id}")
+                    ) {
+                        Icon(
+                            imageVector = if (listing.isLikedByMe) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            contentDescription = "Like",
+                            tint = if (listing.isLikedByMe) Color.Red else Color.Gray
+                        )
+                    }
+                    Text(
+                        text = "${listing.likesCount}",
+                        color = Color.Gray,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                if (listing.type != "FEED") {
+                    if (isCurrentUserVerified) {
+                        Button(
+                            onClick = { showContactInfo = !showContactInfo },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (showContactInfo) BrandSlate else BrandEmerald
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (showContactInfo) Icons.Default.Close else Icons.Default.Phone,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (showContactInfo) "Hide Contact" else "Connect",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFFF1F5F9))
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = "Locked: Profile verification is required to connect with this resident",
+                                    modifier = Modifier.size(12.dp),
+                                    tint = Color.Gray
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Verify to Connect", color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+
+            AnimatedVisibility(
+                visible = showContactInfo && isCurrentUserVerified,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFFEEF2F6))
+                        .padding(12.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(16.dp), tint = BrandSlate)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = "Resident: ${listing.authorName} (${listing.authorFlat})", color = BrandSlate, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(16.dp), tint = BrandEmerald)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = "Phone/WhatsApp: ${listing.contact}", color = BrandEmerald, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ModuleSpecificContent(listing: ListingEntity) {
+    val details = listing.details
+    when (details) {
+        is com.example.data.local.ListingDetails.Marketplace -> {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "₹${listing.price.toInt()}",
+                    color = BrandEmerald,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(BrandEmeraldLight)
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = details.category.uppercase(),
+                        color = BrandEmerald,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+        is com.example.data.local.ListingDetails.Service -> {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Star, contentDescription = "Rating", tint = BrandGold, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = details.rating,
+                        fontWeight = FontWeight.Bold,
+                        color = BrandSlate,
+                        fontSize = 14.sp
+                    )
+                }
+                Text(
+                    text = "Base rate: ₹${details.baseRate.toInt()}/visit",
+                    color = BrandSlate,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+        is com.example.data.local.ListingDetails.Carpool -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFFF1F5F9))
+                    .padding(10.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.TripOrigin, contentDescription = "Origin", tint = Color.Blue, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(text = "From: ${details.origin}", fontSize = 13.sp, color = BrandSlate)
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.LocationOn, contentDescription = "Destination", tint = Color.Red, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(text = "To: ${details.destination}", fontSize = 13.sp, color = BrandSlate)
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.AccessTime, contentDescription = "Time", tint = Color.Gray, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = details.departureTime, fontSize = 12.sp, color = Color.Gray)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.AirlineSeatReclineNormal, contentDescription = "Seats", tint = BrandEmerald, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = details.seats, fontSize = 12.sp, color = BrandEmerald, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+        is com.example.data.local.ListingDetails.Property -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFFF8FAFC))
+                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
+                    .padding(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = details.bhk,
+                        fontWeight = FontWeight.Bold,
+                        color = BrandSlate,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = "₹${details.rent.toInt()}/mo",
+                        fontWeight = FontWeight.ExtraBold,
+                        color = BrandEmerald,
+                        fontSize = 16.sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = "Status: ${details.status}", fontSize = 12.sp, color = Color.Gray)
+            }
+        }
+        is com.example.data.local.ListingDetails.Meal -> {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = listing.title,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = BrandSlate
+                    )
+                    Text(
+                        text = "Delivery: ${details.deliveryInfo}",
+                        fontSize = 11.sp,
+                        color = Color.Gray
+                    )
+                }
+                Text(
+                    text = "₹${details.mealPrice.toInt()}",
+                    color = BrandEmerald,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+        }
+        is com.example.data.local.ListingDetails.Vehicle -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFFEEF2F6))
+                    .padding(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = details.plateNumber,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = BrandSlate,
+                        fontSize = 15.sp
+                    )
+                    Text(
+                        text = details.vehicleModel,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.Gray,
+                        fontSize = 13.sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Location/Spot: ${details.locationSpot}",
+                    fontSize = 12.sp,
+                    color = BrandSlate
+                )
+                Text(
+                    text = "Security Tag: ${details.securityTag}",
+                    fontSize = 11.sp,
+                    color = BrandEmerald,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+        is com.example.data.local.ListingDetails.Event -> {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(BrandEmeraldLight)
+                    .padding(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Event, contentDescription = null, tint = BrandEmerald, modifier = Modifier.size(24.dp))
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = details.eventLocation.ifEmpty { "Community Hall" },
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = BrandSlate
+                    )
+                    Text(
+                        text = details.timing.ifEmpty { "This Sunday" },
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                }
+            }
+        }
+        else -> {}
+    }
+}
