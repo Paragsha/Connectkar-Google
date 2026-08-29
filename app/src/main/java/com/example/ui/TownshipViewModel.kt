@@ -149,6 +149,7 @@ class TownshipViewModel(private val repository: TownshipRepository) : ViewModel(
             val isNotDraft = !listing.isDraft
             val matchesModule = listing.type == module
             val matchesSociety = society == "All Societies" || 
+                                 listing.isPublic ||
                                  listing.society == society || 
                                  listing.society.isEmpty() ||
                                  society.isEmpty()
@@ -164,6 +165,7 @@ class TownshipViewModel(private val repository: TownshipRepository) : ViewModel(
             val isNotDraft = !listing.isDraft
             val matchesModule = listing.type == "MEAL"
             val matchesSociety = society == "All Societies" || 
+                                 listing.isPublic ||
                                  listing.society == society || 
                                  listing.society.isEmpty() ||
                                  society.isEmpty()

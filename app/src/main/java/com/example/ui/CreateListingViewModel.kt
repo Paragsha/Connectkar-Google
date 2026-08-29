@@ -108,7 +108,7 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
                 _price.value = if (draft.price > 0.0) draft.price.toString() else ""
                 _category.value = draft.category
                 _condition.value = draft.extra3.ifEmpty { "Like New" }
-                _isSocietyOnly.value = draft.society.isNotEmpty()
+                _isSocietyOnly.value = !draft.isPublic
 
                 if (draft.extra1.isNotEmpty()) {
                     // Extract photos from extra1 if available (delimited by comma)
@@ -230,7 +230,6 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
     }
 
     private fun buildListingEntity(currentUser: UserEntity, isDraft: Boolean): ListingEntity {
-        val societyVal = if (_isSocietyOnly.value) currentUser.society else ""
         val priceVal = _price.value.toDoubleOrNull() ?: 0.0
 
         // Serialize Step 2 details specifically for Marketplace
@@ -257,7 +256,7 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
             description = _description.value,
             price = priceVal,
             contact = currentUser.phoneNumber,
-            society = societyVal,
+            society = currentUser.society,
             authorName = currentUser.fullName,
             authorFlat = "${currentUser.blockTower} - ${currentUser.flatNumber}",
             authorPhone = currentUser.phoneNumber,
@@ -269,7 +268,8 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
             extra3 = _condition.value,
             extra4 = _itemAge.value,
             detailsJson = detailsJsonStr,
-            isDraft = isDraft
+            isDraft = isDraft,
+            isPublic = !_isSocietyOnly.value
         )
     }
 }

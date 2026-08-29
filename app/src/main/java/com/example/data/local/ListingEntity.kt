@@ -78,7 +78,8 @@ data class ListingEntity(
     val extra4: String = "",
     val detailsJson: String = "", // Polymorphic serialized details
     val pendingSync: Boolean = false,
-    val isDraft: Boolean = false
+    val isDraft: Boolean = false,
+    val isPublic: Boolean = false
 ) {
     @androidx.room.Ignore
     @kotlin.jvm.Transient
@@ -183,7 +184,8 @@ fun ListingEntity.toFirestoreMap(): HashMap<String, Any?> {
         "extra3" to extra3,
         "extra4" to extra4,
         "detailsJson" to detailsJson,
-        "isDraft" to isDraft
+        "isDraft" to isDraft,
+        "isPublic" to isPublic
     )
 }
 

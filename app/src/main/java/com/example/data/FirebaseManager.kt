@@ -140,6 +140,8 @@ fun DocumentSnapshot.toListingEntity(): ListingEntity? {
         val extra3 = getString("extra3") ?: ""
         val extra4 = getString("extra4") ?: ""
         val detailsJson = getString("detailsJson") ?: ""
+        val isDraft = getBoolean("isDraft") ?: false
+        val isPublic = getBoolean("isPublic") ?: false
         
         val entity = ListingEntity(
             id = idVal,
@@ -163,7 +165,9 @@ fun DocumentSnapshot.toListingEntity(): ListingEntity? {
             extra2 = extra2,
             extra3 = extra3,
             extra4 = extra4,
-            detailsJson = detailsJson
+            detailsJson = detailsJson,
+            isDraft = isDraft,
+            isPublic = isPublic
         )
         if (detailsJson.isEmpty()) {
             entity.withSerializedDetails()

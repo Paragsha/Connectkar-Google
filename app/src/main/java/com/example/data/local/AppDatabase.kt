@@ -52,7 +52,10 @@ abstract class AppDatabase : RoomDatabase() {
 
         val MIGRATION_5_6 = object : androidx.room.migration.Migration(5, 6) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
-                // Identity migration
+                db.execSQL("ALTER TABLE users ADD COLUMN pendingSync INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE listings ADD COLUMN pendingSync INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE listings ADD COLUMN isDraft INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE listings ADD COLUMN isPublic INTEGER NOT NULL DEFAULT 0")
             }
         }
 

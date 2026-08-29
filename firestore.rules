@@ -44,9 +44,10 @@ service cloud.firestore {
     }
 
     match /listings/{listingId} {
-      // Read listings only if in the same society, or admin
+      // Read listings only if in the same society, public, or admin
       allow read: if request.auth != null && (
         request.auth.token.role == 'ADMIN' ||
+        resource.data.isPublic == true ||
         (userExists() && getUserData().society == resource.data.society)
       );
       
@@ -73,7 +74,7 @@ service cloud.firestore {
         (
           // If a neighbor is liking/bookmarking the listing
           userExists() &&
-          getUserData().society == resource.data.society &&
+          (resource.data.isPublic == true || getUserData().society == resource.data.society) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'isLikedByMe', 'isBookmarked'])
         )
       );
