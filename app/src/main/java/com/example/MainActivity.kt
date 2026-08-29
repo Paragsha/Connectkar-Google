@@ -21,23 +21,25 @@ import com.example.data.repository.TownshipRepository
 import com.example.ui.*
 import com.example.ui.theme.MyApplicationTheme
 
+import com.example.ui.mealhub.ChefOnboardingScreen
+import com.example.ui.mealhub.ChefPortalDashboardScreen
+import com.example.ui.mealhub.ChefPublicProfileScreen
+import com.example.ui.mealhub.MealCheckoutScreen
+import com.example.ui.mealhub.MealDiscoverScreen
+import com.example.ui.mealhub.MyMealsScreen
+
 class MainActivity : ComponentActivity() {
+    private val createHubViewModel: CreateHubViewModel by viewModels {
+        val repository = (applicationContext as ConnectKarApplication).repository
+        CreateHubViewModel.Factory(repository, application)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Initialize Room Database
-        val database = Room.databaseBuilder(
-            applicationContext,
-            AppDatabase::class.java,
-            "connectkar_db"
-        )
-        .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4)
-        .fallbackToDestructiveMigration()
-        .build()
-
-        // Initialize Repository and ViewModel Factory
-        val repository = TownshipRepository(database.appDao(), applicationContext)
+        // Get centralized repository from application context
+        val repository = (applicationContext as ConnectKarApplication).repository
         
         setContent {
             MyApplicationTheme {
@@ -50,6 +52,17 @@ class MainActivity : ComponentActivity() {
                 val filteredListings by viewModel.filteredListings.collectAsStateWithLifecycle()
                 val selectedSociety by viewModel.selectedSociety.collectAsStateWithLifecycle()
                 val syncState by viewModel.syncState.collectAsStateWithLifecycle()
+                val mealListings by viewModel.mealListingsForSociety.collectAsStateWithLifecycle()
+                val operationsState by viewModel.operationsState.collectAsStateWithLifecycle()
+
+                // MealHub state
+                val currentChefProfile by viewModel.currentChefProfile.collectAsStateWithLifecycle()
+                val allChefs by viewModel.allChefsForSociety.collectAsStateWithLifecycle()
+                val menuItems by viewModel.menuItemsForSociety.collectAsStateWithLifecycle()
+                val myOrders by viewModel.myMealOrders.collectAsStateWithLifecycle()
+                val chefOrders by viewModel.chefIncomingOrders.collectAsStateWithLifecycle()
+                val chefMenu by viewModel.chefMenuItems.collectAsStateWithLifecycle()
+                val mySubs by viewModel.myMealSubscriptions.collectAsStateWithLifecycle()
 
                 val navController = rememberNavController()
 
@@ -89,10 +102,15 @@ class MainActivity : ComponentActivity() {
                                     currentUser = user,
                                     selectedSociety = selectedSociety,
                                     syncState = syncState,
+                                    mealListings = mealListings,
                                     onSocietySelected = { viewModel.selectSociety(it) },
                                     onModuleClicked = { moduleId ->
                                         if (moduleId == "ADMIN") {
                                             navController.navigate("admin")
+                                        } else if (moduleId == "CREATE_HUB") {
+                                            navController.navigate("create_hub")
+                                        } else if (moduleId == "MEAL") {
+                                            navController.navigate("meal_discover")
                                         } else {
                                             viewModel.setActiveModule(moduleId)
                                             navController.navigate("module_list/$moduleId")
@@ -111,6 +129,193 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
+                        // --- MealHub Screens ---
+                        composable("meal_discover") {
+                            val user = currentUser
+                            if (user != null) {
+                                MealDiscoverScreen(
+                                    currentUser = user,
+                                    selectedSociety = selectedSociety,
+                                    syncState = syncState,
+                                    menuItems = menuItems,
+                                    chefs = allChefs,
+                                    currentChefProfile = currentChefProfile,
+                                    onDishClicked = { dish ->
+                                        navController.navigate("meal_checkout/${dish.id}")
+                                    },
+                                    onChefProfileClicked = { chefUid ->
+                                        navController.navigate("chef_profile/$chefUid")
+                                    },
+                                    onChefPortalClicked = {
+                                        navController.navigate("chef_portal")
+                                    },
+                                    onChefOnboardingClicked = {
+                                        navController.navigate("chef_onboarding")
+                                    },
+                                    onMyMealsClicked = {
+                                        navController.navigate("my_meals")
+                                    },
+                                    onBackClicked = {
+                                        navController.popBackStack()
+                                    },
+                                    onRetrySync = {
+                                        viewModel.triggerSync()
+                                    }
+                                )
+                            }
+                        }
+
+                        composable("chef_onboarding") {
+                            val user = currentUser
+                            if (user != null) {
+                                ChefOnboardingScreen(
+                                    currentUser = user,
+                                    operationsState = operationsState,
+                                    onSubmitChef = { story, dish, price, port, isVeg, tag, photo ->
+                                        viewModel.becomeChef(story, dish, price, port, isVeg, tag, photo) {
+                                            navController.navigate("chef_portal") {
+                                                popUpTo("meal_discover") { inclusive = false }
+                                            }
+                                        }
+                                    },
+                                    onBackClicked = { navController.popBackStack() },
+                                    onFinish = {
+                                        viewModel.resetOperationsState()
+                                    }
+                                )
+                            }
+                        }
+
+                        composable("chef_portal") {
+                            val user = currentUser
+                            if (user != null) {
+                                ChefPortalDashboardScreen(
+                                    currentUser = user,
+                                    chefProfile = currentChefProfile,
+                                    menuItems = chefMenu,
+                                    incomingOrders = chefOrders,
+                                    subscriptions = mySubs,
+                                    onToggleSoldOut = { id, soldOut ->
+                                        viewModel.toggleMenuItemSoldOut(id, soldOut)
+                                    },
+                                    onUpdateOrderStatus = { id, st ->
+                                        viewModel.updateOrderStatus(id, st)
+                                    },
+                                    onAddNewDish = { name, desc, price, port, veg, tag, type, time, photo ->
+                                        viewModel.addMenuItem(name, desc, price, port, veg, tag, type, time, photo)
+                                    },
+                                    onBackClicked = { navController.popBackStack() }
+                                )
+                            }
+                        }
+
+                        composable(
+                            route = "chef_profile/{chefUid}",
+                            arguments = listOf(navArgument("chefUid") { type = NavType.StringType })
+                        ) { backStackEntry ->
+                            val chefUid = backStackEntry.arguments?.getString("chefUid") ?: ""
+                            val user = currentUser
+                            val targetChefProfile by viewModel.getChefProfile(chefUid).collectAsStateWithLifecycle(null)
+                            val targetChefMenuItems by viewModel.getMenuItemsForChef(chefUid).collectAsStateWithLifecycle(emptyList())
+
+                            ChefPublicProfileScreen(
+                                chefUid = chefUid,
+                                chefProfile = targetChefProfile,
+                                menuItems = targetChefMenuItems,
+                                currentUser = user,
+                                onDishClicked = { dish ->
+                                    navController.navigate("meal_checkout/${dish.id}")
+                                },
+                                onSubscribeClicked = { plan, meals, disc, price ->
+                                    viewModel.subscribeToChef(
+                                        chefUid = chefUid,
+                                        chefName = if (chefUid == "chef_priya") "Priya Sharma" else "Home Chef",
+                                        planType = plan,
+                                        mealsPerCycle = meals,
+                                        discountPercent = disc,
+                                        pricePerMeal = price
+                                    ) {
+                                        navController.navigate("my_meals")
+                                    }
+                                },
+                                onBackClicked = { navController.popBackStack() }
+                            )
+                        }
+
+                        composable(
+                            route = "meal_checkout/{menuItemId}",
+                            arguments = listOf(navArgument("menuItemId") { type = NavType.IntType })
+                        ) { backStackEntry ->
+                            val menuItemId = backStackEntry.arguments?.getInt("menuItemId") ?: 0
+                            val user = currentUser
+                            val itemFlow = remember(menuItemId) { viewModel.getMenuItemById(menuItemId) }
+                            val targetItem by itemFlow.collectAsStateWithLifecycle(null)
+
+                            if (user != null && targetItem != null) {
+                                MealCheckoutScreen(
+                                    menuItem = targetItem!!,
+                                    currentUser = user,
+                                    operationsState = operationsState,
+                                    onPlaceOrder = { serv, window, notes, method, addons, itemTot, addTot, delFee, grandTot ->
+                                        viewModel.placeMealOrder(
+                                            menuItem = targetItem!!,
+                                            servingSize = serv,
+                                            deliveryWindow = window,
+                                            dietaryNotes = notes,
+                                            deliveryMethod = method,
+                                            addOns = addons,
+                                            itemTotal = itemTot,
+                                            addOnsTotal = addTot,
+                                            deliveryFee = delFee,
+                                            grandTotal = grandTot
+                                        ) {
+                                            viewModel.resetOperationsState()
+                                            navController.navigate("my_meals") {
+                                                popUpTo("meal_discover") { inclusive = false }
+                                            }
+                                        }
+                                    },
+                                    onBackClicked = { navController.popBackStack() },
+                                    onOrderSuccess = {
+                                        viewModel.resetOperationsState()
+                                    }
+                                )
+                            }
+                        }
+
+                        composable("my_meals") {
+                            val user = currentUser
+                            if (user != null) {
+                                MyMealsScreen(
+                                    currentUser = user,
+                                    orders = myOrders,
+                                    subscriptions = mySubs,
+                                    onToggleSubscription = { id, st ->
+                                        viewModel.toggleSubscriptionStatus(id, st)
+                                    },
+                                    onBackClicked = { navController.popBackStack() }
+                                )
+                            }
+                        }
+
+                        composable("create_hub") {
+                            val user = currentUser
+                            if (user != null) {
+                                CreateHubScreen(
+                                    currentUser = user,
+                                    viewModel = createHubViewModel,
+                                    onBack = { navController.popBackStack() },
+                                    onNavigateToCreateFlow = { categoryId ->
+                                        viewModel.setActiveModule(categoryId)
+                                        navController.navigate("create_listing/$categoryId") {
+                                            // Pop up to dashboard so that when they finish creating and pop, they return to dashboard instead of create_hub
+                                            popUpTo("dashboard") { inclusive = false }
+                                        }
+                                    }
+                                )
+                            }
+                        }
+
                         composable(
                             route = "module_list/{type}",
                             arguments = listOf(navArgument("type") { type = NavType.StringType })
@@ -118,22 +323,40 @@ class MainActivity : ComponentActivity() {
                             val moduleType = backStackEntry.arguments?.getString("type") ?: ""
                             val user = currentUser
                             if (user != null) {
-                                ModuleListScreen(
-                                    moduleType = moduleType,
-                                    listings = filteredListings,
-                                    currentUser = user,
-                                    selectedSociety = selectedSociety,
-                                    syncState = syncState,
-                                    onBack = { navController.popBackStack() },
-                                    onLikeListing = { viewModel.toggleLike(it) },
-                                    onBookmarkListing = { viewModel.toggleBookmark(it) },
-                                    onCreateListingClicked = {
-                                        navController.navigate("create_listing/$moduleType")
-                                    },
-                                    onRetrySync = {
-                                        viewModel.triggerSync()
-                                    }
-                                )
+                                if (moduleType == "PROPERTY") {
+                                    PropertyRentalsScreen(
+                                        currentUser = user,
+                                        listings = filteredListings,
+                                        selectedSociety = selectedSociety,
+                                        syncState = syncState,
+                                        onBack = { navController.popBackStack() },
+                                        onLikeListing = { viewModel.toggleLike(it) },
+                                        onBookmarkListing = { viewModel.toggleBookmark(it) },
+                                        onCreateListingClicked = {
+                                            navController.navigate("create_listing/PROPERTY")
+                                        },
+                                        onRetrySync = {
+                                            viewModel.triggerSync()
+                                        }
+                                    )
+                                } else {
+                                    ModuleListScreen(
+                                        moduleType = moduleType,
+                                        listings = filteredListings,
+                                        currentUser = user,
+                                        selectedSociety = selectedSociety,
+                                        syncState = syncState,
+                                        onBack = { navController.popBackStack() },
+                                        onLikeListing = { viewModel.toggleLike(it) },
+                                        onBookmarkListing = { viewModel.toggleBookmark(it) },
+                                        onCreateListingClicked = {
+                                            navController.navigate("create_listing/$moduleType")
+                                        },
+                                        onRetrySync = {
+                                            viewModel.triggerSync()
+                                        }
+                                    )
+                                }
                             }
                         }
 
@@ -144,25 +367,13 @@ class MainActivity : ComponentActivity() {
                             val moduleType = backStackEntry.arguments?.getString("type") ?: ""
                             val user = currentUser
                             if (user != null) {
+                                val createListingViewModel: CreateListingViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
                                 CreateListingScreen(
                                     initialType = moduleType,
                                     currentUser = user,
-                                    onBack = { navController.popBackStack() },
-                                    onSubmitListing = { type, title, description, price, contact, category, extra1, extra2, extra3, extra4 ->
-                                        viewModel.createListing(
-                                            type = type,
-                                            title = title,
-                                            description = description,
-                                            price = price,
-                                            contact = contact,
-                                            category = category,
-                                            extra1 = extra1,
-                                            extra2 = extra2,
-                                            extra3 = extra3,
-                                            extra4 = extra4
-                                        )
-                                        // Return to listings list
-                                        viewModel.setActiveModule(type)
+                                    viewModel = createListingViewModel,
+                                    onBack = {
+                                        viewModel.setActiveModule(moduleType)
                                         navController.popBackStack()
                                     }
                                 )

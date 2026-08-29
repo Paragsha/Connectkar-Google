@@ -231,6 +231,40 @@ fun AdminUserRequestCard(
                 }
             }
 
+            if (user.proofDocumentUri.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "PROOF OF RESIDENCE",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Gray
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, BrandOutline),
+                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        coil.compose.AsyncImage(
+                            model = user.proofDocumentUri,
+                            contentDescription = "Proof document preview",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            placeholder = coil.compose.rememberAsyncImagePainter(
+                                model = "https://images.unsplash.com/photo-1586075010923-2dd4570fb338?q=80&w=200"
+                            ),
+                            error = coil.compose.rememberAsyncImagePainter(
+                                model = "https://images.unsplash.com/photo-1586075010923-2dd4570fb338?q=80&w=200"
+                            )
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
             // Approve & Reject Buttons

@@ -141,10 +141,12 @@ fun OnboardingScreen(
         val formattedPhone = if (phoneNumber.startsWith("+")) phoneNumber else "+91$phoneNumber"
         
         try {
-            val options = PhoneAuthOptions.newBuilder(auth!!)
+            val firebaseAuth = auth ?: throw IllegalStateException("Firebase Auth is unavailable.")
+            val act = activity ?: throw IllegalStateException("Activity context is missing.")
+            val options = PhoneAuthOptions.newBuilder(firebaseAuth)
                 .setPhoneNumber(formattedPhone)
                 .setTimeout(60L, java.util.concurrent.TimeUnit.SECONDS)
-                .setActivity(activity!!)
+                .setActivity(act)
                 .setCallbacks(callbacks)
                 .build()
                 
@@ -178,8 +180,20 @@ fun OnboardingScreen(
         
         isVerifyingOtp = true
         try {
-            val credential = PhoneAuthProvider.getCredential(verificationId!!, code)
-            auth!!.signInWithCredential(credential)
+            val vId = verificationId
+            if (vId == null) {
+                errorMessage = "Verification ID is missing. Please request OTP again."
+                isVerifyingOtp = false
+                return
+            }
+            val firebaseAuth = auth
+            if (firebaseAuth == null) {
+                errorMessage = "Firebase Auth is unavailable."
+                isVerifyingOtp = false
+                return
+            }
+            val credential = PhoneAuthProvider.getCredential(vId, code)
+            firebaseAuth.signInWithCredential(credential)
                 .addOnCompleteListener { task ->
                     if (task.isSuccessful) {
                         isOtpSent = false
@@ -344,7 +358,7 @@ fun OnboardingScreen(
 
                                 Spacer(modifier = Modifier.height(24.dp))
 
-                                val isStep1Valid = fullName.trim().isNotBlank() && phoneNumber.trim().length >= 10
+                                val isStep1Valid = FormValidators.isStep1Valid(fullName, phoneNumber)
 
                                 Button(
                                     onClick = {
@@ -676,11 +690,7 @@ fun OnboardingScreen(
                                 Spacer(modifier = Modifier.height(24.dp))
 
                                 // Validation Check
-                                val isStep2Valid = blockTower.trim().isNotBlank() &&
-                                                   flatNumber.trim().isNotBlank() &&
-                                                   floor.trim().isNotBlank() &&
-                                                   moveInDate.trim().isNotBlank() &&
-                                                   proofDocumentUri.trim().isNotBlank()
+                                val isStep2Valid = FormValidators.isStep2Valid(blockTower, flatNumber, floor, moveInDate, proofDocumentUri)
 
                                 Button(
                                     onClick = {

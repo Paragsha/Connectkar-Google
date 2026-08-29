@@ -46,7 +46,14 @@ data class VehicleDetailsJson(val plateNumber: String, val vehicleModel: String,
 @com.squareup.moshi.JsonClass(generateAdapter = true)
 data class EventDetailsJson(val eventLocation: String, val timing: String)
 
-@Entity(tableName = "listings")
+@Entity(
+    tableName = "listings",
+    indices = [
+        androidx.room.Index(value = ["firestoreId"]),
+        androidx.room.Index(value = ["society"]),
+        androidx.room.Index(value = ["type"])
+    ]
+)
 data class ListingEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val firestoreId: String = "", // Firestore document reference
@@ -70,62 +77,25 @@ data class ListingEntity(
     val extra3: String = "", // seats, delivery, vehicle status
     val extra4: String = "",
     val detailsJson: String = "", // Polymorphic serialized details
-    val pendingSync: Boolean = false
-)
+    val pendingSync: Boolean = false,
+    val isDraft: Boolean = false
+) {
+    @androidx.room.Ignore
+    @kotlin.jvm.Transient
+    @Volatile
+    private var cachedDetails: ListingDetails? = null
 
-fun ListingEntity.withSerializedDetails(): ListingEntity {
-    val jsonStr = when (type) {
-        "MARKETPLACE" -> MoshiHelper.toJson(MarketplaceDetailsJson(category))
-        "SERVICE" -> MoshiHelper.toJson(ServiceDetailsJson(extra4.ifEmpty { "4.5" }, price))
-        "CARPOOL" -> MoshiHelper.toJson(CarpoolDetailsJson(extra1, extra2, extra3, extra4))
-        "PROPERTY" -> MoshiHelper.toJson(PropertyDetailsJson(extra2, price, extra3))
-        "MEAL" -> MoshiHelper.toJson(MealDetailsJson(extra3, price))
-        "VEHICLE" -> MoshiHelper.toJson(VehicleDetailsJson(extra1, extra2, extra3, extra4))
-        "EVENT" -> MoshiHelper.toJson(EventDetailsJson(extra1, extra2))
-        else -> ""
-    }
-    return this.copy(detailsJson = jsonStr)
-}
+    val details: ListingDetails
+        get() {
+            var current = cachedDetails
+            if (current == null) {
+                current = computeDetails()
+                cachedDetails = current
+            }
+            return current
+        }
 
-fun ListingEntity.toFirestoreMap(): HashMap<String, Any?> {
-    return hashMapOf(
-        "localId" to id,
-        "type" to type,
-        "title" to title,
-        "description" to description,
-        "price" to price,
-        "contact" to contact,
-        "society" to society,
-        "authorName" to authorName,
-        "authorFlat" to authorFlat,
-        "authorPhone" to authorPhone,
-        "authorUid" to authorUid,
-        "timestamp" to timestamp,
-        "likesCount" to likesCount,
-        "isLikedByMe" to isLikedByMe,
-        "isBookmarked" to isBookmarked,
-        "category" to category,
-        "extra1" to extra1,
-        "extra2" to extra2,
-        "extra3" to extra3,
-        "extra4" to extra4,
-        "detailsJson" to detailsJson
-    )
-}
-
-sealed class ListingDetails {
-    data class Marketplace(val category: String) : ListingDetails()
-    data class Service(val rating: String, val baseRate: Double) : ListingDetails()
-    data class Carpool(val origin: String, val destination: String, val seats: String, val departureTime: String) : ListingDetails()
-    data class Property(val bhk: String, val rent: Double, val status: String) : ListingDetails()
-    data class Meal(val deliveryInfo: String, val mealPrice: Double) : ListingDetails()
-    data class Vehicle(val plateNumber: String, val vehicleModel: String, val locationSpot: String, val securityTag: String) : ListingDetails()
-    data class Event(val eventLocation: String, val timing: String) : ListingDetails()
-    object GeneralFeed : ListingDetails()
-}
-
-val ListingEntity.details: ListingDetails
-    get() {
+    private fun computeDetails(): ListingDetails {
         if (detailsJson.isNotEmpty()) {
             try {
                 return when (type) {
@@ -174,3 +144,56 @@ val ListingEntity.details: ListingDetails
             else -> ListingDetails.GeneralFeed
         }
     }
+}
+
+fun ListingEntity.withSerializedDetails(): ListingEntity {
+    val jsonStr = when (type) {
+        "MARKETPLACE" -> MoshiHelper.toJson(MarketplaceDetailsJson(category))
+        "SERVICE" -> MoshiHelper.toJson(ServiceDetailsJson(extra4.ifEmpty { "4.5" }, price))
+        "CARPOOL" -> MoshiHelper.toJson(CarpoolDetailsJson(extra1, extra2, extra3, extra4))
+        "PROPERTY" -> MoshiHelper.toJson(PropertyDetailsJson(extra2, price, extra3))
+        "MEAL" -> MoshiHelper.toJson(MealDetailsJson(extra3, price))
+        "VEHICLE" -> MoshiHelper.toJson(VehicleDetailsJson(extra1, extra2, extra3, extra4))
+        "EVENT" -> MoshiHelper.toJson(EventDetailsJson(extra1, extra2))
+        else -> ""
+    }
+    return this.copy(detailsJson = jsonStr)
+}
+
+fun ListingEntity.toFirestoreMap(): HashMap<String, Any?> {
+    return hashMapOf(
+        "localId" to id,
+        "type" to type,
+        "title" to title,
+        "description" to description,
+        "price" to price,
+        "contact" to contact,
+        "society" to society,
+        "authorName" to authorName,
+        "authorFlat" to authorFlat,
+        "authorPhone" to authorPhone,
+        "authorUid" to authorUid,
+        "timestamp" to timestamp,
+        "likesCount" to likesCount,
+        "isLikedByMe" to isLikedByMe,
+        "isBookmarked" to isBookmarked,
+        "category" to category,
+        "extra1" to extra1,
+        "extra2" to extra2,
+        "extra3" to extra3,
+        "extra4" to extra4,
+        "detailsJson" to detailsJson,
+        "isDraft" to isDraft
+    )
+}
+
+sealed class ListingDetails {
+    data class Marketplace(val category: String) : ListingDetails()
+    data class Service(val rating: String, val baseRate: Double) : ListingDetails()
+    data class Carpool(val origin: String, val destination: String, val seats: String, val departureTime: String) : ListingDetails()
+    data class Property(val bhk: String, val rent: Double, val status: String) : ListingDetails()
+    data class Meal(val deliveryInfo: String, val mealPrice: Double) : ListingDetails()
+    data class Vehicle(val plateNumber: String, val vehicleModel: String, val locationSpot: String, val securityTag: String) : ListingDetails()
+    data class Event(val eventLocation: String, val timing: String) : ListingDetails()
+    object GeneralFeed : ListingDetails()
+}

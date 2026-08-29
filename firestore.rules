@@ -84,5 +84,114 @@ service cloud.firestore {
         resource.data.authorUid == request.auth.uid
       );
     }
+
+    match /chefProfiles/{chefUid} {
+      allow read: if request.auth != null && (
+        request.auth.token.role == 'ADMIN' ||
+        (userExists() && getUserData().society == resource.data.society)
+      );
+
+      allow create, update: if request.auth != null && (
+        request.auth.token.role == 'ADMIN' ||
+        (
+          request.auth.uid == chefUid &&
+          userExists() &&
+          request.resource.data.society == getUserData().society
+        )
+      );
+
+      allow delete: if request.auth != null && (
+        request.auth.token.role == 'ADMIN' ||
+        request.auth.uid == chefUid
+      );
+    }
+
+    match /menuItems/{menuItemId} {
+      allow read: if request.auth != null && (
+        request.auth.token.role == 'ADMIN' ||
+        (userExists() && getUserData().society == resource.data.society)
+      );
+
+      allow create: if request.auth != null && (
+        request.auth.token.role == 'ADMIN' ||
+        (
+          request.resource.data.chefUid == request.auth.uid &&
+          userExists() &&
+          request.resource.data.society == getUserData().society
+        )
+      );
+
+      allow update: if request.auth != null && (
+        request.auth.token.role == 'ADMIN' ||
+        (
+          resource.data.chefUid == request.auth.uid &&
+          request.resource.data.chefUid == resource.data.chefUid &&
+          request.resource.data.society == resource.data.society
+        )
+      );
+
+      allow delete: if request.auth != null && (
+        request.auth.token.role == 'ADMIN' ||
+        resource.data.chefUid == request.auth.uid
+      );
+    }
+
+    match /mealOrders/{orderId} {
+      allow read: if request.auth != null && (
+        request.auth.token.role == 'ADMIN' ||
+        resource.data.buyerUid == request.auth.uid ||
+        resource.data.chefUid == request.auth.uid ||
+        (userExists() && getUserData().society == resource.data.society)
+      );
+
+      allow create: if request.auth != null && (
+        request.auth.token.role == 'ADMIN' ||
+        (
+          request.resource.data.buyerUid == request.auth.uid &&
+          userExists() &&
+          request.resource.data.society == getUserData().society
+        )
+      );
+
+      allow update: if request.auth != null && (
+        request.auth.token.role == 'ADMIN' ||
+        resource.data.chefUid == request.auth.uid ||
+        resource.data.buyerUid == request.auth.uid
+      );
+
+      allow delete: if request.auth != null && (
+        request.auth.token.role == 'ADMIN' ||
+        resource.data.buyerUid == request.auth.uid
+      );
+    }
+
+    match /mealSubscriptions/{subscriptionId} {
+      allow read: if request.auth != null && (
+        request.auth.token.role == 'ADMIN' ||
+        resource.data.buyerUid == request.auth.uid ||
+        resource.data.chefUid == request.auth.uid ||
+        (userExists() && getUserData().society == resource.data.society)
+      );
+
+      allow create: if request.auth != null && (
+        request.auth.token.role == 'ADMIN' ||
+        (
+          request.resource.data.buyerUid == request.auth.uid &&
+          userExists() &&
+          request.resource.data.society == getUserData().society
+        )
+      );
+
+      allow update: if request.auth != null && (
+        request.auth.token.role == 'ADMIN' ||
+        resource.data.chefUid == request.auth.uid ||
+        resource.data.buyerUid == request.auth.uid
+      );
+
+      allow delete: if request.auth != null && (
+        request.auth.token.role == 'ADMIN' ||
+        resource.data.buyerUid == request.auth.uid
+      );
+    }
   }
 }

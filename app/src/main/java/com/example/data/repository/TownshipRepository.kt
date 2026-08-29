@@ -5,19 +5,64 @@ import com.example.data.await
 import com.example.data.local.AppDao
 import com.example.data.local.ListingEntity
 import com.example.data.local.UserEntity
+import com.example.data.local.ChefProfileEntity
+import com.example.data.local.MenuItemEntity
+import com.example.data.local.MealOrderEntity
+import com.example.data.local.MealSubscriptionEntity
 import com.example.data.local.toFirestoreMap
 import com.example.data.local.withSerializedDetails
 import com.example.data.toListingEntity
 import com.example.data.toUserEntity
+import com.example.data.toChefProfileEntity
+import com.example.data.toMenuItemEntity
+import com.example.data.toMealOrderEntity
+import com.example.data.toMealSubscriptionEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
-class TownshipRepository(private val appDao: AppDao, private val context: android.content.Context) {
+class TownshipRepository(
+    private val appDao: AppDao,
+    private val context: android.content.Context,
+    private val firestore: com.google.firebase.firestore.FirebaseFirestore? = FirebaseManager.firestore
+) : java.io.Closeable {
 
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private val repositoryJob = kotlinx.coroutines.SupervisorJob()
+    private val scope = CoroutineScope(Dispatchers.IO + repositoryJob)
+
+    private var usersListenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
+    private var listingsListenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
+    private var chefProfilesListenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
+    private var menuItemsListenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
+    private var mealOrdersListenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
+    private var mealSubscriptionsListenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
+
+    // For pagination
+    private var lastListingsVisible: com.google.firebase.firestore.DocumentSnapshot? = null
+    private var isListingsLoading = false
+    private var hasMoreListings = true
+
+    override fun close() {
+        repositoryJob.cancel()
+        removeListeners()
+    }
+
+    fun removeListeners() {
+        usersListenerRegistration?.remove()
+        usersListenerRegistration = null
+        listingsListenerRegistration?.remove()
+        listingsListenerRegistration = null
+        chefProfilesListenerRegistration?.remove()
+        chefProfilesListenerRegistration = null
+        menuItemsListenerRegistration?.remove()
+        menuItemsListenerRegistration = null
+        mealOrdersListenerRegistration?.remove()
+        mealOrdersListenerRegistration = null
+        mealSubscriptionsListenerRegistration?.remove()
+        mealSubscriptionsListenerRegistration = null
+    }
 
     private fun scheduleSyncJob() {
         try {
@@ -57,18 +102,41 @@ class TownshipRepository(private val appDao: AppDao, private val context: androi
     val allListings: Flow<List<ListingEntity>> = appDao.getAllListings()
 
     init {
-        startFirestoreSync()
-    }
-
-    private fun startFirestoreSync() {
-        val firestore = FirebaseManager.firestore ?: return
-        
-        // Listen for users in Firestore and keep Room updated
+        // Start reactive sync based on current user's society
         scope.launch {
             try {
-                firestore.collection("users").limit(100).addSnapshotListener { snapshot, error ->
+                currentUserFlow.collect { user ->
+                    val society = user?.society ?: ""
+                    if (society.isNotEmpty()) {
+                        restartFirestoreSync(society)
+                    } else {
+                        removeListeners()
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("Sync", "Sync collection closed/cancelled: ${e.message}")
+            }
+        }
+    }
+
+    private fun restartFirestoreSync(society: String) {
+        removeListeners()
+        val fs = firestore ?: return
+
+        // Reset pagination for this society
+        lastListingsVisible = null
+        isListingsLoading = false
+        hasMoreListings = true
+
+        // Listen for users in the same society in Firestore and keep Room updated
+        try {
+            usersListenerRegistration = fs.collection("users")
+                .whereEqualTo("society", society)
+                .limit(50)
+                .addSnapshotListener { snapshot, error ->
                     if (error != null) {
                         android.util.Log.e("Sync", "Users snapshot listener error", error)
+                        usersListenerRegistration = null
                         return@addSnapshotListener
                     }
                     if (snapshot != null) {
@@ -91,48 +159,233 @@ class TownshipRepository(private val appDao: AppDao, private val context: androi
                         }
                     }
                 }
-            } catch (e: Exception) {
-                android.util.Log.e("Sync", "Users sync failed to start", e)
-            }
+        } catch (e: Exception) {
+            android.util.Log.e("Sync", "Users sync failed to start", e)
         }
 
-        // Listen for listings in Firestore and keep Room updated
-        scope.launch {
-            try {
-                firestore.collection("listings")
-                    .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                    .limit(100)
-                    .addSnapshotListener { snapshot, error ->
-                        if (error != null) {
-                            android.util.Log.e("Sync", "Listings snapshot listener error", error)
-                            return@addSnapshotListener
-                        }
-                        if (snapshot != null) {
-                            scope.launch {
-                                for (doc in snapshot.documents) {
-                                    val listing = doc.toListingEntity()
-                                    if (listing != null) {
-                                        val existing = appDao.getListingByFirestoreIdDirect(listing.firestoreId)
-                                        if (existing != null) {
-                                            // Conflict Resolution: Avoid clobbering pending local edits unless remote is newer
-                                            if (existing.pendingSync) {
-                                                if (listing.timestamp > existing.timestamp) {
-                                                    appDao.updateListing(listing.copy(id = existing.id))
-                                                }
-                                            } else {
+        // Listen for listings in the same society in Firestore and keep Room updated
+        try {
+            listingsListenerRegistration = fs.collection("listings")
+                .whereEqualTo("society", society)
+                .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .limit(20)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        android.util.Log.e("Sync", "Listings snapshot listener error", error)
+                        listingsListenerRegistration = null
+                        return@addSnapshotListener
+                    }
+                    if (snapshot != null) {
+                        scope.launch {
+                            if (snapshot.documents.isNotEmpty()) {
+                                lastListingsVisible = snapshot.documents.last()
+                            }
+                            for (doc in snapshot.documents) {
+                                val listing = doc.toListingEntity()
+                                if (listing != null) {
+                                    val existing = appDao.getListingByFirestoreIdDirect(listing.firestoreId)
+                                    if (existing != null) {
+                                        // Conflict Resolution: Avoid clobbering pending local edits unless remote is newer
+                                        if (existing.pendingSync) {
+                                            if (listing.timestamp > existing.timestamp) {
                                                 appDao.updateListing(listing.copy(id = existing.id))
                                             }
                                         } else {
-                                            appDao.insertListing(listing)
+                                            appDao.updateListing(listing.copy(id = existing.id))
                                         }
+                                    } else {
+                                        appDao.insertListing(listing)
                                     }
                                 }
                             }
                         }
                     }
-            } catch (e: Exception) {
-                android.util.Log.e("Sync", "Listings sync failed to start", e)
+                }
+        } catch (e: Exception) {
+            android.util.Log.e("Sync", "Listings sync failed to start", e)
+        }
+
+        // Listen for chefProfiles in Firestore
+        try {
+            chefProfilesListenerRegistration = fs.collection("chefProfiles")
+                .whereEqualTo("society", society)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        android.util.Log.e("Sync", "ChefProfiles snapshot listener error", error)
+                        chefProfilesListenerRegistration = null
+                        return@addSnapshotListener
+                    }
+                    if (snapshot != null) {
+                        scope.launch {
+                            for (doc in snapshot.documents) {
+                                val chef = doc.toChefProfileEntity()
+                                if (chef != null) {
+                                    val existing = appDao.getChefProfileByUidDirect(chef.uid)
+                                    if (existing != null) {
+                                        if (!existing.pendingSync) {
+                                            appDao.updateChefProfile(chef)
+                                        }
+                                    } else {
+                                        appDao.insertChefProfile(chef)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+        } catch (e: Exception) {
+            android.util.Log.e("Sync", "ChefProfiles sync failed to start", e)
+        }
+
+        // Listen for menuItems in Firestore
+        try {
+            menuItemsListenerRegistration = fs.collection("menuItems")
+                .whereEqualTo("society", society)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        android.util.Log.e("Sync", "MenuItems snapshot listener error", error)
+                        menuItemsListenerRegistration = null
+                        return@addSnapshotListener
+                    }
+                    if (snapshot != null) {
+                        scope.launch {
+                            for (doc in snapshot.documents) {
+                                val item = doc.toMenuItemEntity()
+                                if (item != null) {
+                                    val existing = appDao.getMenuItemByFirestoreIdDirect(item.firestoreId)
+                                    if (existing != null) {
+                                        if (existing.pendingSync) {
+                                            if (item.timestamp > existing.timestamp) {
+                                                appDao.updateMenuItem(item.copy(id = existing.id))
+                                            }
+                                        } else {
+                                            appDao.updateMenuItem(item.copy(id = existing.id))
+                                        }
+                                    } else {
+                                        appDao.insertMenuItem(item)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+        } catch (e: Exception) {
+            android.util.Log.e("Sync", "MenuItems sync failed to start", e)
+        }
+
+        // Listen for mealOrders in Firestore
+        try {
+            mealOrdersListenerRegistration = fs.collection("mealOrders")
+                .whereEqualTo("society", society)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        android.util.Log.e("Sync", "MealOrders snapshot listener error", error)
+                        mealOrdersListenerRegistration = null
+                        return@addSnapshotListener
+                    }
+                    if (snapshot != null) {
+                        scope.launch {
+                            for (doc in snapshot.documents) {
+                                val order = doc.toMealOrderEntity()
+                                if (order != null) {
+                                    val existing = appDao.getOrderByFirestoreIdDirect(order.firestoreId)
+                                    if (existing != null) {
+                                        if (existing.pendingSync) {
+                                            if (order.timestamp > existing.timestamp) {
+                                                appDao.updateMealOrder(order.copy(id = existing.id))
+                                            }
+                                        } else {
+                                            appDao.updateMealOrder(order.copy(id = existing.id))
+                                        }
+                                    } else {
+                                        appDao.insertMealOrder(order)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+        } catch (e: Exception) {
+            android.util.Log.e("Sync", "MealOrders sync failed to start", e)
+        }
+
+        // Listen for mealSubscriptions in Firestore
+        try {
+            mealSubscriptionsListenerRegistration = fs.collection("mealSubscriptions")
+                .whereEqualTo("society", society)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        android.util.Log.e("Sync", "MealSubscriptions snapshot listener error", error)
+                        mealSubscriptionsListenerRegistration = null
+                        return@addSnapshotListener
+                    }
+                    if (snapshot != null) {
+                        scope.launch {
+                            for (doc in snapshot.documents) {
+                                val sub = doc.toMealSubscriptionEntity()
+                                if (sub != null) {
+                                    val existing = appDao.getSubscriptionByFirestoreIdDirect(sub.firestoreId)
+                                    if (existing != null) {
+                                        if (existing.pendingSync) {
+                                            if (sub.timestamp > existing.timestamp) {
+                                                appDao.updateMealSubscription(sub.copy(id = existing.id))
+                                            }
+                                        } else {
+                                            appDao.updateMealSubscription(sub.copy(id = existing.id))
+                                        }
+                                    } else {
+                                        appDao.insertMealSubscription(sub)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+        } catch (e: Exception) {
+            android.util.Log.e("Sync", "MealSubscriptions sync failed to start", e)
+        }
+    }
+
+    suspend fun loadNextPageListings(society: String, type: String) {
+        if (isListingsLoading || !hasMoreListings) return
+        val fs = firestore ?: return
+        isListingsLoading = true
+        try {
+            var query = fs.collection("listings")
+                .whereEqualTo("society", society)
+                .whereEqualTo("type", type)
+                .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .limit(20)
+            
+            val last = lastListingsVisible
+            if (last != null) {
+                query = query.startAfter(last)
             }
+            
+            val snapshot = query.get().await()
+            if (!snapshot.isEmpty) {
+                lastListingsVisible = snapshot.documents.lastOrNull()
+                if (snapshot.size() < 20) {
+                    hasMoreListings = false
+                }
+                val entities = snapshot.documents.mapNotNull { it.toListingEntity() }
+                for (entity in entities) {
+                    val existing = appDao.getListingByFirestoreIdDirect(entity.firestoreId)
+                    if (existing != null) {
+                        if (!existing.pendingSync) {
+                            appDao.updateListing(entity.copy(id = existing.id))
+                        }
+                    } else {
+                        appDao.insertListing(entity)
+                    }
+                }
+            } else {
+                hasMoreListings = false
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("Sync", "Error paginating listings", e)
+        } finally {
+            isListingsLoading = false
         }
     }
 
@@ -249,23 +502,22 @@ class TownshipRepository(private val appDao: AppDao, private val context: androi
                         .await()
                 } catch (e: Exception) {
                     android.util.Log.e("Functions", "Error calling $functionName: ${e.message}")
-                    // In debug mode, if the Cloud Function is not deployed, fallback to direct Firestore write for convenience
-                    if (com.example.BuildConfig.DEBUG) {
-                        val firestore = FirebaseManager.firestore
-                        if (firestore != null) {
-                            try {
-                                firestore.collection("users").document(user.uid).update(
-                                    "isVerified", isVerified,
-                                    "isPending", false
-                                ).await()
-                            } catch (fe: Exception) {
-                                android.util.Log.e("Firestore", "Debug direct fallback failed: ${fe.message}")
-                            }
-                        }
-                    }
                 }
             }
         }
+    }
+
+    suspend fun getDraftListing(type: String): ListingEntity? {
+        return appDao.getDraftListingByTypeDirect(type)
+    }
+
+    suspend fun saveDraftListing(listing: ListingEntity) {
+        val typedListing = listing.copy(isDraft = true).withSerializedDetails()
+        appDao.insertListing(typedListing)
+    }
+
+    suspend fun deleteDraft(id: Int) {
+        appDao.deleteListingById(id)
     }
 
     // Modified insertListing to write to Firestore first and then cache locally
@@ -453,6 +705,102 @@ class TownshipRepository(private val appDao: AppDao, private val context: androi
                     authorFlat = "B-201",
                     authorPhone = "9988776655",
                     category = "General Alert"
+                ),
+                ListingEntity(
+                    type = "PROPERTY",
+                    title = "2 BHK Semi-Furnished Apartment",
+                    description = "Modular kitchen, wardrobes in both bedrooms, and excellent ventilation.",
+                    price = 28000.0,
+                    contact = "9876543210",
+                    society = "",
+                    authorName = "Ananya Sen",
+                    authorFlat = "Wing A, Flat 304",
+                    authorPhone = "9876543210",
+                    category = "2 BHK Rent",
+                    extra1 = "https://lh3.googleusercontent.com/aida-public/AB6AXuA1ilwu0-nL4Uf4RDnlpLjtgUgVcugQkNHj9n-5km498WAcH_Yp290Dxq7oDHFCSUpMJgfx5AsoC_DbRl59YgzgrghIq1GC_BhE8rekPsJSzLROBEnYSl5EM64MfXqnJn7d2ycWMMkCG-v9aptZFlP6Ad3gRbnIGZ1PbEmDv6XgkjtrYtfS7JHTD7Ubmi5cWHX1nsSccrkiZjStXigCV5NM07oLlrsJAMC0zu6YBKaj7YLurQ1XhdDx",
+                    extra2 = "2 BHK",
+                    extra3 = "AVAILABLE",
+                    extra4 = "VERIFIED_OWNER"
+                ),
+                ListingEntity(
+                    type = "PROPERTY",
+                    title = "1 BHK Fully-Furnished Studio",
+                    description = "Cosy, elegant fully-furnished studio apartment, perfect for individuals or couples. Modern appliances and sleek decor.",
+                    price = 18500.0,
+                    contact = "9876543210",
+                    society = "",
+                    authorName = "Ramesh Kumar",
+                    authorFlat = "Wing B, Flat 102",
+                    authorPhone = "9876543210",
+                    category = "1 BHK Rent",
+                    extra1 = "https://lh3.googleusercontent.com/aida-public/AB6AXuCSUHUKTUPaoc_5P-7jwaWqqa9Fj2Iy4HBoVfnObdWF0TCV8VKKCTs3QiYn1K6uCS8TCkSTsVb5E8V0FUOkflhJr4Ta65nayOSsu0MN457pZnN1sodqGAtR64wqLwNIgUz61JWqUTjYnURFpL2_tP63kb37s6F_tbjY46leBr-RgQT5dXEagELErgSr3mloYPlBzKUJ0dh2s-8s0TISlqczSEr9D1O2TdExNooiBwMQJ2NtKM3UWaz6",
+                    extra2 = "1 BHK",
+                    extra3 = "AVAILABLE",
+                    extra4 = "VERIFIED_OWNER"
+                ),
+                ListingEntity(
+                    type = "PROPERTY",
+                    title = "3 BHK Luxury Penthouse",
+                    description = "High-end penthouse featuring premium marble flooring, custom lighting, spacious private terrace with fireplace, and stunning cityscape views.",
+                    price = 65000.0,
+                    contact = "9123456780",
+                    society = "",
+                    authorName = "Sneha Reddy",
+                    authorFlat = "Tower C, Penthouse 24",
+                    authorPhone = "9123456780",
+                    category = "3 BHK Rent",
+                    extra1 = "https://lh3.googleusercontent.com/aida-public/AB6AXuC4vOoaVsOZqmaG_D_HK1YcFcmqGhDYNA8hNtVFRNWRH7vHqEySKkMI58oVmRVe2Oq8T0IijJkRwIyt-7Ri9WCrtscd4PH8VHMAG5Yx1yxl8rmGVAEASkuTyMFeolnAePXaFEe1pBmulVnymQFovQASdvPfcjyKE2UkoULrcgfxXJcIlMVT78CvWrgAx-FFHVkO27HrMfv16cSdNNfJDRFtGH21yHMgn3fZYI6S9-b0l45FVp8Wx3Wt",
+                    extra2 = "3 BHK",
+                    extra3 = "AVAILABLE",
+                    extra4 = "SOCIETY_APPROVED"
+                ),
+                ListingEntity(
+                    type = "PROPERTY",
+                    title = "2 BHK Shared Living Space",
+                    description = "Comfortable co-living setup with shared common areas, private bedrooms, and high-speed internet. Ideal for students and young professionals.",
+                    price = 14000.0,
+                    contact = "9988776655",
+                    society = "",
+                    authorName = "Rohan Gupta",
+                    authorFlat = "Wing D, Flat 505",
+                    authorPhone = "9988776655",
+                    category = "PG / Shared Accommodation",
+                    extra1 = "https://lh3.googleusercontent.com/aida-public/AB6AXuDxmY7e1rbYWoQHTX5ktiTWHoK_QhpiPw_eYId8uNdB0m1kKNPxHVXcui4Fhan3Nad-rw3nhLGgQeSzXGKAWGgIqsh4OhCmafwwaHBUOa5JOf4STa88rSUu99oqjqq2Nd2n-0hLkwoUVgCeILdKoS3tRPAWb7dWNzwKnABGiNg0jUczKQhY0n7eBpsElnclyHGC3R9_CEROej389nrf5V-hsRntEDpMJufhFkczaaosABQoi0UyKy6i",
+                    extra2 = "2 BHK",
+                    extra3 = "AVAILABLE",
+                    extra4 = "NONE"
+                ),
+                ListingEntity(
+                    type = "MEAL",
+                    title = "Spicy Paneer Salad Bowl",
+                    description = "Fresh paneer cubes with organic greens, bell peppers, tomatoes, and spicy mint-cilantro vinaigrette. High-protein, low-calorie.",
+                    price = 249.0,
+                    contact = "9876543210",
+                    society = "Sylvan County",
+                    authorName = "Priya Sharma",
+                    authorFlat = "Wing A, Flat 304",
+                    authorPhone = "9876543210",
+                    category = "Lunch Veg",
+                    extra1 = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500",
+                    extra2 = "VEG",
+                    extra3 = "Within 45 mins",
+                    extra4 = "HOME_CHEF"
+                ),
+                ListingEntity(
+                    type = "MEAL",
+                    title = "Nawabi Chicken Biryani",
+                    description = "Fragrant basmati rice slow-cooked with tender marinated chicken and exotic spices, served with cooling raita.",
+                    price = 380.0,
+                    contact = "9812345678",
+                    society = "Sylvan County",
+                    authorName = "Vikram Malhotra",
+                    authorFlat = "Wing C, Flat 902",
+                    authorPhone = "9812345678",
+                    category = "Lunch Non-Veg",
+                    extra1 = "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=500",
+                    extra2 = "NON-VEG",
+                    extra3 = "By 1:30 PM",
+                    extra4 = "HOME_CHEF"
                 )
             )
 
@@ -471,6 +819,295 @@ class TownshipRepository(private val appDao: AppDao, private val context: androi
                     appDao.insertListing(typedListing)
                 }
             }
+
+            // Seed Mock Chefs & Menu Items
+            val mockChefs = listOf(
+                ChefProfileEntity(
+                    uid = "chef_priya",
+                    isChef = true,
+                    chefStory = "Home cooking enthusiast specialized in authentic Satvik and North Indian thalis. Cooking with love and cold-pressed organic oils.",
+                    mealsServedCount = 142,
+                    regularsCount = 28,
+                    ratingAvg = 4.9,
+                    isSocietyVouched = true,
+                    speciality = "North Indian & Thalis",
+                    society = "Sylvan County"
+                ),
+                ChefProfileEntity(
+                    uid = "chef_vikram",
+                    isChef = true,
+                    chefStory = "Passionate about rich Awadhi and Hyderabadi culinary traditions. Slow-cooked dum biryanis and melt-in-mouth kebabs every weekend.",
+                    mealsServedCount = 98,
+                    regularsCount = 19,
+                    ratingAvg = 4.8,
+                    isSocietyVouched = true,
+                    speciality = "Dum Biryani & Awadhi",
+                    society = "Sylvan County"
+                )
+            )
+
+            for (chef in mockChefs) {
+                if (firestore != null) {
+                    try {
+                        firestore.collection("chefProfiles").document(chef.uid).set(chef.toFirestoreMap())
+                    } catch (e: Exception) {}
+                }
+                appDao.insertChefProfile(chef)
+            }
+
+            val mockMenuItems = listOf(
+                MenuItemEntity(
+                    firestoreId = "menu_paneer_salad",
+                    chefUid = "chef_priya",
+                    chefName = "Priya Sharma",
+                    chefFlat = "Wing A, Flat 304",
+                    dishName = "Spicy Paneer Salad Bowl",
+                    description = "Fresh malai paneer cubes with organic greens, bell peppers, cherry tomatoes, and spicy mint-cilantro vinaigrette. High-protein, wholesome.",
+                    price = 249.0,
+                    portionsAvailable = 8,
+                    portionsBooked = 3,
+                    isVeg = true,
+                    photoUrl = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500",
+                    cuisineTags = "Healthy, Salad, High-Protein",
+                    mealType = "LUNCH",
+                    deliveryWindow = "12:30 PM - 1:30 PM",
+                    society = "Sylvan County",
+                    isSoldOut = false
+                ),
+                MenuItemEntity(
+                    firestoreId = "menu_punjabi_thali",
+                    chefUid = "chef_priya",
+                    chefName = "Priya Sharma",
+                    chefFlat = "Wing A, Flat 304",
+                    dishName = "Royal Amritsari Thali",
+                    description = "Dal Makhani, Shahi Paneer, 3 Phulkas with pure ghee, Jeera Rice, Boondi Raita, and Gulab Jamun.",
+                    price = 280.0,
+                    portionsAvailable = 12,
+                    portionsBooked = 6,
+                    isVeg = true,
+                    photoUrl = "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=500",
+                    cuisineTags = "North Indian, Thali, Desi Ghee",
+                    mealType = "LUNCH",
+                    deliveryWindow = "1:00 PM - 2:00 PM",
+                    society = "Sylvan County",
+                    isSoldOut = false
+                ),
+                MenuItemEntity(
+                    firestoreId = "menu_chicken_biryani",
+                    chefUid = "chef_vikram",
+                    chefName = "Vikram Malhotra",
+                    chefFlat = "Wing C, Flat 902",
+                    dishName = "Nawabi Chicken Biryani",
+                    description = "Fragrant long-grain basmati rice slow-cooked with tender marinated chicken and secret ground spices, served with cooling burani raita and salan.",
+                    price = 380.0,
+                    portionsAvailable = 6,
+                    portionsBooked = 4,
+                    isVeg = false,
+                    photoUrl = "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=500",
+                    cuisineTags = "Awadhi, Biryani, Non-Veg",
+                    mealType = "LUNCH",
+                    deliveryWindow = "12:45 PM - 1:45 PM",
+                    society = "Sylvan County",
+                    isSoldOut = false
+                )
+            )
+
+            for (item in mockMenuItems) {
+                if (firestore != null) {
+                    try {
+                        firestore.collection("menuItems").document(item.firestoreId).set(item.toFirestoreMap())
+                    } catch (e: Exception) {}
+                }
+                appDao.insertMenuItem(item)
+            }
         }
     }
+
+    // --- MealHub Repository Operations ---
+    fun getChefProfile(uid: String): Flow<ChefProfileEntity?> = appDao.getChefProfileByUid(uid)
+
+    fun getAllChefsForSociety(society: String): Flow<List<ChefProfileEntity>> {
+        return if (society.isEmpty() || society == "All Societies") {
+            appDao.getAllChefsForSociety("")
+        } else {
+            appDao.getAllChefsForSociety(society)
+        }
+    }
+
+    fun getMenuItemsForSociety(society: String): Flow<List<MenuItemEntity>> {
+        return if (society.isEmpty() || society == "All Societies") {
+            appDao.getAllMenuItems()
+        } else {
+            appDao.getAllMenuItemsForSociety(society)
+        }
+    }
+
+    fun getMenuItemsForChef(chefUid: String): Flow<List<MenuItemEntity>> = appDao.getMenuItemsForChef(chefUid)
+
+    fun getMenuItemById(id: Int): Flow<MenuItemEntity?> = appDao.getMenuItemById(id)
+
+    suspend fun becomeChef(
+        chefProfile: ChefProfileEntity,
+        initialSpecial: MenuItemEntity
+    ) {
+        val insertedChefId = appDao.insertChefProfile(chefProfile)
+        val insertedItemId = appDao.insertMenuItem(initialSpecial)
+
+        val fs = firestore
+        if (fs != null && chefProfile.uid.isNotEmpty()) {
+            try {
+                fs.collection("chefProfiles").document(chefProfile.uid).set(chefProfile.toFirestoreMap()).await()
+                val docRef = fs.collection("menuItems").document()
+                val updatedItem = initialSpecial.copy(id = insertedItemId.toInt(), firestoreId = docRef.id, pendingSync = false)
+                docRef.set(updatedItem.toFirestoreMap()).await()
+                appDao.updateMenuItem(updatedItem)
+            } catch (e: Exception) {
+                android.util.Log.e("MealHub", "Failed to sync chef profile: ${e.message}")
+                appDao.updateChefProfile(chefProfile.copy(pendingSync = true))
+                appDao.updateMenuItem(initialSpecial.copy(id = insertedItemId.toInt(), pendingSync = true))
+                scheduleSyncJob()
+            }
+        } else {
+            appDao.updateChefProfile(chefProfile.copy(pendingSync = true))
+            appDao.updateMenuItem(initialSpecial.copy(id = insertedItemId.toInt(), pendingSync = true))
+            scheduleSyncJob()
+        }
+    }
+
+    suspend fun createMenuItem(item: MenuItemEntity): Long {
+        val insertedId = appDao.insertMenuItem(item)
+        var finalItem = item.copy(id = insertedId.toInt())
+        val fs = firestore
+        if (fs != null) {
+            val docRef = fs.collection("menuItems").document()
+            finalItem = finalItem.copy(firestoreId = docRef.id)
+            try {
+                docRef.set(finalItem.toFirestoreMap()).await()
+                appDao.updateMenuItem(finalItem)
+            } catch (e: Exception) {
+                finalItem = finalItem.copy(pendingSync = true)
+                appDao.updateMenuItem(finalItem)
+                scheduleSyncJob()
+            }
+        } else {
+            finalItem = finalItem.copy(pendingSync = true)
+            appDao.updateMenuItem(finalItem)
+            scheduleSyncJob()
+        }
+        return insertedId
+    }
+
+    suspend fun toggleMenuItemSoldOut(itemId: Int, isSoldOut: Boolean) {
+        val existing = appDao.getMenuItemByIdDirect(itemId) ?: return
+        val updated = existing.copy(isSoldOut = isSoldOut, timestamp = System.currentTimeMillis())
+        appDao.updateMenuItem(updated)
+        val fs = firestore
+        if (fs != null && updated.firestoreId.isNotEmpty()) {
+            try {
+                fs.collection("menuItems").document(updated.firestoreId).update(
+                    mapOf("isSoldOut" to isSoldOut, "timestamp" to updated.timestamp)
+                ).await()
+            } catch (e: Exception) {
+                appDao.updateMenuItem(updated.copy(pendingSync = true))
+                scheduleSyncJob()
+            }
+        } else {
+            appDao.updateMenuItem(updated.copy(pendingSync = true))
+            scheduleSyncJob()
+        }
+    }
+
+    suspend fun createMealOrder(order: MealOrderEntity): Long {
+        val insertedId = appDao.insertMealOrder(order)
+        var finalOrder = order.copy(id = insertedId.toInt())
+        val fs = firestore
+        if (fs != null) {
+            val docRef = fs.collection("mealOrders").document()
+            finalOrder = finalOrder.copy(firestoreId = docRef.id)
+            try {
+                docRef.set(finalOrder.toFirestoreMap()).await()
+                appDao.updateMealOrder(finalOrder)
+            } catch (e: Exception) {
+                finalOrder = finalOrder.copy(pendingSync = true)
+                appDao.updateMealOrder(finalOrder)
+                scheduleSyncJob()
+            }
+        } else {
+            finalOrder = finalOrder.copy(pendingSync = true)
+            appDao.updateMealOrder(finalOrder)
+            scheduleSyncJob()
+        }
+        return insertedId
+    }
+
+    suspend fun updateOrderStatus(orderId: Int, newStatus: String) {
+        val existing = appDao.getOrderByIdDirect(orderId) ?: return
+        val updated = existing.copy(status = newStatus, timestamp = System.currentTimeMillis())
+        appDao.updateMealOrder(updated)
+        val fs = firestore
+        if (fs != null && updated.firestoreId.isNotEmpty()) {
+            try {
+                fs.collection("mealOrders").document(updated.firestoreId).update(
+                    mapOf("status" to newStatus, "timestamp" to updated.timestamp)
+                ).await()
+            } catch (e: Exception) {
+                appDao.updateMealOrder(updated.copy(pendingSync = true))
+                scheduleSyncJob()
+            }
+        } else {
+            appDao.updateMealOrder(updated.copy(pendingSync = true))
+            scheduleSyncJob()
+        }
+    }
+
+    fun getOrdersForBuyer(buyerUid: String): Flow<List<MealOrderEntity>> = appDao.getOrdersForBuyer(buyerUid)
+
+    fun getOrdersForChef(chefUid: String): Flow<List<MealOrderEntity>> = appDao.getOrdersForChef(chefUid)
+
+    suspend fun createMealSubscription(sub: MealSubscriptionEntity): Long {
+        val insertedId = appDao.insertMealSubscription(sub)
+        var finalSub = sub.copy(id = insertedId.toInt())
+        val fs = firestore
+        if (fs != null) {
+            val docRef = fs.collection("mealSubscriptions").document()
+            finalSub = finalSub.copy(firestoreId = docRef.id)
+            try {
+                docRef.set(finalSub.toFirestoreMap()).await()
+                appDao.updateMealSubscription(finalSub)
+            } catch (e: Exception) {
+                finalSub = finalSub.copy(pendingSync = true)
+                appDao.updateMealSubscription(finalSub)
+                scheduleSyncJob()
+            }
+        } else {
+            finalSub = finalSub.copy(pendingSync = true)
+            appDao.updateMealSubscription(finalSub)
+            scheduleSyncJob()
+        }
+        return insertedId
+    }
+
+    suspend fun toggleSubscriptionStatus(subId: Int, newStatus: String) {
+        val existing = appDao.getSubscriptionByIdDirect(subId) ?: return
+        val updated = existing.copy(status = newStatus, timestamp = System.currentTimeMillis())
+        appDao.updateMealSubscription(updated)
+        val fs = firestore
+        if (fs != null && updated.firestoreId.isNotEmpty()) {
+            try {
+                fs.collection("mealSubscriptions").document(updated.firestoreId).update(
+                    mapOf("status" to newStatus, "timestamp" to updated.timestamp)
+                ).await()
+            } catch (e: Exception) {
+                appDao.updateMealSubscription(updated.copy(pendingSync = true))
+                scheduleSyncJob()
+            }
+        } else {
+            appDao.updateMealSubscription(updated.copy(pendingSync = true))
+            scheduleSyncJob()
+        }
+    }
+
+    fun getSubscriptionsForBuyer(buyerUid: String): Flow<List<MealSubscriptionEntity>> = appDao.getSubscriptionsForBuyer(buyerUid)
+
+    fun getSubscriptionsForChef(chefUid: String): Flow<List<MealSubscriptionEntity>> = appDao.getSubscriptionsForChef(chefUid)
 }

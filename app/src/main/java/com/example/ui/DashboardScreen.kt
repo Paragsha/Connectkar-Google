@@ -1,15 +1,20 @@
 package com.example.ui
 
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,20 +22,40 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.UserEntity
+import com.example.data.local.ListingEntity
+import com.example.ui.theme.*
+import coil.compose.AsyncImage
+import coil.compose.rememberAsyncImagePainter
+import androidx.compose.ui.layout.ContentScale
 
-data class ModuleItem(
+data class BentoPillar(
     val id: String,
     val title: String,
     val subtitle: String,
-    val icon: ImageVector,
-    val tintColor: Color,
-    val bgGradient: List<Color>
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val bgBrush: Brush,
+    val iconColor: Color,
+    val textColor: Color,
+    val outlineColor: Color = Color.Transparent,
+    val ghostIcon: androidx.compose.ui.graphics.vector.ImageVector
+)
+
+data class ChefMeal(
+    val chefName: String,
+    val location: String,
+    val dishName: String,
+    val price: Int,
+    val isVeg: Boolean,
+    val contactPhone: String,
+    val emoji: String,
+    val gradientColors: List<Color>
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,6 +64,7 @@ fun DashboardScreen(
     currentUser: UserEntity,
     selectedSociety: String,
     syncState: SyncState,
+    mealListings: List<ListingEntity> = emptyList(),
     onSocietySelected: (String) -> Unit,
     onModuleClicked: (String) -> Unit,
     onSimulateApprove: () -> Unit,
@@ -46,136 +72,351 @@ fun DashboardScreen(
     onRetrySync: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var showSocietyPicker by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    var showSocietyDropdown by remember { mutableStateOf(false) }
+    var activeTab by remember { mutableStateOf("home") } // "home", "explore", "society", "profile"
     
+    // Dialog / popup states
+    var showCreateChoiceDialog by remember { mutableStateOf(false) }
+    var showProfileDetailsDialog by remember { mutableStateOf(false) }
+    var selectedMealForOrder by remember { mutableStateOf<ChefMeal?>(null) }
+    var selectedListingMealForOrder by remember { mutableStateOf<ListingEntity?>(null) }
+
     val societies = listOf("All Societies") + TownshipSocieties
 
-    val modules = listOf(
-        ModuleItem(
+    // High-end design palette (Consolidated to Concierge Design Tokens)
+    val brandNavy = ConciergePrimaryContainer
+    val brandGreen = ConciergeHomeLiving
+    val colorGrayLight = ConciergeSurfaceContainerLow
+
+    // Bento grid pillars
+    val pillars = listOf(
+        BentoPillar(
             id = "MARKETPLACE",
-            title = "Marketplace",
+            title = "Buy & Sell\nItems",
             subtitle = "Buy & Sell Items",
-            icon = Icons.Default.ShoppingCart,
-            tintColor = Color(0xFF10B981),
-            bgGradient = listOf(Color(0xFFECFDF5), Color(0xFFD1FAE5))
+            icon = Icons.Default.Storefront,
+            bgBrush = Brush.linearGradient(listOf(brandNavy, Color(0xFF283593))),
+            iconColor = Color.White,
+            textColor = Color.White,
+            ghostIcon = Icons.Default.ShoppingBag
         ),
-        ModuleItem(
-            id = "FEED",
-            title = "Community Feed",
-            subtitle = "Events & Neighbors",
-            icon = Icons.Default.Forum,
-            tintColor = Color(0xFF3B82F6),
-            bgGradient = listOf(Color(0xFFEFF6FF), Color(0xFFDBEAFE))
-        ),
-        ModuleItem(
-            id = "CARPOOL",
-            title = "Carpooling",
-            subtitle = "Share Daily Rides",
-            icon = Icons.Default.DirectionsCar,
-            tintColor = Color(0xFF8B5CF6),
-            bgGradient = listOf(Color(0xFFF5F3FF), Color(0xFFEDE9FE))
-        ),
-        ModuleItem(
-            id = "MEAL",
-            title = "Daily Meals",
-            subtitle = "Home Chef Menus",
-            icon = Icons.Default.Restaurant,
-            tintColor = Color(0xFFEF4444),
-            bgGradient = listOf(Color(0xFFFEF2F2), Color(0xFFFEE2E2))
-        ),
-        ModuleItem(
-            id = "SERVICE",
-            title = "Resident Services",
-            subtitle = "Electrician, Plumber",
-            icon = Icons.Default.Build,
-            tintColor = Color(0xFFF59E0B),
-            bgGradient = listOf(Color(0xFFFFFBEB), Color(0xFFFEF3C7))
-        ),
-        ModuleItem(
+        BentoPillar(
             id = "PROPERTY",
-            title = "Rentals & Property",
-            subtitle = "Home Rent & Items",
-            icon = Icons.Default.HomeWork,
-            tintColor = Color(0xFF06B6D4),
-            bgGradient = listOf(Color(0xFFECFEFF), Color(0xFFCFFAFE))
+            title = "Rent Flats &\nProperties",
+            subtitle = "Rent Flats & Properties",
+            icon = Icons.Default.LocationCity,
+            bgBrush = Brush.linearGradient(listOf(Color(0xFFE8EAF6), Color(0xFFC5CAE9))),
+            iconColor = brandNavy,
+            textColor = brandNavy,
+            ghostIcon = Icons.Default.Apartment
         ),
-        ModuleItem(
-            id = "VEHICLE",
-            title = "Vehicles Log",
-            subtitle = "Resident Cars & Spots",
-            icon = Icons.Default.Garage,
-            tintColor = Color(0xFF64748B),
-            bgGradient = listOf(Color(0xFFF8FAFC), Color(0xFFF1F5F9))
+        BentoPillar(
+            id = "SERVICE",
+            title = "Rent Household\nItems",
+            subtitle = "Rent Household Items",
+            icon = Icons.Default.Category,
+            bgBrush = Brush.linearGradient(listOf(Color(0xFFE0F2F1), Color(0xFFB2DFDB))),
+            iconColor = brandGreen,
+            textColor = Color(0xFF004D40),
+            ghostIcon = Icons.Default.Build
         ),
-        ModuleItem(
-            id = "ADMIN",
-            title = "Admin Portal",
-            subtitle = "Verify Residents",
-            icon = Icons.Default.SupervisorAccount,
-            tintColor = Color(0xFF1E293B),
-            bgGradient = listOf(Color(0xFFF1F5F9), Color(0xFFE2E8F0))
+        BentoPillar(
+            id = "MEAL",
+            title = "Share Daily\nMeals",
+            subtitle = "Share Daily Meals",
+            icon = Icons.Default.Restaurant,
+            bgBrush = Brush.linearGradient(listOf(Color(0xFFFFF3E0), Color(0xFFFFE0B2))),
+            iconColor = Color(0xFFE65100),
+            textColor = Color(0xFF5D4037),
+            ghostIcon = Icons.Default.DinnerDining
         )
     )
 
+    // Horizontal Scroll Meals
+    val chefMeals = listOf(
+        ChefMeal(
+            chefName = "Priya S.",
+            location = "Wing A, Flat 304",
+            dishName = "Spicy Paneer Salad Bowl",
+            price = 249,
+            isVeg = true,
+            contactPhone = "9876543210",
+            emoji = "🥗",
+            gradientColors = listOf(Color(0xFFE8F5E9), Color(0xFFC8E6C9))
+        ),
+        ChefMeal(
+            chefName = "Vikram M.",
+            location = "Wing C, Flat 902",
+            dishName = "Nawabi Chicken Biryani",
+            price = 380,
+            isVeg = false,
+            contactPhone = "9123456789",
+            emoji = "🍲",
+            gradientColors = listOf(Color(0xFFFFF3E0), Color(0xFFFFE0B2))
+        )
+    )
+
+    // Retrieve user's first name
+    val userFirstName = remember(currentUser.fullName) {
+        currentUser.fullName.split(" ").firstOrNull() ?: currentUser.fullName
+    }
+
     Scaffold(
         topBar = {
-            LargeTopAppBar(
-                title = {
-                    Column {
+            // High-End sticky Top Bar
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = Color.White.copy(alpha = 0.95f),
+                shadowElevation = 4.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .statusBarsPadding()
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                        .fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
                         Text(
                             text = "ConnectKar",
-                            fontWeight = FontWeight.ExtraBold,
-                            color = BrandSlate,
-                            fontSize = 28.sp
+                            fontWeight = FontWeight.Black,
+                            color = brandNavy,
+                            fontSize = 22.sp,
+                            modifier = Modifier.padding(end = 8.dp)
                         )
-                        Text(
-                            text = "Township Super App",
-                            fontSize = 12.sp,
-                            color = Color.Gray,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                },
-                actions = {
-                    // Dropdown for Active Society Filtering
-                    Box {
-                        IconButton(
-                            onClick = { showSocietyPicker = !showSocietyPicker },
-                            modifier = Modifier.testTag("filter_society_dropdown")
-                        ) {
-                            Icon(Icons.Default.FilterList, contentDescription = "Filter Society", tint = BrandSlate)
-                        }
                         
-                        DropdownMenu(
-                            expanded = showSocietyPicker,
-                            onDismissRequest = { showSocietyPicker = false }
+                        // Vertical divider
+                        Box(
+                            modifier = Modifier
+                                .height(20.dp)
+                                .width(1.dp)
+                                .background(Color.LightGray)
+                                .padding(horizontal = 4.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Society Selection Dropdown clickable
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { showSocietyDropdown = !showSocietyDropdown }
+                                .padding(horizontal = 6.dp, vertical = 4.dp)
+                                .testTag("filter_society_dropdown")
                         ) {
-                            societies.forEach { society ->
-                                DropdownMenuItem(
-                                    text = { Text(society) },
-                                    onClick = {
-                                        onSocietySelected(society)
-                                        showSocietyPicker = false
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = if (society == "All Societies") Icons.Default.Language else Icons.Default.Home,
-                                            contentDescription = null,
-                                            tint = if (selectedSociety == society) BrandEmerald else Color.Gray
-                                        )
-                                    }
-                                )
+                            Text(
+                                text = selectedSociety,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = BrandSlate,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.widthIn(max = 140.dp)
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ExpandMore,
+                                contentDescription = "Choose Society",
+                                tint = brandNavy,
+                                modifier = Modifier.size(18.dp)
+                            )
+
+                            DropdownMenu(
+                                expanded = showSocietyDropdown,
+                                onDismissRequest = { showSocietyDropdown = false }
+                            ) {
+                                societies.forEach { society ->
+                                    DropdownMenuItem(
+                                        text = { Text(society, fontWeight = FontWeight.SemiBold) },
+                                        onClick = {
+                                            onSocietySelected(society)
+                                            showSocietyDropdown = false
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = if (society == "All Societies") Icons.Default.Language else Icons.Default.Home,
+                                                contentDescription = null,
+                                                tint = if (selectedSociety == society) brandGreen else Color.Gray
+                                            )
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
 
-                    // Logout Icon
-                    IconButton(onClick = onLogout) {
-                        Icon(Icons.Default.ExitToApp, contentDescription = "Log Out", tint = Color.Red)
+                    // Top Bar Actions
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = { /* Simulated Notifications */ },
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(colorGrayLight)
+                                .size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = "Notifications",
+                                tint = BrandSlate,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .clickable { showProfileDetailsDialog = true }
+                        ) {
+                            AvatarImage(avatarIndex = currentUser.avatarIndex, size = 36)
+                        }
                     }
-                },
-                colors = TopAppBarDefaults.largeTopAppBarColors(containerColor = BrandBackground)
-            )
+                }
+            }
+        },
+        bottomBar = {
+            // Glassmorphic Custom Bottom Navigation Bar
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding(),
+                color = Color.White.copy(alpha = 0.95f),
+                shadowElevation = 16.dp,
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                border = BorderStroke(0.5.dp, BrandOutline.copy(alpha = 0.3f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(72.dp)
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceAround
+                ) {
+                    // Home Tab
+                    IconButton(
+                        onClick = { activeTab = "home" },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = if (activeTab == "home") Icons.Default.Home else Icons.Outlined.Home,
+                                contentDescription = "Home",
+                                tint = if (activeTab == "home") brandNavy else Color.Gray,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                "Home",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (activeTab == "home") brandNavy else Color.Gray
+                            )
+                        }
+                    }
+
+                    // Explore (Feed) Tab
+                    IconButton(
+                        onClick = { onModuleClicked("PROPERTY") },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Outlined.Explore,
+                                contentDescription = "Explore",
+                                tint = Color.Gray,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                "Explore",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+
+                    // Create (+) Floating Pillar Button
+                    Box(
+                        modifier = Modifier
+                            .weight(1.2f)
+                            .padding(bottom = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(50.dp)
+                                .clip(CircleShape)
+                                .background(brandNavy)
+                                .clickable {
+                                    if (currentUser.isVerified) {
+                                        onModuleClicked("CREATE_HUB")
+                                    } else {
+                                        Toast.makeText(context, "Resident verification is required to create listings.", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                                .testTag("create_pillar_button"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Create Posting",
+                                tint = Color.White,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                    }
+
+                    // Society (Admin) Tab
+                    IconButton(
+                        onClick = { onModuleClicked("ADMIN") },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Outlined.Groups,
+                                contentDescription = "Society",
+                                tint = Color.Gray,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                "Society",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+
+                    // Profile Tab
+                    IconButton(
+                        onClick = { showProfileDetailsDialog = true },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Outlined.Person,
+                                contentDescription = "Profile",
+                                tint = Color.Gray,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                "Profile",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+                }
+            }
         },
         containerColor = BrandBackground,
         modifier = modifier
@@ -184,139 +425,997 @@ fun DashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 20.dp)
+                .verticalScroll(rememberScrollState())
         ) {
-            SyncStatusBanner(syncState = syncState, onRetrySync = onRetrySync)
-            
-            // Profile Overview Header Card
-            Card(
+            // Sync status banner
+            Box(modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
+                SyncStatusBanner(syncState = syncState, onRetrySync = onRetrySync)
+            }
+
+            // Status review banner for unverified/pending
+            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                StatusBanner(user = currentUser, onSimulateApprove = onSimulateApprove)
+            }
+
+            // 1. HERO SECTION (Editorial Welcome)
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                shape = RoundedCornerShape(24.dp),
-                border = BorderStroke(1.dp, BrandOutline)
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
+            ) {
+                // Verified Resident Chip/Badge
+                Surface(
+                    shape = RoundedCornerShape(9999.dp),
+                    color = if (currentUser.isVerified) brandGreen else Color(0xFFD48800),
+                    modifier = Modifier.padding(bottom = 12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (currentUser.isVerified) Icons.Default.CheckCircle else Icons.Default.Pending,
+                            contentDescription = "Status Icon",
+                            tint = Color.White,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (currentUser.isVerified) "VERIFIED RESIDENT" else "PENDING VERIFICATION",
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 1.sp
+                        )
+                    }
+                }
+
+                // Greeting Title
+                Text(
+                    text = "Welcome Home,",
+                    fontWeight = FontWeight.Normal,
+                    color = BrandSlate,
+                    fontSize = 32.sp,
+                    lineHeight = 36.sp
+                )
+                Text(
+                    text = userFirstName,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = brandNavy,
+                    fontSize = 42.sp,
+                    lineHeight = 46.sp,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+
+                // Greeting Subtitle
+                Text(
+                    text = "It's a beautiful morning at The Urban Sanctuary.",
+                    fontSize = 14.sp,
+                    color = Color.Gray,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            // 2. CORE PILLARS (Bento-ish Grid)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Pillar 1: Marketplace
+                    BentoCard(
+                        pillar = pillars[0],
+                        onClick = { onModuleClicked(pillars[0].id) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    // Pillar 2: Property
+                    BentoCard(
+                        pillar = pillars[1],
+                        onClick = { onModuleClicked(pillars[1].id) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Pillar 3: Household Rent / Service
+                    BentoCard(
+                        pillar = pillars[2],
+                        onClick = { onModuleClicked(pillars[2].id) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    // Pillar 4: Meal Sharing
+                    BentoCard(
+                        pillar = pillars[3],
+                        onClick = { onModuleClicked(pillars[3].id) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            // 3. FRESH TODAY SECTION (Horizontal list of local resident chef menu items)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp)
             ) {
                 Row(
                     modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom
                 ) {
-                    AvatarImage(avatarIndex = currentUser.avatarIndex, size = 52)
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column {
                         Text(
-                            text = currentUser.fullName,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
+                            text = "Fresh Today",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 22.sp,
                             color = BrandSlate
                         )
                         Text(
-                            text = "${currentUser.blockTower}, Flat ${currentUser.flatNumber}",
+                            text = "IN YOUR BUILDING",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
                             color = Color.Gray,
-                            fontSize = 13.sp
+                            letterSpacing = 1.sp
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            SocietyBadge(society = currentUser.society)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            VerifiedBadge(isVerified = currentUser.isVerified, isPending = currentUser.isPending)
+                    }
+                    TextButton(
+                        onClick = { onModuleClicked("MEAL") },
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(
+                            "See All",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = brandNavy
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = "See All",
+                            tint = brandNavy,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (mealListings.isNotEmpty()) {
+                        items(mealListings) { mealListing ->
+                            FreshTodayCard(
+                                listing = mealListing,
+                                onOrderClicked = { selectedListingMealForOrder = mealListing }
+                            )
+                        }
+                    } else {
+                        items(chefMeals) { meal ->
+                            ChefMealItem(
+                                meal = meal,
+                                onOrderClicked = { selectedMealForOrder = meal }
+                            )
                         }
                     }
                 }
             }
 
-            // Pending Status Banner
-            StatusBanner(user = currentUser, onSimulateApprove = onSimulateApprove)
-
-            // Category Title with filter status
-            Row(
+            // 4. TRENDING SECTION (Local spotlight and community alerts)
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
             ) {
                 Text(
-                    text = "Township Modules",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = BrandSlate
+                    text = "Trending in $selectedSociety",
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 22.sp,
+                    color = BrandSlate,
+                    modifier = Modifier.padding(bottom = 16.dp)
                 )
-                Text(
-                    text = if (selectedSociety == "All Societies") "Showing: Entire Township" else "Showing: $selectedSociety",
-                    color = BrandEmerald,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
 
-            // Core Modules Grid
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1.5f)
-                    .padding(bottom = 16.dp)
-            ) {
-                items(modules) { module ->
-                    Card(
+                // Spotlight Deal Card (Bicycle)
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onModuleClicked("MARKETPLACE") },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(0.5.dp, BrandOutline.copy(alpha = 0.4f))
+                ) {
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(130.dp)
-                            .clickable { onModuleClicked(module.id) }
-                            .testTag("module_card_${module.id}"),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        shape = RoundedCornerShape(24.dp),
-                        border = BorderStroke(1.dp, BrandOutline)
+                            .padding(12.dp)
                     ) {
+                        // Image representation
                         Box(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .background(Brush.linearGradient(module.bgGradient))
-                                .padding(16.dp)
+                                .size(96.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Brush.linearGradient(listOf(Color(0xFFE2E8F0), Color(0xFF94A3B8)))),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Column(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.SpaceBetween
+                            Text("🚲", fontSize = 42.sp)
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(Color.White),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = module.icon,
-                                        contentDescription = module.title,
-                                        tint = module.tintColor,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
-                                
-                                Column {
-                                    Text(
-                                        text = module.title,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp,
-                                        color = BrandSlate
-                                    )
-                                    Text(
-                                        text = module.subtitle,
-                                        fontSize = 11.sp,
-                                        color = Color.Gray,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
+                                Text(
+                                    text = "TOP DEAL",
+                                    color = brandNavy,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 10.sp,
+                                    letterSpacing = 1.sp
+                                )
+                                Text(
+                                    text = "2h ago",
+                                    color = Color.Gray,
+                                    fontSize = 10.sp
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Specialized Allez Road Bike",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = BrandSlate,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "Excellent condition, size L.",
+                                fontSize = 12.sp,
+                                color = Color.Gray,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "₹45,000",
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 16.sp,
+                                    color = brandNavy
+                                )
+                                Text(
+                                    text = "View Details",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = brandNavy
+                                )
                             }
                         }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Community Warning Alert Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF1F1)),
+                    border = BorderStroke(1.dp, Color(0xFFFFCDCD))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = "Alert icon",
+                            tint = Color(0xFFC62828),
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                text = "Gate 2 Maintenance Notice",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = Color(0xFFC62828)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Gate 2 closed for 2 hours (11:00 AM - 1:00 PM) due to flooring maintenance. Please use Gate 1.",
+                                fontSize = 12.sp,
+                                color = Color(0xFF5D4037),
+                                lineHeight = 16.sp
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(40.dp))
+        }
+    }
+
+    // --- Interactive Popups & Dialogs ---
+
+    // 1. Chef Order Dialog
+    selectedMealForOrder?.let { meal ->
+        AlertDialog(
+            onDismissRequest = { selectedMealForOrder = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(meal.emoji, fontSize = 28.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Place Meal Order", fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = meal.dishName,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 18.sp,
+                        color = brandNavy
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Chef: ${meal.chefName} (${meal.location})",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = Color.DarkGray
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Price: ₹${meal.price} / order",
+                        fontWeight = FontWeight.Black,
+                        fontSize = 16.sp,
+                        color = brandGreen
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Connect with the resident chef directly via Phone/WhatsApp to finalize details:",
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        color = colorGrayLight,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Phone, contentDescription = "Phone icon", tint = brandNavy)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = meal.contactPhone,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 16.sp,
+                                color = brandNavy
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { selectedMealForOrder = null },
+                    colors = ButtonDefaults.buttonColors(containerColor = brandNavy)
+                ) {
+                    Text("Close")
+                }
+            }
+        )
+    }
+
+    // 1b. Real Listing Chef Order Dialog
+    selectedListingMealForOrder?.let { listing ->
+        val obj = if (listing.detailsJson.isNotEmpty()) {
+            com.example.data.local.MoshiHelper.fromJson<com.example.data.local.MealDetailsJson>(listing.detailsJson)
+        } else {
+            null
+        }
+        val price = obj?.mealPrice ?: listing.price
+        val deliveryInfo = obj?.deliveryInfo ?: listing.extra3
+        val isVeg = listing.extra2 == "VEG" || listing.category.contains("Veg", ignoreCase = true)
+
+        AlertDialog(
+            onDismissRequest = { selectedListingMealForOrder = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (isVeg) "🥗" else "🥩", fontSize = 28.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Place Meal Order", fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = listing.title,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 18.sp,
+                        color = brandNavy
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Chef: ${listing.authorName} (${listing.authorFlat})",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = Color.DarkGray
+                    )
+                    if (deliveryInfo.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Delivery Info: $deliveryInfo",
+                            fontSize = 13.sp,
+                            color = Color.Gray
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Price: ₹${price.toInt()} / order",
+                        fontWeight = FontWeight.Black,
+                        fontSize = 16.sp,
+                        color = brandGreen
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Connect with the resident chef directly via Phone/WhatsApp to finalize details:",
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        color = colorGrayLight,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Phone, contentDescription = "Phone icon", tint = brandNavy)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = listing.contact,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 16.sp,
+                                color = brandNavy
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { selectedListingMealForOrder = null },
+                    colors = ButtonDefaults.buttonColors(containerColor = brandNavy)
+                ) {
+                    Text("Close")
+                }
+            }
+        )
+    }
+
+    // 2. Profile Details Dialog
+    if (showProfileDetailsDialog) {
+        AlertDialog(
+            onDismissRequest = { showProfileDetailsDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    AvatarImage(avatarIndex = currentUser.avatarIndex, size = 40)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text("Resident Profile", fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = currentUser.fullName,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 20.sp,
+                        color = BrandSlate
+                    )
+                    Text(
+                        text = "Phone: ${currentUser.phoneNumber}",
+                        fontSize = 14.sp,
+                        color = Color.Gray
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Divider()
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Society: ${currentUser.society}",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = "${currentUser.blockTower}, Flat ${currentUser.flatNumber}",
+                        fontSize = 14.sp,
+                        color = Color.DarkGray
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Verified Document proof:",
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                    Text(
+                        text = "simulated_proof_of_residence.pdf",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = brandGreen
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(
+                        onClick = {
+                            showProfileDetailsDialog = false
+                            onLogout()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBA1A1A)),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.ExitToApp, contentDescription = "Exit icon")
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Log Out", fontWeight = FontWeight.Bold)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showProfileDetailsDialog = false }) {
+                    Text("Close", color = brandNavy, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
+    // 3. Create Listing Choice Dialog
+    if (showCreateChoiceDialog) {
+        AlertDialog(
+            onDismissRequest = { showCreateChoiceDialog = false },
+            title = {
+                Text("Select Community Pillar", fontWeight = FontWeight.Black, color = brandNavy)
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("Where would you like to post an update or offer?", fontSize = 13.sp, color = Color.Gray)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    CreateChoiceItem(
+                        title = "🏪 Post on Marketplace",
+                        description = "Sell furniture, fitness gear, electronics, etc.",
+                        onClick = {
+                            showCreateChoiceDialog = false
+                            onModuleClicked("MARKETPLACE")
+                        }
+                    )
+                    CreateChoiceItem(
+                        title = "🏢 List Rental / Property",
+                        description = "Share flat listings, parking spots, space rentals.",
+                        onClick = {
+                            showCreateChoiceDialog = false
+                            onModuleClicked("PROPERTY")
+                        }
+                    )
+                    CreateChoiceItem(
+                        title = "🍳 Share Daily Meals (Chef Menu)",
+                        description = "Offer delicious home-cooked meals to your neighbors.",
+                        onClick = {
+                            showCreateChoiceDialog = false
+                            onModuleClicked("MEAL")
+                        }
+                    )
+                    CreateChoiceItem(
+                        title = "🔧 Offer Resident Service",
+                        description = "Services like plumbing, electrician, item rentals.",
+                        onClick = {
+                            showCreateChoiceDialog = false
+                            onModuleClicked("SERVICE")
+                        }
+                    )
+                    CreateChoiceItem(
+                        title = "🚗 Offer Carpool / Ride",
+                        description = "Commute together with neighborhood carpools.",
+                        onClick = {
+                            showCreateChoiceDialog = false
+                            onModuleClicked("CARPOOL")
+                        }
+                    )
+                    CreateChoiceItem(
+                        title = "📣 Post Community Feed Alert",
+                        description = "Post general notices, events, or lost & found alerts.",
+                        onClick = {
+                            showCreateChoiceDialog = false
+                            onModuleClicked("FEED")
+                        }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCreateChoiceDialog = false }) {
+                    Text("Cancel", color = Color.Red, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun BentoCard(
+    pillar: BentoPillar,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .height(150.dp)
+            .clickable { onClick() }
+            .testTag("module_card_${pillar.id}"),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(0.5.dp, BrandOutline.copy(alpha = 0.3f))
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(pillar.bgBrush)
+                .padding(16.dp)
+        ) {
+            // Ghost background icon
+            Icon(
+                imageVector = pillar.ghostIcon,
+                contentDescription = null,
+                tint = pillar.iconColor.copy(alpha = 0.12f),
+                modifier = Modifier
+                    .size(96.dp)
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 16.dp, y = 16.dp)
+            )
+
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Top Action Circle Icon
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.85f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = pillar.icon,
+                        contentDescription = pillar.title,
+                        tint = pillar.iconColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                // Text Title & Subtitle
+                Column {
+                    Text(
+                        text = pillar.title,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 15.sp,
+                        color = pillar.textColor,
+                        lineHeight = 18.sp
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = pillar.subtitle,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = pillar.textColor.copy(alpha = 0.75f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ChefMealItem(
+    meal: ChefMeal,
+    onOrderClicked: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .width(260.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(0.5.dp, BrandOutline.copy(alpha = 0.4f))
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // Visual top box instead of a slow network image
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(110.dp)
+                    .background(Brush.linearGradient(meal.gradientColors))
+                    .padding(12.dp)
+            ) {
+                Text(
+                    text = meal.emoji,
+                    fontSize = 54.sp,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+
+                // Veg/Non-veg Pill Badge
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .clip(RoundedCornerShape(99.dp))
+                        .background(Color.White)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = if (meal.isVeg) "🥗 VEG MEAL" else "🥩 NON-VEG",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (meal.isVeg) Color(0xFF006C49) else Color(0xFFC62828)
+                    )
+                }
+            }
+
+            Column(modifier = Modifier.padding(12.dp)) {
+                // Chef profile small row
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFE8EAF6)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(meal.chefName.take(1), fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "${meal.chefName} · ${meal.location}",
+                        fontSize = 11.sp,
+                        color = Color.Gray,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = meal.dishName,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = BrandSlate,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "₹${meal.price}",
+                        fontWeight = FontWeight.Black,
+                        fontSize = 16.sp,
+                        color = Color(0xFF1A237E)
+                    )
+                    Button(
+                        onClick = onOrderClicked,
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A237E)),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
+                        Text("Order Now", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
     }
 }
+
+@Composable
+fun CreateChoiceItem(
+    title: String,
+    description: String,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+        border = BorderStroke(0.5.dp, Color.LightGray.copy(alpha = 0.6f))
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1A237E))
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(description, fontSize = 11.sp, color = Color.Gray)
+        }
+    }
+}
+
+@Composable
+fun FreshTodayCard(
+    listing: ListingEntity,
+    onOrderClicked: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val obj = if (listing.detailsJson.isNotEmpty()) {
+        com.example.data.local.MoshiHelper.fromJson<com.example.data.local.MealDetailsJson>(listing.detailsJson)
+    } else {
+        null
+    }
+    val price = obj?.mealPrice ?: listing.price
+    val deliveryInfo = obj?.deliveryInfo ?: listing.extra3
+    val isVeg = listing.extra2 == "VEG" || listing.category.contains("Veg", ignoreCase = true)
+    val imageUrl = listing.extra1 // Image URL is stored in extra1
+
+    Card(
+        modifier = modifier
+            .width(260.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(0.5.dp, ConciergeOutlineVariant.copy(alpha = 0.4f))
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(110.dp)
+            ) {
+                if (!imageUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = imageUrl,
+                        contentDescription = listing.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                        error = rememberAsyncImagePainter(
+                            model = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500" // default fallback
+                        ),
+                        placeholder = rememberAsyncImagePainter(
+                            model = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500"
+                        )
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Brush.linearGradient(listOf(Color(0xFFE8F5E9), Color(0xFFC8E6C9)))),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "🥗",
+                            fontSize = 54.sp
+                        )
+                    }
+                }
+
+                // Veg/Non-veg Pill Badge
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(12.dp)
+                        .clip(RoundedCornerShape(99.dp))
+                        .background(Color.White)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = if (isVeg) "🥗 VEG MEAL" else "🥩 NON-VEG",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (isVeg) Color(0xFF006C49) else Color(0xFFC62828)
+                    )
+                }
+            }
+
+            Column(modifier = Modifier.padding(12.dp)) {
+                // Chef profile small row
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFE8EAF6)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(listing.authorName.take(1), fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "${listing.authorName} · ${listing.authorFlat}",
+                        fontSize = 11.sp,
+                        color = Color.Gray,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = listing.title,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = ConciergeOnBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                if (deliveryInfo.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Delivery: $deliveryInfo",
+                        fontSize = 10.sp,
+                        color = Color.Gray,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "₹${price.toInt()}",
+                        fontWeight = FontWeight.Black,
+                        fontSize = 16.sp,
+                        color = ConciergePrimaryContainer
+                    )
+                    Button(
+                        onClick = onOrderClicked,
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = ConciergePrimaryContainer),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
+                        Text("Order Now", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+

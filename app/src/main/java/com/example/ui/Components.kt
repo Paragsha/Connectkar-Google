@@ -28,22 +28,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.ListingEntity
 import com.example.data.local.UserEntity
-import com.example.data.local.details
 import com.example.data.local.ListingDetails
 
-// --- Brand Colors ---
-val BrandEmerald = Color(0xFF6750A4)
-val BrandEmeraldLight = Color(0xFFEADDFF)
-val BrandGold = Color(0xFF7D5260)
-val BrandGoldLight = Color(0xFFF3EDF7)
-val BrandSlate = Color(0xFF1D1B1E)
-val BrandBackground = Color(0xFFFDF8F6)
-val BrandOutline = Color(0xFFCAC4D0)
+import com.example.ui.theme.*
+
+// --- Brand Colors (Unified with Digital Concierge design tokens) ---
+val BrandEmerald = ConciergePrimaryContainer
+val BrandEmeraldLight = ConciergePrimaryFixed
+val BrandGold = ConciergeTertiary
+val BrandGoldLight = ConciergeSurfaceVariant
+val BrandSlate = ConciergeOnBackground
+val BrandBackground = ConciergeBackground
+val BrandOutline = ConciergeOutlineVariant
 
 // --- Onboarding Specific Colors ---
-val BrandPrimaryBlue = Color(0xFF003FB1)
-val BrandPrimaryBlueLight = Color(0xFF1A56DB)
-val BrandSuccessGreen = Color(0xFF006C49)
+val BrandPrimaryBlue = ConciergeSecondary
+val BrandPrimaryBlueLight = ConciergeSecondaryContainer
+val BrandSuccessGreen = ConciergeHomeLiving
 
 // --- Shared Societies List ---
 val TownshipSocieties = listOf(
