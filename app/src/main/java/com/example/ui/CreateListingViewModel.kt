@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ConnectKarApplication
+import com.example.data.local.ExtendedMarketplaceDetails
 import com.example.data.local.ListingEntity
 import com.example.data.local.MoshiHelper
 import com.example.data.local.UserEntity
@@ -14,19 +15,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-@JsonClass(generateAdapter = true)
-data class ExtendedMarketplaceDetails(
-    val brand: String = "",
-    val model: String = "",
-    val itemAge: String = "",
-    val quantity: Int = 1,
-    val meetupLocation: String = "",
-    val preferredDays: List<String> = emptyList(),
-    val timePreference: String = "",
-    val isNegotiable: Boolean = false,
-    val paymentMethods: List<String> = emptyList()
-)
 
 class CreateListingViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: TownshipRepository = (application as ConnectKarApplication).repository
@@ -90,6 +78,37 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
     private val _paymentMethods = MutableStateFlow<List<String>>(listOf("UPI", "Cash"))
     val paymentMethods: StateFlow<List<String>> = _paymentMethods.asStateFlow()
 
+    // Property Specific StateFlows
+    private val _wingFlatNumber = MutableStateFlow("")
+    val wingFlatNumber: StateFlow<String> = _wingFlatNumber.asStateFlow()
+
+    private val _bhkType = MutableStateFlow("")
+    val bhkType: StateFlow<String> = _bhkType.asStateFlow()
+
+    private val _furnishedStatus = MutableStateFlow("")
+    val furnishedStatus: StateFlow<String> = _furnishedStatus.asStateFlow()
+
+    private val _propertyType = MutableStateFlow("")
+    val propertyType: StateFlow<String> = _propertyType.asStateFlow()
+
+    private val _beds = MutableStateFlow(0)
+    val beds: StateFlow<Int> = _beds.asStateFlow()
+
+    private val _baths = MutableStateFlow(0)
+    val baths: StateFlow<Int> = _baths.asStateFlow()
+
+    private val _sqft = MutableStateFlow(0)
+    val sqft: StateFlow<Int> = _sqft.asStateFlow()
+
+    private val _amenities = MutableStateFlow<List<String>>(emptyList())
+    val amenities: StateFlow<List<String>> = _amenities.asStateFlow()
+
+    private val _isAvailable = MutableStateFlow(true)
+    val isAvailable: StateFlow<Boolean> = _isAvailable.asStateFlow()
+
+    private val _verificationRequested = MutableStateFlow(false)
+    val verificationRequested: StateFlow<Boolean> = _verificationRequested.asStateFlow()
+
     // Track the active draft ID if any
     private var activeDraftId: Int = 0
     private var activeType: String = "MARKETPLACE"
@@ -130,6 +149,17 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
                         _timePreference.value = extended.timePreference
                         _isNegotiable.value = extended.isNegotiable
                         _paymentMethods.value = extended.paymentMethods
+                        // Property fields
+                        _wingFlatNumber.value = extended.wingFlatNumber
+                        _bhkType.value = extended.bhkType
+                        _furnishedStatus.value = extended.furnishedStatus
+                        _propertyType.value = extended.propertyType
+                        _beds.value = extended.beds
+                        _baths.value = extended.baths
+                        _sqft.value = extended.sqft
+                        _amenities.value = extended.amenities
+                        _isAvailable.value = extended.isAvailable
+                        _verificationRequested.value = extended.verificationRequested
                     }
                 }
             } else {
@@ -151,6 +181,17 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
                 _timePreference.value = "Evening"
                 _isNegotiable.value = true
                 _paymentMethods.value = listOf("UPI", "Cash")
+                // Property defaults
+                _wingFlatNumber.value = ""
+                _bhkType.value = ""
+                _furnishedStatus.value = ""
+                _propertyType.value = ""
+                _beds.value = 0
+                _baths.value = 0
+                _sqft.value = 0
+                _amenities.value = emptyList()
+                _isAvailable.value = true
+                _verificationRequested.value = false
             }
         }
     }
@@ -181,6 +222,25 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
         val current = _paymentMethods.value
         _paymentMethods.value = if (current.contains(method)) current - method else current + method
     }
+
+    // Property Setters
+    fun setWingFlatNumber(value: String) { _wingFlatNumber.value = value }
+    fun setBhkType(value: String) { _bhkType.value = value }
+    fun setFurnishedStatus(value: String) { _furnishedStatus.value = value }
+    fun setPropertyType(value: String) { _propertyType.value = value }
+    fun setBeds(value: Int) { _beds.value = value }
+    fun incrementBeds() { _beds.value = _beds.value + 1 }
+    fun decrementBeds() { if (_beds.value > 0) _beds.value = _beds.value - 1 }
+    fun setBaths(value: Int) { _baths.value = value }
+    fun incrementBaths() { _baths.value = _baths.value + 1 }
+    fun decrementBaths() { if (_baths.value > 0) _baths.value = _baths.value - 1 }
+    fun setSqft(value: Int) { _sqft.value = value }
+    fun toggleAmenity(amenity: String) {
+        val current = _amenities.value
+        _amenities.value = if (current.contains(amenity)) current - amenity else current + amenity
+    }
+    fun setAvailable(value: Boolean) { _isAvailable.value = value }
+    fun setVerificationRequested(value: Boolean) { _verificationRequested.value = value }
 
     fun nextStep() {
         if (_currentStep.value < 3) {
@@ -231,8 +291,9 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
 
     private fun buildListingEntity(currentUser: UserEntity, isDraft: Boolean): ListingEntity {
         val priceVal = _price.value.toDoubleOrNull() ?: 0.0
+        val isProperty = activeType == "PROPERTY"
 
-        // Serialize Step 2 details specifically for Marketplace
+        // Serialize Step 2 details specifically for Marketplace & Property
         val extendedDetails = ExtendedMarketplaceDetails(
             brand = _brand.value,
             model = _model.value,
@@ -242,7 +303,18 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
             preferredDays = _preferredDays.value,
             timePreference = _timePreference.value,
             isNegotiable = _isNegotiable.value,
-            paymentMethods = _paymentMethods.value
+            paymentMethods = _paymentMethods.value,
+            // Property fields
+            wingFlatNumber = _wingFlatNumber.value,
+            bhkType = _bhkType.value,
+            furnishedStatus = _furnishedStatus.value,
+            propertyType = _propertyType.value,
+            beds = _beds.value,
+            baths = _baths.value,
+            sqft = _sqft.value,
+            amenities = _amenities.value,
+            isAvailable = _isAvailable.value,
+            verificationRequested = _verificationRequested.value
         )
         val detailsJsonStr = MoshiHelper.toJson(extendedDetails)
 
@@ -262,14 +334,14 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
             authorPhone = currentUser.phoneNumber,
             authorUid = currentUser.uid,
             timestamp = System.currentTimeMillis(),
-            category = _category.value,
+            category = if (isProperty) _bhkType.value else _category.value,
             extra1 = photosStr, // Pass selected local URIs here for preview / rendering
-            extra2 = _brand.value, // Keep fallback model variables
-            extra3 = _condition.value,
-            extra4 = _itemAge.value,
+            extra2 = if (isProperty) _bhkType.value else _brand.value, // Keep fallback model variables
+            extra3 = if (isProperty) { if (_isAvailable.value) "Available" else "Not Available" } else _condition.value,
+            extra4 = if (isProperty) _propertyType.value else _itemAge.value,
             detailsJson = detailsJsonStr,
             isDraft = isDraft,
-            isPublic = !_isSocietyOnly.value
+            isPublic = if (isProperty) false else !_isSocietyOnly.value
         )
     }
 }

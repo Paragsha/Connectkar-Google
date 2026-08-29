@@ -337,6 +337,12 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onRetrySync = {
                                             viewModel.triggerSync()
+                                        },
+                                        onNavigateToSaved = {
+                                            navController.navigate("saved_properties")
+                                        },
+                                        onNavigateToMyListings = {
+                                            navController.navigate("my_listings")
                                         }
                                     )
                                 } else {
@@ -387,6 +393,62 @@ class MainActivity : ComponentActivity() {
                                 onRejectUser = { viewModel.rejectUser(it) },
                                 onBack = { navController.popBackStack() }
                             )
+                        }
+
+                        composable("my_listings") {
+                            val user = currentUser
+                            val myListings by viewModel.myPropertyListings.collectAsStateWithLifecycle()
+                            if (user != null) {
+                                MyListingsScreen(
+                                    currentUser = user,
+                                    myListings = myListings,
+                                    selectedSociety = selectedSociety,
+                                    onDeleteListing = { viewModel.deleteListing(it) },
+                                    onBack = { navController.popBackStack() },
+                                    onBottomNavClick = { target ->
+                                        when (target) {
+                                            "home" -> navController.navigate("dashboard") {
+                                                popUpTo("dashboard") { inclusive = true }
+                                            }
+                                            "explore" -> {
+                                                viewModel.setActiveModule("PROPERTY")
+                                                navController.navigate("module_list/PROPERTY")
+                                            }
+                                            "create" -> navController.navigate("create_hub")
+                                            "society" -> navController.navigate("admin")
+                                            "profile" -> { /* Already on my listings */ }
+                                        }
+                                    }
+                                )
+                            }
+                        }
+
+                        composable("saved_properties") {
+                            val user = currentUser
+                            val savedListings by viewModel.savedPropertyListings.collectAsStateWithLifecycle()
+                            if (user != null) {
+                                SavedPropertiesScreen(
+                                    currentUser = user,
+                                    savedListings = savedListings,
+                                    selectedSociety = selectedSociety,
+                                    onToggleBookmark = { viewModel.toggleBookmark(it) },
+                                    onBack = { navController.popBackStack() },
+                                    onBottomNavClick = { target ->
+                                        when (target) {
+                                            "home" -> navController.navigate("dashboard") {
+                                                popUpTo("dashboard") { inclusive = true }
+                                            }
+                                            "explore" -> {
+                                                viewModel.setActiveModule("PROPERTY")
+                                                navController.navigate("module_list/PROPERTY")
+                                            }
+                                            "create" -> navController.navigate("create_hub")
+                                            "society" -> navController.navigate("admin")
+                                            "profile" -> navController.navigate("my_listings")
+                                        }
+                                    }
+                                )
+                            }
                         }
                     }
                 }

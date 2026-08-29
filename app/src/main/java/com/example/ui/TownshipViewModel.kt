@@ -173,6 +173,24 @@ class TownshipViewModel(private val repository: TownshipRepository) : ViewModel(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val myPropertyListings: StateFlow<List<ListingEntity>> = combine(
+        repository.allListings,
+        currentUser
+    ) { listings, user ->
+        if (user == null || user.uid.isEmpty()) {
+            emptyList()
+        } else {
+            listings.filter { it.type == "PROPERTY" && it.authorUid == user.uid }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val savedPropertyListings: StateFlow<List<ListingEntity>> = combine(
+        repository.allListings,
+        _selectedSociety
+    ) { listings, _ ->
+        listings.filter { it.type == "PROPERTY" && it.isBookmarked && !it.isDraft }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     init {
         viewModelScope.launch {
             repository.seedMockData()

@@ -33,6 +33,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.local.ListingEntity
 import com.example.data.local.UserEntity
+import com.example.data.local.propertyDetails
+import com.example.ui.components.ConnectKarBottomBar
 import com.example.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,12 +49,25 @@ fun PropertyRentalsScreen(
     onBookmarkListing: (Int) -> Unit,
     onCreateListingClicked: () -> Unit,
     onRetrySync: () -> Unit,
+    onNavigateToSaved: () -> Unit = {},
+    onNavigateToMyListings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var searchQuery by remember { mutableStateOf("") }
     var selectedFilter by remember { mutableStateOf("All") }
     var selectedListingForDetails by remember { mutableStateOf<ListingEntity?>(null) }
+    var showFiltersSheet by remember { mutableStateOf(false) }
+
+    // Advanced bottom sheet filters
+    var bhkFilter by remember { mutableStateOf<String?>(null) }
+    var furnishedFilter by remember { mutableStateOf<String?>(null) }
+    var priceRange by remember { mutableStateOf(5000f..100000f) }
+    var propertyTypeFilter by remember { mutableStateOf<String?>(null) }
+
+    val hasActiveFilters = bhkFilter != null || furnishedFilter != null ||
+            priceRange.start > 5000f || priceRange.endInclusive < 100000f ||
+            propertyTypeFilter != null
 
     val filterChips = listOf("All", "2 BHK", "1 BHK", "Furnished", "Under ₹25k", "Pet Friendly")
 
@@ -64,29 +79,84 @@ fun PropertyRentalsScreen(
     val ghostBorderColor = ConciergeOutlineVariant.copy(alpha = 0.2f)
     val brandTeal = ConciergeHomeLiving
 
-    // Filtering logic based on search query and selected filter chip
+    // Filtering logic combining search query, horizontal chips, and bottom sheet filters
     val filteredProperties = listings.filter { listing ->
-        val matchesSearch = listing.title.contains(searchQuery, ignoreCase = true) ||
-                listing.description.contains(searchQuery, ignoreCase = true) ||
-                listing.authorFlat.contains(searchQuery, ignoreCase = true)
+        val details = listing.propertyDetails()
 
-        val matchesFilter = when (selectedFilter) {
+        val matchesSearch = searchQuery.isBlank() ||
+                listing.title.contains(searchQuery, ignoreCase = true) ||
+                listing.description.contains(searchQuery, ignoreCase = true) ||
+                listing.authorFlat.contains(searchQuery, ignoreCase = true) ||
+                details.wingFlatNumber.contains(searchQuery, ignoreCase = true)
+
+        val matchesChipFilter = when (selectedFilter) {
             "All" -> true
-            "2 BHK" -> listing.title.contains("2 BHK", ignoreCase = true) || 
-                       listing.category.contains("2 BHK", ignoreCase = true) || 
-                       listing.extra2.contains("2 BHK", ignoreCase = true)
-            "1 BHK" -> listing.title.contains("1 BHK", ignoreCase = true) || 
-                       listing.category.contains("1 BHK", ignoreCase = true) || 
-                       listing.extra2.contains("1 BHK", ignoreCase = true)
-            "Furnished" -> listing.title.contains("furnished", ignoreCase = true) || 
-                           listing.description.contains("furnished", ignoreCase = true)
+            "2 BHK" -> listing.title.contains("2 BHK", ignoreCase = true) ||
+                    listing.category.contains("2 BHK", ignoreCase = true) ||
+                    listing.extra2.contains("2 BHK", ignoreCase = true) ||
+                    details.bhkType.contains("2 BHK", ignoreCase = true) ||
+                    details.beds == 2
+            "1 BHK" -> listing.title.contains("1 BHK", ignoreCase = true) ||
+                    listing.category.contains("1 BHK", ignoreCase = true) ||
+                    listing.extra2.contains("1 BHK", ignoreCase = true) ||
+                    details.bhkType.contains("1 BHK", ignoreCase = true) ||
+                    details.beds == 1
+            "Furnished" -> listing.title.contains("furnished", ignoreCase = true) ||
+                    listing.description.contains("furnished", ignoreCase = true) ||
+                    details.furnishedStatus.contains("Furnished", ignoreCase = true)
             "Under ₹25k" -> listing.price < 25000.0
-            "Pet Friendly" -> listing.description.contains("pet", ignoreCase = true) || 
-                              listing.title.contains("pet", ignoreCase = true)
+            "Pet Friendly" -> listing.description.contains("pet", ignoreCase = true) ||
+                    listing.title.contains("pet", ignoreCase = true) ||
+                    details.amenities.any { it.contains("pet", ignoreCase = true) }
             else -> true
         }
 
-        matchesSearch && matchesFilter
+        val matchesBhk = if (bhkFilter == null) {
+            true
+        } else if (bhkFilter == "4+ BHK") {
+            listing.title.contains("4 BHK", ignoreCase = true) ||
+                    listing.title.contains("5 BHK", ignoreCase = true) ||
+                    listing.category.contains("4 BHK", ignoreCase = true) ||
+                    details.beds >= 4
+        } else {
+            val filter = bhkFilter!!
+            listing.title.contains(filter, ignoreCase = true) ||
+                    listing.category.contains(filter, ignoreCase = true) ||
+                    listing.extra2.contains(filter, ignoreCase = true) ||
+                    details.bhkType.contains(filter, ignoreCase = true) ||
+                    (filter.startsWith("1") && details.beds == 1) ||
+                    (filter.startsWith("2") && details.beds == 2) ||
+                    (filter.startsWith("3") && details.beds == 3)
+        }
+
+        val matchesFurnished = if (furnishedFilter == null) {
+            true
+        } else {
+            details.furnishedStatus.equals(furnishedFilter, ignoreCase = true) ||
+                    listing.title.contains(furnishedFilter!!, ignoreCase = true) ||
+                    listing.description.contains(furnishedFilter!!, ignoreCase = true)
+        }
+
+        val matchesPrice = listing.price == 0.0 || (listing.price >= priceRange.start && listing.price <= priceRange.endInclusive)
+
+        val matchesPropertyType = if (propertyTypeFilter == null) {
+            true
+        } else {
+            details.propertyType.equals(propertyTypeFilter, ignoreCase = true) ||
+                    listing.title.contains(propertyTypeFilter!!, ignoreCase = true) ||
+                    listing.description.contains(propertyTypeFilter!!, ignoreCase = true)
+        }
+
+        matchesSearch && matchesChipFilter && matchesBhk && matchesFurnished && matchesPrice && matchesPropertyType
+    }
+
+    // Full Screen Details View
+    if (selectedListingForDetails != null) {
+        PropertyDetailsScreen(
+            property = selectedListingForDetails!!,
+            onBack = { selectedListingForDetails = null }
+        )
+        return
     }
 
     Scaffold(
@@ -97,7 +167,7 @@ fun PropertyRentalsScreen(
                     containerColor = brandNavy,
                     contentColor = Color.White,
                     modifier = Modifier
-                        .padding(bottom = 80.dp) // Leave room for bottom navigation
+                        .padding(bottom = 80.dp)
                         .testTag("create_property_fab"),
                     shape = RoundedCornerShape(9999.dp)
                 ) {
@@ -110,97 +180,26 @@ fun PropertyRentalsScreen(
             }
         },
         bottomBar = {
-            // High-fidelity integrated Bottom Navigation Bar matching the spec
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = Color.White.copy(alpha = 0.95f),
-                shadowElevation = 16.dp,
-                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                border = BorderStroke(0.5.dp, Color(0xFFC6C5D4).copy(alpha = 0.3f))
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .height(72.dp)
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceAround
-                ) {
-                    // Home Tab
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .clickable { onBack() }
-                            .padding(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Home,
-                            contentDescription = "Home",
-                            tint = Color.Gray,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text("Home", fontSize = 11.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
-                    }
-
-                    // Explore Tab (Active / Highlights Property rentals screen)
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Explore,
-                            contentDescription = "Explore",
-                            tint = brandCobalt,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text("Explore", fontSize = 11.sp, color = brandCobalt, fontWeight = FontWeight.Bold)
-                    }
-
-                    // Floating Spacer for visual alignment matching layout rules
-                    Spacer(modifier = Modifier.width(40.dp))
-
-                    // Society Tab
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .clickable {
-                                Toast.makeText(context, "Navigating to Society Board", Toast.LENGTH_SHORT).show()
+            ConnectKarBottomBar(
+                activeTab = "explore",
+                onTabSelected = { target ->
+                    when (target) {
+                        "home" -> onBack()
+                        "explore" -> { /* Already here */ }
+                        "create" -> {
+                            if (currentUser.isVerified) {
+                                onCreateListingClicked()
+                            } else {
+                                Toast.makeText(context, "Resident verification is required to create listings.", Toast.LENGTH_SHORT).show()
                             }
-                            .padding(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Apartment,
-                            contentDescription = "Society",
-                            tint = Color.Gray,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text("Society", fontSize = 11.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
-                    }
-
-                    // Profile Tab
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .clickable {
-                                Toast.makeText(context, "Showing Profile Context", Toast.LENGTH_SHORT).show()
-                            }
-                            .padding(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Person,
-                            contentDescription = "Profile",
-                            tint = Color.Gray,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text("Profile", fontSize = 11.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
+                        }
+                        "society" -> {
+                            Toast.makeText(context, "Navigating to Society Board", Toast.LENGTH_SHORT).show()
+                        }
+                        "profile" -> onNavigateToMyListings()
                     }
                 }
-            }
+            )
         },
         containerColor = Color(0xFFF8F9FF),
         modifier = modifier
@@ -282,38 +281,31 @@ fun PropertyRentalsScreen(
 
                     Spacer(modifier = Modifier.weight(1f))
 
-                    // Notification Bell
+                    // Bookmark / Saved Properties Shortcut
                     IconButton(
-                        onClick = { Toast.makeText(context, "No new notifications", Toast.LENGTH_SHORT).show() },
+                        onClick = onNavigateToSaved,
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
                             .background(Color(0xFFEFF4FF))
+                            .testTag("saved_properties_header_icon")
                     ) {
-                        Box {
-                            Icon(
-                                imageVector = Icons.Default.Notifications,
-                                contentDescription = "Notifications",
-                                tint = brandNavy,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.Red)
-                                    .align(Alignment.TopEnd)
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Outlined.BookmarkBorder,
+                            contentDescription = "Saved Properties",
+                            tint = brandNavy,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     // Avatar
                     Box(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
+                            .clickable { onNavigateToMyListings() }
                     ) {
                         AvatarImage(avatarIndex = currentUser.avatarIndex, size = 36)
                     }
@@ -328,39 +320,75 @@ fun PropertyRentalsScreen(
                     fontSize = 26.sp,
                     color = brandNavy,
                     modifier = Modifier
-                        .padding(top = 20.dp, bottom = 16.dp)
+                        .padding(top = 16.dp, bottom = 16.dp)
                         .testTag("screen_title_rentals")
                 )
             }
 
-            // --- SEARCH BAR ---
+            // --- SEARCH BAR & FILTER BUTTON ROW ---
             item {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search property, rentals, or residents...") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Search icon",
-                            tint = Color.Gray
-                        )
-                    },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { /* Collapse keyboard */ }),
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 12.dp)
-                        .testTag("property_search_input"),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFFC6C5D4),
-                        unfocusedBorderColor = Color(0xFFC6C5D4).copy(alpha = 0.5f),
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White
+                        .padding(bottom = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text("Search property, rentals, or residents...") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search icon",
+                                tint = Color.Gray
+                            )
+                        },
+                        trailingIcon = if (searchQuery.isNotEmpty()) {
+                            {
+                                IconButton(onClick = { searchQuery = "" }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Clear,
+                                        contentDescription = "Clear search",
+                                        tint = Color.Gray
+                                    )
+                                }
+                            }
+                        } else null,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(onSearch = { /* Collapse keyboard */ }),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("property_search_input"),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFFC6C5D4),
+                            unfocusedBorderColor = Color(0xFFC6C5D4).copy(alpha = 0.5f),
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White
+                        )
                     )
-                )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Filters bottom sheet trigger button
+                    IconButton(
+                        onClick = { showFiltersSheet = true },
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(if (hasActiveFilters) Color(0xFF003FB1) else Color(0xFFEFF4FF))
+                            .testTag("property_filter_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Tune,
+                            contentDescription = "Filters",
+                            tint = if (hasActiveFilters) Color.White else Color(0xFF003FB1),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
             }
 
             // --- FILTER CHIPS ROW ---
@@ -466,112 +494,267 @@ fun PropertyRentalsScreen(
                     ghostBorderColor = ghostBorderColor,
                     surfaceContainerLowest = surfaceContainerLowest
                 )
-                Spacer(modifier = Modifier.height(24.dp)) // Vertical gap divider matching layout rules
+                Spacer(modifier = Modifier.height(24.dp))
             }
 
             item {
-                Spacer(modifier = Modifier.height(120.dp)) // bottom padding
+                Spacer(modifier = Modifier.height(120.dp))
             }
         }
     }
 
-    // --- VIEW DETAILS MODAL DIALOG ---
-    val detailProperty = selectedListingForDetails
-    if (detailProperty != null) {
-        val specs = getPropertySpecs(detailProperty)
-        AlertDialog(
-            onDismissRequest = { selectedListingForDetails = null },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        Toast.makeText(context, "Calling owner: ${detailProperty.contact}", Toast.LENGTH_LONG).show()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = brandNavy)
+    // --- FILTERS MODAL BOTTOM SHEET ---
+    if (showFiltersSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showFiltersSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = Color.White,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 36.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 20.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Call Owner", color = Color.White)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { selectedListingForDetails = null }) {
-                    Text("Close", color = Color.Gray)
-                }
-            },
-            title = {
-                Text(
-                    text = detailProperty.title,
-                    fontWeight = FontWeight.Bold,
-                    color = brandNavy
-                )
-            },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Quick specs
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Bed, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("${specs.first} Beds", fontSize = 12.sp, color = Color.DarkGray)
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Bathtub, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("${specs.second} Baths", fontSize = 12.sp, color = Color.DarkGray)
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Straighten, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("${specs.third} sqft", fontSize = 12.sp, color = Color.DarkGray)
-                        }
-                    }
-
-                    HorizontalDivider()
-
                     Text(
-                        text = "Location: ${detailProperty.authorFlat.ifEmpty { "Wing A, Flat 304" }}",
+                        text = "Filters",
                         fontWeight = FontWeight.Bold,
-                        color = Color.DarkGray
+                        fontSize = 20.sp,
+                        color = brandNavy
                     )
-
-                    Text(
-                        text = detailProperty.description,
-                        fontSize = 14.sp,
-                        color = Color.Gray
-                    )
-
-                    HorizontalDivider()
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    IconButton(
+                        onClick = { showFiltersSheet = false },
+                        modifier = Modifier.size(32.dp)
                     ) {
-                        Text("Price:", fontWeight = FontWeight.Bold, color = brandNavy)
-                        Text(
-                            text = "₹${String.format("%,.0f", detailProperty.price)}/month",
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 18.sp,
-                            color = brandNavy
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close Filters",
+                            tint = Color.Gray
                         )
                     }
+                }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Posted By:", fontWeight = FontWeight.Bold, color = Color.Gray)
-                        Text(detailProperty.authorName, fontWeight = FontWeight.Medium, color = Color.DarkGray)
+                // 1. BHK TYPE
+                Text(
+                    text = "BHK TYPE",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Gray,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.padding(bottom = 10.dp)
+                )
+                val bhkOptions = listOf("1 BHK", "2 BHK", "3 BHK", "4+ BHK")
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    bhkOptions.forEach { opt ->
+                        val isSelected = bhkFilter == opt
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isSelected) Color(0xFF003FB1) else Color.White,
+                            border = BorderStroke(1.dp, if (isSelected) Color(0xFF003FB1) else Color(0xFFE2E8F0)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    bhkFilter = if (isSelected) null else opt
+                                }
+                                .testTag("filter_bhk_$opt")
+                        ) {
+                            Box(
+                                modifier = Modifier.padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = opt,
+                                    color = if (isSelected) Color.White else Color(0xFF334155),
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
+                        }
                     }
                 }
-            },
-            shape = RoundedCornerShape(24.dp)
-        )
+
+                // 2. FURNISHED STATUS
+                Text(
+                    text = "FURNISHED STATUS",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Gray,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.padding(bottom = 10.dp)
+                )
+                val furnishedOptions = listOf("Fully Furnished", "Semi-Furnished", "Unfurnished")
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    furnishedOptions.forEach { opt ->
+                        val isSelected = furnishedFilter == opt
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isSelected) Color(0xFF003FB1) else Color.White,
+                            border = BorderStroke(1.dp, if (isSelected) Color(0xFF003FB1) else Color(0xFFE2E8F0)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    furnishedFilter = if (isSelected) null else opt
+                                }
+                                .testTag("filter_furnished_$opt")
+                        ) {
+                            Box(
+                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = opt,
+                                    color = if (isSelected) Color.White else Color(0xFF334155),
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 3. PRICE RANGE
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "PRICE RANGE",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Gray,
+                        letterSpacing = 1.sp
+                    )
+                    Text(
+                        text = "₹${(priceRange.start.toInt() / 1000)}k - ₹${(priceRange.endInclusive.toInt() / 1000)}k",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF003FB1)
+                    )
+                }
+
+                RangeSlider(
+                    value = priceRange,
+                    onValueChange = { priceRange = it },
+                    valueRange = 5000f..100000f,
+                    steps = 18,
+                    colors = SliderDefaults.colors(
+                        thumbColor = Color(0xFF003FB1),
+                        activeTrackColor = Color(0xFF003FB1),
+                        inactiveTrackColor = Color(0xFFE2E8F0)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
+                        .testTag("price_range_slider")
+                )
+
+                // 4. PROPERTY TYPE
+                Text(
+                    text = "PROPERTY TYPE",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Gray,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.padding(bottom = 10.dp)
+                )
+                val typeOptions = listOf("Apartment", "Studio", "Penthouse", "Shared")
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 28.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    typeOptions.forEach { opt ->
+                        val isSelected = propertyTypeFilter == opt
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isSelected) Color(0xFF003FB1) else Color.White,
+                            border = BorderStroke(1.dp, if (isSelected) Color(0xFF003FB1) else Color(0xFFE2E8F0)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    propertyTypeFilter = if (isSelected) null else opt
+                                }
+                                .testTag("filter_type_$opt")
+                        ) {
+                            Box(
+                                modifier = Modifier.padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = opt,
+                                    color = if (isSelected) Color.White else Color(0xFF334155),
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Footer Buttons (Reset All & Apply)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            bhkFilter = null
+                            furnishedFilter = null
+                            priceRange = 5000f..100000f
+                            propertyTypeFilter = null
+                            selectedFilter = "All"
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .testTag("reset_filters_button")
+                    ) {
+                        Text("Reset All", color = Color(0xFF475569), fontWeight = FontWeight.Bold)
+                    }
+
+                    Button(
+                        onClick = { showFiltersSheet = false },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF003FB1)),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .testTag("apply_filters_button")
+                    ) {
+                        Text("Apply Filters", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -585,6 +768,7 @@ fun PropertyCard(
     surfaceContainerLowest: Color
 ) {
     val specs = getPropertySpecs(property)
+    val details = property.propertyDetails()
 
     // Fallback image in case the database entry is missing one
     val fallbackImage = "https://lh3.googleusercontent.com/aida-public/AB6AXuA1ilwu0-nL4Uf4RDnlpLjtgUgVcugQkNHj9n-5km498WAcH_Yp290Dxq7oDHFCSUpMJgfx5AsoC_DbRl59YgzgrghIq1GC_BhE8rekPsJSzLROBEnYSl5EM64MfXqnJn7d2ycWMMkCG-v9aptZFlP6Ad3gRbnIGZ1PbEmDv6XgkjtrYtfS7JHTD7Ubmi5cWHX1nsSccrkiZjStXigCV5NM07oLlrsJAMC0zu6YBKaj7YLurQ1XhdDx"
@@ -647,7 +831,6 @@ fun PropertyCard(
                             )
                         }
                     } else {
-                        // Empty spacer to keep Society Approved badge pushed to the right
                         Spacer(modifier = Modifier.width(1.dp))
                     }
 
@@ -710,8 +893,9 @@ fun PropertyCard(
                     .padding(20.dp)
             ) {
                 // Location line
+                val locationText = details.wingFlatNumber.ifEmpty { property.authorFlat.ifEmpty { "Wing A, Flat 304" } }
                 Text(
-                    text = property.authorFlat.ifEmpty { "Wing A, Flat 304" }.uppercase(),
+                    text = locationText.uppercase(),
                     color = Color.Gray,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
@@ -830,9 +1014,18 @@ fun PropertyCard(
 }
 
 /**
- * Returns a Triple representing (Beds, Baths, Sqft) based on the listing properties
+ * Returns a Triple representing (Beds, Baths, Sqft) based on the listing's propertyDetails()
+ * falling back to string matching on title/category/extra2 only when values are zero.
  */
 fun getPropertySpecs(listing: ListingEntity): Triple<Int, Int, Int> {
+    val details = listing.propertyDetails()
+    if (details.beds > 0 || details.baths > 0 || details.sqft > 0) {
+        val beds = if (details.beds > 0) details.beds else 1
+        val baths = if (details.baths > 0) details.baths else 1
+        val sqft = if (details.sqft > 0) details.sqft else 1000
+        return Triple(beds, baths, sqft)
+    }
+
     val titleLower = listing.title.lowercase()
     val catLower = listing.category.lowercase()
     val extraLower = listing.extra2.lowercase()

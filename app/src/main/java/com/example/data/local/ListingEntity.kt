@@ -46,6 +46,35 @@ data class VehicleDetailsJson(val plateNumber: String, val vehicleModel: String,
 @com.squareup.moshi.JsonClass(generateAdapter = true)
 data class EventDetailsJson(val eventLocation: String, val timing: String)
 
+@com.squareup.moshi.JsonClass(generateAdapter = true)
+data class ExtendedMarketplaceDetails(
+    val brand: String = "",
+    val model: String = "",
+    val itemAge: String = "",
+    val quantity: Int = 1,
+    val meetupLocation: String = "",
+    val preferredDays: List<String> = emptyList(),
+    val timePreference: String = "",
+    val isNegotiable: Boolean = false,
+    val paymentMethods: List<String> = emptyList(),
+    // Property specific fields
+    val wingFlatNumber: String = "",
+    val bhkType: String = "",
+    val furnishedStatus: String = "",
+    val propertyType: String = "",
+    val beds: Int = 0,
+    val baths: Int = 0,
+    val sqft: Int = 0,
+    val amenities: List<String> = emptyList(),
+    val isAvailable: Boolean = true,
+    val verificationRequested: Boolean = false
+)
+
+fun ListingEntity.propertyDetails(): ExtendedMarketplaceDetails {
+    if (detailsJson.isBlank()) return ExtendedMarketplaceDetails()
+    return MoshiHelper.fromJson<ExtendedMarketplaceDetails>(detailsJson) ?: ExtendedMarketplaceDetails()
+}
+
 @Entity(
     tableName = "listings",
     indices = [

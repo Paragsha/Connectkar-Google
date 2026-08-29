@@ -37,23 +37,27 @@ class SyncConflictTest {
         val localUser = UserEntity(
             uid = "user_123",
             fullName = "Old Local Name",
+            phoneNumber = "9876543210",
             society = "Green Valley",
-            pendingSync = true,
-            timestamp = 1000L
+            blockTower = "Tower A",
+            flatNumber = "101",
+            pendingSync = true
         )
 
         val remoteUser = UserEntity(
             uid = "user_123",
             fullName = "Updated Cloud Name",
+            phoneNumber = "9876543210",
             society = "Green Valley",
-            pendingSync = false,
-            timestamp = 2000L
+            blockTower = "Tower A",
+            flatNumber = "101",
+            pendingSync = false
         )
 
         val shouldApply = shouldApplyRemoteUpdate(
             existingPendingSync = localUser.pendingSync,
-            existingTimestamp = localUser.timestamp,
-            remoteTimestamp = remoteUser.timestamp
+            existingTimestamp = 1000L,
+            remoteTimestamp = 2000L
         )
 
         assertTrue("Newer remote entity should overwrite older local entity", shouldApply)
@@ -68,23 +72,27 @@ class SyncConflictTest {
         val localUser = UserEntity(
             uid = "user_123",
             fullName = "Unsynced Fresh Edit",
+            phoneNumber = "9876543210",
             society = "Green Valley",
-            pendingSync = true,
-            timestamp = 3000L
+            blockTower = "Tower A",
+            flatNumber = "101",
+            pendingSync = true
         )
 
         val remoteUser = UserEntity(
             uid = "user_123",
             fullName = "Stale Cloud Name",
+            phoneNumber = "9876543210",
             society = "Green Valley",
-            pendingSync = false,
-            timestamp = 2000L
+            blockTower = "Tower A",
+            flatNumber = "101",
+            pendingSync = false
         )
 
         val shouldApply = shouldApplyRemoteUpdate(
             existingPendingSync = localUser.pendingSync,
-            existingTimestamp = localUser.timestamp,
-            remoteTimestamp = remoteUser.timestamp
+            existingTimestamp = 3000L,
+            remoteTimestamp = 2000L
         )
 
         assertFalse("Older remote entity must not overwrite newer pending local change", shouldApply)
@@ -254,7 +262,9 @@ class SyncConflictTest {
         val localListing = ListingEntity(
             id = 15,
             firestoreId = "listing_doc_333",
+            type = "MARKETPLACE",
             title = "Bicycle for sale (draft)",
+            description = "Good condition bike",
             price = 2000.0,
             pendingSync = true,
             timestamp = 1000L
@@ -263,7 +273,9 @@ class SyncConflictTest {
         val remoteListing = ListingEntity(
             id = 0,
             firestoreId = "listing_doc_333",
+            type = "MARKETPLACE",
             title = "Bicycle for sale (published)",
+            description = "Good condition bike",
             price = 1800.0,
             pendingSync = false,
             timestamp = 2000L

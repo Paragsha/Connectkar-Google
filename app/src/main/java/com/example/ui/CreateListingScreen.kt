@@ -14,10 +14,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -201,7 +203,7 @@ fun CreateListingScreen(
                 .background(ConciergeSurface)
         ) {
             // STEP PROGRESS BAR
-            StepProgressBar(currentStep = currentStep)
+            StepProgressBar(currentStep = currentStep, moduleType = initialType)
 
             Box(
                 modifier = Modifier
@@ -211,7 +213,7 @@ fun CreateListingScreen(
                 when (currentStep) {
                     1 -> Step1BasicInfo(viewModel = viewModel, moduleType = initialType)
                     2 -> Step2Details(viewModel = viewModel, moduleType = initialType)
-                    3 -> Step3Review(viewModel = viewModel, currentUser = currentUser)
+                    3 -> Step3Review(viewModel = viewModel, currentUser = currentUser, moduleType = initialType)
                 }
             }
         }
@@ -219,7 +221,7 @@ fun CreateListingScreen(
 }
 
 @Composable
-fun StepProgressBar(currentStep: Int) {
+fun StepProgressBar(currentStep: Int, moduleType: String = "") {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -241,7 +243,7 @@ fun StepProgressBar(currentStep: Int) {
             Text(
                 text = when (currentStep) {
                     1 -> "Basic Info"
-                    2 -> "Logistics & Preferences"
+                    2 -> if (moduleType == "PROPERTY") "Property Details" else "Logistics & Preferences"
                     else -> "Review & Publish"
                 },
                 fontSize = 11.sp,
@@ -273,6 +275,248 @@ fun StepProgressBar(currentStep: Int) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Step1BasicInfo(
+    viewModel: CreateListingViewModel,
+    moduleType: String
+) {
+    if (moduleType == "PROPERTY") {
+        PropertyStep1BasicInfo(viewModel = viewModel)
+    } else {
+        GenericStep1BasicInfo(viewModel = viewModel, moduleType = moduleType)
+    }
+}
+
+@Composable
+fun PropertyStep1BasicInfo(viewModel: CreateListingViewModel) {
+    val wingFlatNumber by viewModel.wingFlatNumber.collectAsState()
+    val bhkType by viewModel.bhkType.collectAsState()
+    val furnishedStatus by viewModel.furnishedStatus.collectAsState()
+    val propertyType by viewModel.propertyType.collectAsState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 20.dp)
+            .padding(bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        // Section: Property Details
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                text = "Property Details",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = ConciergePrimary
+            )
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = ConciergeSurfaceContainerLow),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "Wing/Flat Number",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = ConciergeOnSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = wingFlatNumber,
+                        onValueChange = { viewModel.setWingFlatNumber(it) },
+                        placeholder = { Text("e.g., Wing A, Flat 304", color = ConciergeOnSurfaceVariant.copy(alpha = 0.6f)) },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("property_wing_flat_input"),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = ConciergePrimary,
+                            unfocusedBorderColor = Color.Transparent,
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent
+                        )
+                    )
+                }
+            }
+        }
+
+        // Section: BHK Type
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = "BHK Type",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = ConciergePrimary
+            )
+            val bhkOptions = listOf(
+                listOf("1 BHK", "2 BHK"),
+                listOf("3 BHK", "4+ BHK")
+            )
+            bhkOptions.forEach { rowOptions ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    rowOptions.forEach { option ->
+                        val isSelected = bhkType == option
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(if (isSelected) ConciergePrimary else Color.White)
+                                .border(
+                                    1.dp,
+                                    if (isSelected) ConciergePrimary else ConciergeOutlineVariant,
+                                    RoundedCornerShape(14.dp)
+                                )
+                                .clickable { viewModel.setBhkType(option) }
+                                .testTag("bhk_chip_${option.replace(" ", "_").lowercase()}"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = option,
+                                color = if (isSelected) Color.White else ConciergeOnSurfaceVariant,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Section: Furnished Status
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = "Furnished Status",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = ConciergePrimary
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                listOf("Fully Furnished", "Semi-Furnished").forEach { option ->
+                    val isSelected = furnishedStatus == option
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(if (isSelected) ConciergePrimary else Color.White)
+                            .border(
+                                1.dp,
+                                if (isSelected) ConciergePrimary else ConciergeOutlineVariant,
+                                RoundedCornerShape(14.dp)
+                            )
+                            .clickable { viewModel.setFurnishedStatus(option) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = option,
+                            color = if (isSelected) Color.White else ConciergeOnSurfaceVariant,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            }
+            val isUnfurnishedSelected = furnishedStatus == "Unfurnished"
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(if (isUnfurnishedSelected) ConciergePrimary else Color.White)
+                    .border(
+                        1.dp,
+                        if (isUnfurnishedSelected) ConciergePrimary else ConciergeOutlineVariant,
+                        RoundedCornerShape(14.dp)
+                    )
+                    .clickable { viewModel.setFurnishedStatus("Unfurnished") },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Unfurnished",
+                    color = if (isUnfurnishedSelected) Color.White else ConciergeOnSurfaceVariant,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+            }
+        }
+
+        // Section: Property Type (2x2 grid)
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = "Property Type",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = ConciergePrimary
+            )
+            val propertyTypes = listOf(
+                listOf(
+                    Triple("Apartment", Icons.Default.Apartment, "Apartment"),
+                    Triple("Studio", Icons.Default.Weekend, "Studio")
+                ),
+                listOf(
+                    Triple("Penthouse", Icons.Default.HomeWork, "Penthouse"),
+                    Triple("Shared", Icons.Default.People, "Shared")
+                )
+            )
+            propertyTypes.forEach { rowTypes ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    rowTypes.forEach { (typeId, icon, label) ->
+                        val isSelected = propertyType == typeId
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(88.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(if (isSelected) ConciergePrimary else Color.White)
+                                .border(
+                                    1.dp,
+                                    if (isSelected) ConciergePrimary else ConciergeOutlineVariant,
+                                    RoundedCornerShape(16.dp)
+                                )
+                                .clickable { viewModel.setPropertyType(typeId) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    tint = if (isSelected) Color.White else ConciergePrimary,
+                                    modifier = Modifier.size(26.dp)
+                                )
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) Color.White else ConciergeOnSurface,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GenericStep1BasicInfo(
     viewModel: CreateListingViewModel,
     moduleType: String
 ) {
@@ -1356,66 +1600,423 @@ fun VehicleStep2Details(viewModel: CreateListingViewModel) {
 
 @Composable
 fun PropertyStep2Details(viewModel: CreateListingViewModel) {
-    val brand by viewModel.brand.collectAsState()
-    val model by viewModel.model.collectAsState()
-    val meetupLocation by viewModel.meetupLocation.collectAsState()
-    val isNegotiable by viewModel.isNegotiable.collectAsState()
+    val selectedPhotos by viewModel.selectedPhotos.collectAsState()
+    val beds by viewModel.beds.collectAsState()
+    val baths by viewModel.baths.collectAsState()
+    val sqft by viewModel.sqft.collectAsState()
+    val price by viewModel.price.collectAsState()
+    val amenities by viewModel.amenities.collectAsState()
 
-    Text(
-        text = "PROPERTY SPECIFICATIONS",
-        fontSize = 11.sp,
-        fontWeight = FontWeight.Bold,
-        color = ConciergePrimary,
-        letterSpacing = 1.sp
-    )
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let { viewModel.addPhoto(it.toString()) }
+    }
 
-    OutlinedTextField(
-        value = brand,
-        onValueChange = { viewModel.setBrand(it) },
-        label = { Text("Configuration / BHK Type") },
-        placeholder = { Text("e.g. 2 BHK, Fully Furnished") },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp)
-    )
-
-    OutlinedTextField(
-        value = model,
-        onValueChange = { viewModel.setModel(it) },
-        label = { Text("Key Handover / Security Details") },
-        placeholder = { Text("e.g. Deposit ₹50,000, 1 month notice") },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp)
-    )
-
-    OutlinedTextField(
-        value = meetupLocation,
-        onValueChange = { viewModel.setMeetupLocation(it) },
-        label = { Text("Viewing Location / Flat Number") },
-        placeholder = { Text("e.g. Flat C-903, Block C") },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp)
-    )
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 20.dp)
+            .padding(bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        // Card 1: Photos
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, ConciergeOutlineVariant),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(Icons.Default.Payments, contentDescription = null, tint = ConciergePrimary)
-            Text("Rent Price is Negotiable", fontWeight = FontWeight.Medium, color = ConciergeOnSurface)
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "Photos",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ConciergeOnSurface
+                    )
+                    Text(
+                        text = "Add up to 6 high-quality photos. The first photo will be the main cover.",
+                        fontSize = 12.sp,
+                        color = ConciergeOnSurfaceVariant,
+                        lineHeight = 16.sp
+                    )
+                }
+
+                // 3x2 Grid of 6 Photo Slots
+                val rows = 2
+                val cols = 3
+
+                for (row in 0 until rows) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        for (col in 0 until cols) {
+                            val slotIndex = row * cols + col
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .aspectRatio(1f)
+                            ) {
+                                if (slotIndex < selectedPhotos.size) {
+                                    val photoUri = selectedPhotos[slotIndex]
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .border(1.dp, ConciergeOutlineVariant, RoundedCornerShape(12.dp))
+                                    ) {
+                                        AsyncImage(
+                                            model = photoUri,
+                                            contentDescription = "Photo ${slotIndex + 1}",
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .padding(4.dp)
+                                                .size(22.dp)
+                                                .clip(CircleShape)
+                                                .background(Color.Black.copy(alpha = 0.6f))
+                                                .clickable { viewModel.removePhoto(photoUri) }
+                                                .align(Alignment.TopEnd),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Close,
+                                                contentDescription = "Remove",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    val isFirstSlot = slotIndex == 0
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(if (isFirstSlot) ConciergeSurfaceContainerLow else Color.White)
+                                            .border(
+                                                BorderStroke(1.dp, ConciergePrimary.copy(alpha = 0.3f)),
+                                                RoundedCornerShape(12.dp)
+                                            )
+                                            .clickable {
+                                                if (selectedPhotos.size < 6) {
+                                                    photoPickerLauncher.launch("image/*")
+                                                }
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (isFirstSlot) {
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                                modifier = Modifier.padding(4.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.AddAPhoto,
+                                                    contentDescription = null,
+                                                    tint = ConciergePrimary,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                                Text(
+                                                    "Add Main Photo",
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = ConciergePrimary,
+                                                    textAlign = TextAlign.Center
+                                                )
+                                            }
+                                        } else {
+                                            Icon(
+                                                Icons.Default.Add,
+                                                contentDescription = "Add photo",
+                                                tint = ConciergeOnSurfaceVariant,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
-        Switch(
-            checked = isNegotiable,
-            onCheckedChange = { viewModel.setNegotiable(it) },
-            colors = SwitchDefaults.colors(checkedTrackColor = ConciergePrimary)
-        )
+
+        // Card 2: Key Details (Beds, Baths, Sqft)
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, ConciergeOutlineVariant),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Key Details",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ConciergeOnSurface
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Beds
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text("Beds", fontSize = 11.sp, color = ConciergeOnSurfaceVariant, fontWeight = FontWeight.Medium)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(ConciergeSurfaceContainerLow)
+                                .padding(horizontal = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.Bed, contentDescription = null, tint = ConciergePrimary, modifier = Modifier.size(18.dp))
+                            BasicTextField(
+                                value = if (beds == 0) "" else beds.toString(),
+                                onValueChange = { viewModel.setBeds(it.toIntOrNull() ?: 0) },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                textStyle = LocalTextStyle.current.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = ConciergeOnSurface
+                                ),
+                                decorationBox = { innerTextField ->
+                                    if (beds == 0) {
+                                        Text("0", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = ConciergeOnSurfaceVariant)
+                                    }
+                                    innerTextField()
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+
+                    // Baths
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text("Baths", fontSize = 11.sp, color = ConciergeOnSurfaceVariant, fontWeight = FontWeight.Medium)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(ConciergeSurfaceContainerLow)
+                                .padding(horizontal = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.Bathtub, contentDescription = null, tint = ConciergePrimary, modifier = Modifier.size(18.dp))
+                            BasicTextField(
+                                value = if (baths == 0) "" else baths.toString(),
+                                onValueChange = { viewModel.setBaths(it.toIntOrNull() ?: 0) },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                textStyle = LocalTextStyle.current.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = ConciergeOnSurface
+                                ),
+                                decorationBox = { innerTextField ->
+                                    if (baths == 0) {
+                                        Text("0", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = ConciergeOnSurfaceVariant)
+                                    }
+                                    innerTextField()
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+
+                    // Sqft
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text("Sqft", fontSize = 11.sp, color = ConciergeOnSurfaceVariant, fontWeight = FontWeight.Medium)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(ConciergeSurfaceContainerLow)
+                                .padding(horizontal = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.SquareFoot, contentDescription = null, tint = ConciergePrimary, modifier = Modifier.size(18.dp))
+                            BasicTextField(
+                                value = if (sqft == 0) "" else sqft.toString(),
+                                onValueChange = { viewModel.setSqft(it.toIntOrNull() ?: 0) },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                textStyle = LocalTextStyle.current.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = ConciergeOnSurface
+                                ),
+                                decorationBox = { innerTextField ->
+                                    if (sqft == 0) {
+                                        Text("0", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = ConciergeOnSurfaceVariant)
+                                    }
+                                    innerTextField()
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Card 3: Pricing
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, ConciergeOutlineVariant),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "Pricing",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ConciergeOnSurface
+                )
+                Text(
+                    text = "Monthly Rent / Sale Price",
+                    fontSize = 11.sp,
+                    color = ConciergeOnSurfaceVariant,
+                    fontWeight = FontWeight.Medium
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(ConciergeSurfaceContainerLow)
+                        .padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("₹", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = ConciergeOnSurface)
+                    BasicTextField(
+                        value = price,
+                        onValueChange = { viewModel.setPrice(it) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        textStyle = LocalTextStyle.current.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = ConciergeOnSurface
+                        ),
+                        decorationBox = { innerTextField ->
+                            if (price.isEmpty()) {
+                                Text("0,000", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = ConciergeOnSurfaceVariant.copy(alpha = 0.5f))
+                            }
+                            innerTextField()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
+
+        // Card 4: Amenities
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, ConciergeOutlineVariant),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text(
+                    text = "Amenities",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ConciergeOnSurface
+                )
+                val amenityItems = listOf(
+                    listOf(
+                        Pair("Gymnasium", Icons.Default.FitnessCenter),
+                        Pair("Swimming Pool", Icons.Default.Pool)
+                    ),
+                    listOf(
+                        Pair("Parking", Icons.Default.LocalParking),
+                        Pair("Power Backup", Icons.Default.ElectricBolt)
+                    )
+                )
+                amenityItems.forEach { rowItems ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        rowItems.forEach { (name, icon) ->
+                            val isChecked = amenities.contains(name)
+                            Card(
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = ConciergeSurfaceContainerLow),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { viewModel.toggleAmenity(name) }
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Checkbox(
+                                        checked = isChecked,
+                                        onCheckedChange = { viewModel.toggleAmenity(name) },
+                                        colors = CheckboxDefaults.colors(
+                                            checkedColor = ConciergePrimary,
+                                            checkmarkColor = Color.White
+                                        ),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = null,
+                                        tint = ConciergePrimary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = name,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = ConciergeOnSurface,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1477,6 +2078,287 @@ fun GeneralStep2Details(viewModel: CreateListingViewModel) {
 // ==================== STEP 3: REVIEW & PUBLISH ====================
 @Composable
 fun Step3Review(
+    viewModel: CreateListingViewModel,
+    currentUser: UserEntity,
+    moduleType: String = ""
+) {
+    if (moduleType == "PROPERTY") {
+        PropertyStep3Review(viewModel = viewModel, currentUser = currentUser)
+    } else {
+        GenericStep3Review(viewModel = viewModel, currentUser = currentUser)
+    }
+}
+
+@Composable
+fun PropertyStep3Review(
+    viewModel: CreateListingViewModel,
+    currentUser: UserEntity
+) {
+    val title by viewModel.title.collectAsState()
+    val description by viewModel.description.collectAsState()
+    val price by viewModel.price.collectAsState()
+    val selectedPhotos by viewModel.selectedPhotos.collectAsState()
+    val beds by viewModel.beds.collectAsState()
+    val baths by viewModel.baths.collectAsState()
+    val sqft by viewModel.sqft.collectAsState()
+    val isAvailable by viewModel.isAvailable.collectAsState()
+    val verificationRequested by viewModel.verificationRequested.collectAsState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 20.dp)
+            .padding(bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        // Section: Listing Preview
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = "Listing Preview",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = ConciergePrimary
+            )
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, ConciergeOutlineVariant),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Left Column (Details)
+                    Column(
+                        modifier = Modifier
+                            .weight(1.2f)
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Society-Approved Badge (Shown only if verificationRequested == true)
+                        if (verificationRequested) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(ConciergeSecondary.copy(alpha = 0.12f))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Verified,
+                                        contentDescription = null,
+                                        tint = ConciergeSecondary,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Text(
+                                        "Society-Approved",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ConciergeSecondary
+                                    )
+                                }
+                            }
+                        }
+
+                        // Title
+                        Text(
+                            text = title.ifBlank { "Property Listing" },
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ConciergeOnSurface,
+                            maxLines = 2
+                        )
+
+                        // Price (₹X / month)
+                        Text(
+                            text = "₹${if (price.isNotBlank()) price else "0"} / month",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ConciergeOnSurfaceVariant
+                        )
+
+                        // Row of Beds, Baths, Sqft icons + values
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(Icons.Default.Bed, contentDescription = null, tint = ConciergeOnSurfaceVariant, modifier = Modifier.size(14.dp))
+                                Text(beds.toString(), fontSize = 12.sp, color = ConciergeOnSurfaceVariant)
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(Icons.Default.Bathtub, contentDescription = null, tint = ConciergeOnSurfaceVariant, modifier = Modifier.size(14.dp))
+                                Text(baths.toString(), fontSize = 12.sp, color = ConciergeOnSurfaceVariant)
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(Icons.Default.SquareFoot, contentDescription = null, tint = ConciergeOnSurfaceVariant, modifier = Modifier.size(14.dp))
+                                Text(sqft.toString(), fontSize = 12.sp, color = ConciergeOnSurfaceVariant)
+                            }
+                        }
+                    }
+
+                    // Right Column (Cover Photo)
+                    Box(
+                        modifier = Modifier
+                            .weight(0.9f)
+                            .height(160.dp)
+                            .clip(RoundedCornerShape(topEnd = 20.dp, bottomEnd = 20.dp))
+                            .background(ConciergeSurfaceContainerLow)
+                    ) {
+                        if (selectedPhotos.isNotEmpty()) {
+                            AsyncImage(
+                                model = selectedPhotos.first(),
+                                contentDescription = "Cover photo",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Apartment,
+                                    contentDescription = null,
+                                    tint = ConciergeOutline,
+                                    modifier = Modifier.size(40.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Section: Description
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = ConciergeSurfaceContainerLow),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "Description",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ConciergeOnSurface
+                )
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { viewModel.setDescription(it) },
+                    placeholder = { Text("Highlight the best features of your property...", color = ConciergeOnSurfaceVariant.copy(alpha = 0.6f)) },
+                    minLines = 4,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ConciergePrimary,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White
+                    )
+                )
+            }
+        }
+
+        // Section: Availability Card
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, ConciergeOutlineVariant),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(18.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "Availability",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ConciergeOnSurface
+                    )
+                    Text(
+                        text = "Currently available for rent",
+                        fontSize = 12.sp,
+                        color = ConciergeOnSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = isAvailable,
+                    onCheckedChange = { viewModel.setAvailable(it) },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = ConciergePrimary
+                    )
+                )
+            }
+        }
+
+        // Section: Society Verification Card
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, ConciergeOutlineVariant),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(18.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = verificationRequested,
+                    onCheckedChange = { viewModel.setVerificationRequested(it) },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = ConciergePrimary,
+                        checkmarkColor = Color.White
+                    ),
+                    modifier = Modifier.size(24.dp)
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "I request society verification",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ConciergeOnSurface
+                    )
+                    Text(
+                        text = "Gain a trust badge by getting verified by the society administration.",
+                        fontSize = 12.sp,
+                        color = ConciergeOnSurfaceVariant,
+                        lineHeight = 16.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun GenericStep3Review(
     viewModel: CreateListingViewModel,
     currentUser: UserEntity
 ) {
