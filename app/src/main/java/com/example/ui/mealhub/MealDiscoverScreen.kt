@@ -32,10 +32,9 @@ import com.example.data.local.ChefProfileEntity
 import com.example.data.local.MenuItemEntity
 import com.example.data.local.UserEntity
 import com.example.ui.AvatarImage
-import com.example.ui.BrandEmerald
-import com.example.ui.BrandEmeraldLight
 import com.example.ui.BrandGold
 import com.example.ui.BrandGoldLight
+import com.example.ui.BrandIndigoLight
 import com.example.ui.BrandSlate
 import com.example.ui.SyncState
 import com.example.ui.SyncStatusBanner
@@ -135,7 +134,7 @@ fun MealDiscoverScreen(
                     ) {
                         BadgedBox(
                             badge = {
-                                Badge(containerColor = BrandEmerald) {
+                                Badge(containerColor = ConciergePrimaryContainer) {
                                     Text("Orders")
                                 }
                             }
@@ -252,7 +251,7 @@ fun MealDiscoverScreen(
                                 },
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (currentChefProfile != null) BrandEmeraldLight else Color(0xFFFFD54F),
+                                    containerColor = if (currentChefProfile != null) BrandIndigoLight else Color(0xFFFFD54F),
                                     contentColor = Color(0xFF1E293B)
                                 ),
                                 modifier = Modifier.testTag(
@@ -730,13 +729,13 @@ fun ChefSummaryCard(
                     Spacer(modifier = Modifier.width(6.dp))
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = BrandEmeraldLight
+                        color = BrandGoldLight
                     ) {
                         Text(
                             text = "★ ${chef.ratingAvg}",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = ConciergePrimaryContainer,
+                            color = BrandGold,
                             modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
                         )
                     }

@@ -36,8 +36,6 @@ import com.example.data.local.MealOrderEntity
 import com.example.data.local.MealSubscriptionEntity
 import com.example.data.local.MenuItemEntity
 import com.example.data.local.UserEntity
-import com.example.ui.BrandEmerald
-import com.example.ui.BrandEmeraldLight
 import com.example.ui.BrandGold
 import com.example.ui.BrandGoldLight
 import com.example.ui.BrandSlate
@@ -108,7 +106,7 @@ fun ChefPortalDashboardScreen(
                 actions = {
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = BrandEmeraldLight,
+                        color = ConciergeVegGreenLight,
                         modifier = Modifier.padding(end = 12.dp)
                     ) {
                         Row(
@@ -119,12 +117,12 @@ fun ChefPortalDashboardScreen(
                                 modifier = Modifier
                                     .size(8.dp)
                                     .clip(CircleShape)
-                                    .background(BrandEmerald)
+                                    .background(ConciergeVegGreen)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = "KITCHEN OPEN",
-                                color = BrandEmerald,
+                                color = ConciergeVegGreenDark,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -374,7 +372,7 @@ fun ChefOrderCard(
                     color = when (order.status) {
                         "PENDING" -> BrandGoldLight
                         "PREPARING" -> Color(0xFFE0F2FE)
-                        "READY" -> BrandEmeraldLight
+                        "READY" -> ConciergeVegGreenLight
                         "DELIVERED" -> Color(0xFFF1F5F9)
                         else -> ConciergeSurfaceContainerLow
                     }
@@ -386,7 +384,7 @@ fun ChefOrderCard(
                         color = when (order.status) {
                             "PENDING" -> BrandGold
                             "PREPARING" -> Color(0xFF0284C7)
-                            "READY" -> BrandEmerald
+                            "READY" -> ConciergeVegGreenDark
                             "DELIVERED" -> Color(0xFF64748B)
                             else -> ConciergeOutline
                         },
@@ -471,10 +469,10 @@ fun ChefOrderCard(
                         OutlinedButton(
                             onClick = { onStatusUpdate("DELIVERED") },
                             shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(1.dp, BrandEmerald),
+                            border = BorderStroke(1.dp, ConciergeVegGreen),
                             modifier = Modifier.testTag("update_order_${order.id}")
                         ) {
-                            Text("Confirm Delivered", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = BrandEmerald)
+                            Text("Confirm Delivered", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = ConciergeVegGreen)
                         }
                     }
                     else -> {
@@ -610,13 +608,13 @@ fun ChefSubscriptionCard(sub: MealSubscriptionEntity) {
 
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = BrandEmeraldLight
+                    color = if (sub.status == "ACTIVE") ConciergeVegGreenLight else ConciergeStatusAmberBadgeBg
                 ) {
                     Text(
                         text = sub.status,
                         fontWeight = FontWeight.Bold,
                         fontSize = 10.sp,
-                        color = BrandEmerald,
+                        color = if (sub.status == "ACTIVE") ConciergeVegGreenDark else ConciergeStatusAmberDark,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                     )
                 }

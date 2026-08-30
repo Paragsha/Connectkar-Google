@@ -80,6 +80,9 @@ val ConciergeVehicles = Color(0xFFD97706)
 val ConciergeParking = Color(0xFF475569)
 
 // Semantic Meal & Status Colors
+val ConciergeBrandNavy = Color(0xFF001A40)
+val BrandNavy = ConciergeBrandNavy
+
 val ConciergeVegGreen = Color(0xFF16A34A)
 val ConciergeVegGreenDark = Color(0xFF14532D)
 val ConciergeVegGreenMedium = Color(0xFF166534)

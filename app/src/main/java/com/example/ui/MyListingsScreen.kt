@@ -52,7 +52,6 @@ fun MyListingsScreen(
     var selectedListingForDetails by remember { mutableStateOf<ListingEntity?>(null) }
     var listingToDelete by remember { mutableStateOf<ListingEntity?>(null) }
 
-    val brandNavy = Color(0xFF001A40)
     val brandActiveBlue = Color(0xFF003FB1)
     val lightBg = Color(0xFFF8FAFC)
 
@@ -80,7 +79,7 @@ fun MyListingsScreen(
                 Text(
                     text = "Delete Listing",
                     fontWeight = FontWeight.Bold,
-                    color = brandNavy
+                    color = ConciergeBrandNavy
                 )
             },
             text = {
@@ -137,7 +136,7 @@ fun MyListingsScreen(
                         Icon(
                             imageVector = Icons.Default.LocationOn,
                             contentDescription = null,
-                            tint = brandNavy,
+                            tint = ConciergeBrandNavy,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -145,7 +144,7 @@ fun MyListingsScreen(
                             text = "ConnectKar",
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 18.sp,
-                            color = brandNavy
+                            color = ConciergeBrandNavy
                         )
                     }
 
@@ -160,7 +159,7 @@ fun MyListingsScreen(
                             Icon(
                                 imageVector = Icons.Default.Notifications,
                                 contentDescription = "Notifications",
-                                tint = brandNavy,
+                                tint = ConciergeBrandNavy,
                                 modifier = Modifier.size(18.dp)
                             )
                             Box(
@@ -181,7 +180,7 @@ fun MyListingsScreen(
                     text = "My Listings",
                     fontWeight = FontWeight.Bold,
                     fontSize = 26.sp,
-                    color = brandNavy,
+                    color = ConciergeBrandNavy,
                     modifier = Modifier
                         .padding(top = 16.dp, bottom = 16.dp)
                         .testTag("my_listings_title")
@@ -256,7 +255,7 @@ fun MyListingsScreen(
                                 },
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = brandNavy
+                                color = ConciergeBrandNavy
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
@@ -283,8 +282,7 @@ fun MyListingsScreen(
                         },
                         onDelete = {
                             listingToDelete = listing
-                        },
-                        brandNavy = brandNavy
+                        }
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                 }
@@ -302,8 +300,7 @@ private fun MyListingCard(
     listing: ListingEntity,
     onViewDetails: () -> Unit,
     onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    brandNavy: Color
+    onDelete: () -> Unit
 ) {
     val fallbackImage = "https://lh3.googleusercontent.com/aida-public/AB6AXuA1ilwu0-nL4Uf4RDnlpLjtgUgVcugQkNHj9n-5km498WAcH_Yp290Dxq7oDHFCSUpMJgfx5AsoC_DbRl59YgzgrghIq1GC_BhE8rekPsJSzLROBEnYSl5EM64MfXqnJn7d2ycWMMkCG-v9aptZFlP6Ad3gRbnIGZ1PbEmDv6XgkjtrYtfS7JHTD7Ubmi5cWHX1nsSccrkiZjStXigCV5NM07oLlrsJAMC0zu6YBKaj7YLurQ1XhdDx"
     val imageUrl = listing.primaryPhotoUrl(fallbackImage)
@@ -353,7 +350,7 @@ private fun MyListingCard(
                         text = listing.title,
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
-                        color = brandNavy,
+                        color = ConciergeBrandNavy,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
@@ -364,11 +361,11 @@ private fun MyListingCard(
                     if (listing.isDraft) {
                         Surface(
                             shape = RoundedCornerShape(9999.dp),
-                            color = Color(0xFFFEF3C7)
+                            color = ConciergeStatusAmberBadgeBg
                         ) {
                             Text(
                                 text = "Draft",
-                                color = Color(0xFFB45309),
+                                color = ConciergeStatusAmberMedium,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)

@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.theme.ConciergeBrandNavy
 
 @Composable
 fun ConnectKarBottomBar(
@@ -36,7 +37,6 @@ fun ConnectKarBottomBar(
     onTabSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val brandNavy = Color(0xFF001A40)
     val activeBlue = Color(0xFF003FB1)
     val inactiveGray = Color.Gray
 
@@ -111,7 +111,7 @@ fun ConnectKarBottomBar(
                     modifier = Modifier
                         .size(50.dp)
                         .clip(CircleShape)
-                        .background(brandNavy)
+                        .background(ConciergeBrandNavy)
                         .clickable { onTabSelected("create") }
                         .testTag("create_pillar_button"),
                     contentAlignment = Alignment.Center

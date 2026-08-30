@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.UserEntity
+import com.example.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,12 +77,12 @@ fun AdminScreen(
                 }
                 Card(
                     modifier = Modifier.weight(1f),
-                    colors = CardDefaults.cardColors(containerColor = BrandEmeraldLight),
+                    colors = CardDefaults.cardColors(containerColor = ConciergeVegGreenLight),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Active Residents", fontSize = 12.sp, color = BrandEmerald, fontWeight = FontWeight.Medium)
-                        Text("${verifiedUsers.size} Verified", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = BrandEmerald)
+                        Text("Active Residents", fontSize = 12.sp, color = ConciergeVegGreenDark, fontWeight = FontWeight.Medium)
+                        Text("${verifiedUsers.size} Verified", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = ConciergeVegGreenDark)
                     }
                 }
             }
@@ -94,7 +95,7 @@ fun AdminScreen(
                 indicator = { tabPositions ->
                     TabRowDefaults.Indicator(
                         modifier = Modifier.tabIndicatorOffset(tabPositions[activeTab]),
-                        color = if (activeTab == 0) BrandGold else BrandEmerald
+                        color = if (activeTab == 0) BrandGold else ConciergeBrandNavy
                     )
                 }
             ) {
@@ -134,7 +135,7 @@ fun AdminScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = BrandEmerald, modifier = Modifier.size(64.dp))
+                                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = ConciergeVegGreen, modifier = Modifier.size(64.dp))
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Text("All caught up!", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = BrandSlate)
                                 Text("No pending verification requests.", fontSize = 12.sp, color = Color.Gray)
@@ -288,7 +289,7 @@ fun AdminUserRequestCard(
 
                 Button(
                     onClick = onApprove,
-                    colors = ButtonDefaults.buttonColors(containerColor = BrandEmerald),
+                    colors = ButtonDefaults.buttonColors(containerColor = ConciergeVegGreen),
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier
                         .weight(1.2f)

@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.local.ListingEntity
 import com.example.data.local.UserEntity
 import com.example.ui.components.PropertyListingSkeletonCard
+import com.example.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,12 +83,12 @@ fun ModuleListScreen(
                             text = activeTitle,
                             fontWeight = FontWeight.Bold,
                             color = BrandSlate,
-                            fontSize = 20.sp
+                            style = MaterialTheme.typography.titleLarge
                         )
                         Text(
                             text = if (selectedSociety == "All Societies") "Showing all of ConnectKar" else "Showing only in $selectedSociety",
-                            fontSize = 11.sp,
-                            color = BrandEmerald,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = ConciergeBrandNavy,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -104,12 +105,12 @@ fun ModuleListScreen(
             if (currentUser.isVerified && moduleType != "VEHICLE") {
                 FloatingActionButton(
                     onClick = onCreateListingClicked,
-                    containerColor = BrandEmerald,
+                    containerColor = ConciergeBrandNavy,
                     contentColor = Color.White,
                     modifier = Modifier
                         .padding(bottom = 16.dp)
                         .testTag("add_listing_fab"),
-                    shape = RoundedCornerShape(16.dp)
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 16.dp),
@@ -117,7 +118,7 @@ fun ModuleListScreen(
                     ) {
                         Icon(Icons.Default.Add, contentDescription = "Create Listing")
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Create", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text("Create", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
@@ -146,7 +147,7 @@ fun ModuleListScreen(
                         .fillMaxWidth()
                         .padding(vertical = 8.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9)),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.small
                 ) {
                     Row(
                         modifier = Modifier.padding(12.dp),
@@ -161,7 +162,7 @@ fun ModuleListScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = activeSubtitle,
-                            fontSize = 12.sp,
+                            style = MaterialTheme.typography.labelMedium,
                             color = Color(0xFF475569),
                             fontWeight = FontWeight.Medium
                         )
@@ -179,9 +180,9 @@ fun ModuleListScreen(
                         .fillMaxWidth()
                         .padding(vertical = 8.dp)
                         .testTag("module_search_input"),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = MaterialTheme.shapes.small,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = BrandEmerald,
+                        focusedBorderColor = ConciergeBrandNavy,
                         unfocusedContainerColor = Color.White,
                         focusedContainerColor = Color.White
                     )
@@ -222,14 +223,14 @@ fun ModuleListScreen(
                             Text(
                                 text = "No listings found",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp,
+                                style = MaterialTheme.typography.titleMedium,
                                 color = BrandSlate
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = if (searchQuery.isNotEmpty()) "Try adjusting your search terms" else "Be the first verified resident to create an entry! (Pull down to refresh)",
                                 textAlign = TextAlign.Center,
-                                fontSize = 13.sp,
+                                style = MaterialTheme.typography.bodySmall,
                                 color = Color.Gray
                             )
                         }

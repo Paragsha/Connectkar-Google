@@ -32,8 +32,6 @@ import com.example.data.local.ChefProfileEntity
 import com.example.data.local.MenuItemEntity
 import com.example.data.local.UserEntity
 import com.example.ui.AvatarImage
-import com.example.ui.BrandEmerald
-import com.example.ui.BrandEmeraldLight
 import com.example.ui.BrandGold
 import com.example.ui.BrandGoldLight
 import com.example.ui.BrandSlate
@@ -126,7 +124,7 @@ fun ChefPublicProfileScreen(
                             Spacer(modifier = Modifier.width(6.dp))
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
-                                color = BrandEmeraldLight
+                                color = ConciergeVegGreenLight
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
@@ -135,7 +133,7 @@ fun ChefPublicProfileScreen(
                                     Icon(
                                         imageVector = Icons.Default.Verified,
                                         contentDescription = null,
-                                        tint = BrandEmerald,
+                                        tint = ConciergeVegGreen,
                                         modifier = Modifier.size(12.dp)
                                     )
                                     Spacer(modifier = Modifier.width(3.dp))
@@ -143,7 +141,7 @@ fun ChefPublicProfileScreen(
                                         text = "Vouched Chef",
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = BrandEmerald
+                                        color = ConciergeVegGreenDark
                                     )
                                 }
                             }

@@ -45,7 +45,6 @@ fun PropertyDetailsScreen(
     val specs = getPropertySpecs(property)
     val details = property.propertyDetails()
 
-    val brandNavy = Color(0xFF001A40)
     val brandTeal = Color(0xFF007A5A)
     val brandOrange = ConciergeStatusAmber
     val lightBg = Color(0xFFF8FAFC)
@@ -70,7 +69,7 @@ fun PropertyDetailsScreen(
                         text = "Property Details",
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
-                        color = brandNavy
+                        color = ConciergeBrandNavy
                     )
                 },
                 navigationIcon = {
@@ -81,7 +80,7 @@ fun PropertyDetailsScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = brandNavy
+                            tint = ConciergeBrandNavy
                         )
                     }
                 },
@@ -100,7 +99,7 @@ fun PropertyDetailsScreen(
                         Icon(
                             imageVector = Icons.Default.Share,
                             contentDescription = "Share",
-                            tint = brandNavy
+                            tint = ConciergeBrandNavy
                         )
                     }
                 },
@@ -134,7 +133,7 @@ fun PropertyDetailsScreen(
                             text = "₹${String.format("%,.0f", property.price)}/mo",
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 20.sp,
-                            color = brandNavy
+                            color = ConciergeBrandNavy
                         )
                     }
 
@@ -293,7 +292,7 @@ fun PropertyDetailsScreen(
                     text = property.title,
                     fontWeight = FontWeight.Bold,
                     fontSize = 22.sp,
-                    color = brandNavy,
+                    color = ConciergeBrandNavy,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
@@ -317,22 +316,19 @@ fun PropertyDetailsScreen(
                         icon = Icons.Default.Bed,
                         label = "${specs.first} ${if (specs.first == 1) "Bed" else "Beds"}",
                         modifier = Modifier.weight(1f),
-                        chipBg = chipBg,
-                        brandNavy = brandNavy
+                        chipBg = chipBg
                     )
                     SpecBox(
                         icon = Icons.Default.Bathtub,
                         label = "${specs.second} ${if (specs.second == 1) "Bath" else "Baths"}",
                         modifier = Modifier.weight(1f),
-                        chipBg = chipBg,
-                        brandNavy = brandNavy
+                        chipBg = chipBg
                     )
                     SpecBox(
                         icon = Icons.Default.Straighten,
                         label = "${specs.third} sqft",
                         modifier = Modifier.weight(1f),
-                        chipBg = chipBg,
-                        brandNavy = brandNavy
+                        chipBg = chipBg
                     )
                 }
 
@@ -343,7 +339,7 @@ fun PropertyDetailsScreen(
                     text = "About this property",
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
-                    color = brandNavy,
+                    color = ConciergeBrandNavy,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
                 val descriptionText = property.description.ifEmpty {
@@ -364,7 +360,7 @@ fun PropertyDetailsScreen(
                     text = "Amenities",
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
-                    color = brandNavy,
+                    color = ConciergeBrandNavy,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
@@ -412,7 +408,7 @@ fun PropertyDetailsScreen(
                     text = "Listed by",
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
-                    color = brandNavy,
+                    color = ConciergeBrandNavy,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
@@ -449,7 +445,7 @@ fun PropertyDetailsScreen(
                                     text = property.authorName.ifEmpty { "Resident Owner" },
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 15.sp,
-                                    color = brandNavy
+                                    color = ConciergeBrandNavy
                                 )
                                 Text(
                                     text = "Verified Resident · ${property.society.ifEmpty { "Sylvan County" }}",
@@ -510,7 +506,7 @@ fun PropertyDetailsScreen(
                     text = property.society.ifEmpty { "Society Location" },
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
-                    color = brandNavy,
+                    color = ConciergeBrandNavy,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
@@ -551,7 +547,7 @@ fun PropertyDetailsScreen(
                                 text = property.society.ifEmpty { "Society Campus" },
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp,
-                                color = brandNavy
+                                color = ConciergeBrandNavy
                             )
                             Text(
                                 text = "Interactive map view placeholder",
@@ -573,8 +569,7 @@ private fun SpecBox(
     icon: ImageVector,
     label: String,
     modifier: Modifier = Modifier,
-    chipBg: Color,
-    brandNavy: Color
+    chipBg: Color
 ) {
     Surface(
         shape = RoundedCornerShape(14.dp),
@@ -596,7 +591,7 @@ private fun SpecBox(
                 text = label,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = brandNavy
+                color = ConciergeBrandNavy
             )
         }
     }

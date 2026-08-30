@@ -28,9 +28,9 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.local.MenuItemEntity
 import com.example.data.local.UserEntity
-import com.example.ui.BrandEmerald
-import com.example.ui.BrandEmeraldLight
 import com.example.ui.BrandGold
+import com.example.ui.BrandIndigo
+import com.example.ui.BrandIndigoLight
 import com.example.ui.OperationsUiState
 import com.example.ui.theme.*
 
@@ -344,8 +344,8 @@ fun MealCheckoutScreen(
                                 .clip(RoundedCornerShape(14.dp))
                                 .clickable { deliveryMethod = "DOORSTEP" }
                                 .testTag("delivery_doorstep"),
-                            color = if (deliveryMethod == "DOORSTEP") BrandEmeraldLight else ConciergeBackground,
-                            border = BorderStroke(1.dp, if (deliveryMethod == "DOORSTEP") BrandEmerald else ConciergeOutlineVariant),
+                            color = if (deliveryMethod == "DOORSTEP") BrandIndigoLight else ConciergeBackground,
+                            border = BorderStroke(1.dp, if (deliveryMethod == "DOORSTEP") BrandIndigo else ConciergeOutlineVariant),
                             shape = RoundedCornerShape(14.dp)
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
@@ -360,8 +360,8 @@ fun MealCheckoutScreen(
                                 .clip(RoundedCornerShape(14.dp))
                                 .clickable { deliveryMethod = "PICKUP" }
                                 .testTag("delivery_pickup"),
-                            color = if (deliveryMethod == "PICKUP") BrandEmeraldLight else ConciergeBackground,
-                            border = BorderStroke(1.dp, if (deliveryMethod == "PICKUP") BrandEmerald else ConciergeOutlineVariant),
+                            color = if (deliveryMethod == "PICKUP") BrandIndigoLight else ConciergeBackground,
+                            border = BorderStroke(1.dp, if (deliveryMethod == "PICKUP") BrandIndigo else ConciergeOutlineVariant),
                             shape = RoundedCornerShape(14.dp)
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {

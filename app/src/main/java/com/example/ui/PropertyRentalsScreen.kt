@@ -77,7 +77,6 @@ fun PropertyRentalsScreen(
     val filterChips = listOf("All", "2 BHK", "1 BHK", "Furnished", "Under ₹25k", "Pet Friendly")
 
     // Brand Palette remapped to matching Digital Concierge design tokens
-    val brandNavy = ConciergePrimaryContainer
     val brandCobalt = ConciergeSecondary
     val surfaceContainerLow = ConciergeSurfaceContainerLow
     val surfaceContainerLowest = ConciergeSurface
@@ -173,7 +172,7 @@ fun PropertyRentalsScreen(
             if (currentUser.isVerified) {
                 FloatingActionButton(
                     onClick = onCreateListingClicked,
-                    containerColor = brandNavy,
+                    containerColor = ConciergeBrandNavy,
                     contentColor = Color.White,
                     modifier = Modifier
                         .padding(bottom = 80.dp)
@@ -241,7 +240,7 @@ fun PropertyRentalsScreen(
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Back",
-                            tint = brandNavy,
+                            tint = ConciergeBrandNavy,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -249,7 +248,7 @@ fun PropertyRentalsScreen(
                     Text(
                         text = "ConnectKar",
                         fontWeight = FontWeight.Black,
-                        color = brandNavy,
+                        color = ConciergeBrandNavy,
                         fontSize = 22.sp,
                         modifier = Modifier.padding(end = 8.dp)
                     )
@@ -274,7 +273,7 @@ fun PropertyRentalsScreen(
                         Icon(
                             imageVector = Icons.Default.LocationOn,
                             contentDescription = null,
-                            tint = brandNavy,
+                            tint = ConciergeBrandNavy,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
@@ -290,7 +289,7 @@ fun PropertyRentalsScreen(
                         Icon(
                             imageVector = Icons.Default.ExpandMore,
                             contentDescription = null,
-                            tint = brandNavy,
+                            tint = ConciergeBrandNavy,
                             modifier = Modifier.size(14.dp)
                         )
                     }
@@ -309,7 +308,7 @@ fun PropertyRentalsScreen(
                         Icon(
                             imageVector = Icons.Outlined.BookmarkBorder,
                             contentDescription = "Saved Properties",
-                            tint = brandNavy,
+                            tint = ConciergeBrandNavy,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -334,7 +333,7 @@ fun PropertyRentalsScreen(
                     text = "Rent flats & properties",
                     fontWeight = FontWeight.Bold,
                     fontSize = 26.sp,
-                    color = brandNavy,
+                    color = ConciergeBrandNavy,
                     modifier = Modifier
                         .padding(top = 16.dp, bottom = 16.dp)
                         .testTag("screen_title_rentals")
@@ -452,7 +451,7 @@ fun PropertyRentalsScreen(
                     Icon(
                         imageVector = Icons.Default.VerifiedUser,
                         contentDescription = "Verified safety",
-                        tint = brandNavy,
+                        tint = ConciergeBrandNavy,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
@@ -493,7 +492,7 @@ fun PropertyRentalsScreen(
                                 text = "No rentals found",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = brandNavy
+                                color = ConciergeBrandNavy
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
@@ -510,7 +509,6 @@ fun PropertyRentalsScreen(
                     PropertyCard(
                         property = property,
                         onViewDetails = { selectedListingForDetails = property },
-                        brandNavy = brandNavy,
                         brandTeal = brandTeal,
                         ghostBorderColor = ghostBorderColor,
                         surfaceContainerLowest = surfaceContainerLowest
@@ -552,7 +550,7 @@ fun PropertyRentalsScreen(
                         text = "Filters",
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp,
-                        color = brandNavy
+                        color = ConciergeBrandNavy
                     )
                     IconButton(
                         onClick = { showFiltersSheet = false },
@@ -803,7 +801,6 @@ fun PropertyRentalsScreen(
 fun PropertyCard(
     property: ListingEntity,
     onViewDetails: () -> Unit,
-    brandNavy: Color,
     brandTeal: Color,
     ghostBorderColor: Color,
     surfaceContainerLowest: Color
@@ -949,7 +946,7 @@ fun PropertyCard(
                     text = property.title,
                     fontWeight = FontWeight.Bold,
                     fontSize = 20.sp,
-                    color = brandNavy,
+                    color = ConciergeBrandNavy,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(bottom = 12.dp)
@@ -1025,7 +1022,7 @@ fun PropertyCard(
                             text = "₹${String.format("%,.0f", property.price)}",
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 22.sp,
-                            color = brandNavy
+                            color = ConciergeBrandNavy
                         )
                         Text(
                             text = "per month",

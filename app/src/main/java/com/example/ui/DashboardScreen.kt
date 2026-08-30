@@ -89,7 +89,6 @@ fun DashboardScreen(
     val societies = listOf("All Societies") + TownshipSocieties
 
     // High-end design palette (Consolidated to Concierge Design Tokens)
-    val brandNavy = ConciergePrimaryContainer
     val brandGreen = ConciergeHomeLiving
     val colorGrayLight = ConciergeSurfaceContainerLow
 
@@ -100,7 +99,7 @@ fun DashboardScreen(
             title = "Buy & Sell\nItems",
             subtitle = "Buy & Sell Items",
             icon = Icons.Default.Storefront,
-            bgBrush = Brush.linearGradient(listOf(brandNavy, Color(0xFF283593))),
+            bgBrush = Brush.linearGradient(listOf(ConciergeBrandNavy, Color(0xFF283593))),
             iconColor = Color.White,
             textColor = Color.White,
             ghostIcon = Icons.Default.ShoppingBag
@@ -111,8 +110,8 @@ fun DashboardScreen(
             subtitle = "Rent Flats & Properties",
             icon = Icons.Default.LocationCity,
             bgBrush = Brush.linearGradient(listOf(Color(0xFFE8EAF6), Color(0xFFC5CAE9))),
-            iconColor = brandNavy,
-            textColor = brandNavy,
+            iconColor = ConciergeBrandNavy,
+            textColor = ConciergeBrandNavy,
             ghostIcon = Icons.Default.Apartment
         ),
         BentoPillar(
@@ -189,8 +188,8 @@ fun DashboardScreen(
                         Text(
                             text = "ConnectKar",
                             fontWeight = FontWeight.Black,
-                            color = brandNavy,
-                            fontSize = 22.sp,
+                            color = ConciergeBrandNavy,
+                            style = MaterialTheme.typography.titleLarge,
                             modifier = Modifier.padding(end = 8.dp)
                         )
                         
@@ -208,7 +207,7 @@ fun DashboardScreen(
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(MaterialTheme.shapes.extraSmall)
                                 .clickable { showSocietyDropdown = !showSocietyDropdown }
                                 .padding(horizontal = 6.dp, vertical = 4.dp)
                                 .testTag("filter_society_dropdown")
@@ -216,7 +215,7 @@ fun DashboardScreen(
                             Text(
                                 text = selectedSociety,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
+                                style = MaterialTheme.typography.titleSmall,
                                 color = BrandSlate,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -225,7 +224,7 @@ fun DashboardScreen(
                             Icon(
                                 imageVector = Icons.Default.ExpandMore,
                                 contentDescription = "Choose Society",
-                                tint = brandNavy,
+                                tint = ConciergeBrandNavy,
                                 modifier = Modifier.size(18.dp)
                             )
 
@@ -235,7 +234,7 @@ fun DashboardScreen(
                             ) {
                                 societies.forEach { society ->
                                     DropdownMenuItem(
-                                        text = { Text(society, fontWeight = FontWeight.SemiBold) },
+                                        text = { Text(society, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium) },
                                         onClick = {
                                             onSocietySelected(society)
                                             showSocietyDropdown = false
@@ -310,15 +309,15 @@ fun DashboardScreen(
                             Icon(
                                 imageVector = if (activeTab == "home") Icons.Default.Home else Icons.Outlined.Home,
                                 contentDescription = "Home",
-                                tint = if (activeTab == "home") brandNavy else Color.Gray,
+                                tint = if (activeTab == "home") ConciergeBrandNavy else Color.Gray,
                                 modifier = Modifier.size(24.dp)
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 "Home",
-                                fontSize = 10.sp,
+                                style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = if (activeTab == "home") brandNavy else Color.Gray
+                                color = if (activeTab == "home") ConciergeBrandNavy else Color.Gray
                             )
                         }
                     }
@@ -338,7 +337,7 @@ fun DashboardScreen(
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 "Explore",
-                                fontSize = 10.sp,
+                                style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.Gray
                             )
@@ -356,7 +355,7 @@ fun DashboardScreen(
                             modifier = Modifier
                                 .size(50.dp)
                                 .clip(CircleShape)
-                                .background(brandNavy)
+                                .background(ConciergeBrandNavy)
                                 .clickable {
                                     if (currentUser.isVerified) {
                                         onModuleClicked("CREATE_HUB")
@@ -391,7 +390,7 @@ fun DashboardScreen(
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 "Society",
-                                fontSize = 10.sp,
+                                style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.Gray
                             )
@@ -413,7 +412,7 @@ fun DashboardScreen(
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 "Profile",
-                                fontSize = 10.sp,
+                                style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.Gray
                             )
@@ -456,7 +455,7 @@ fun DashboardScreen(
                 ) {
                 // Verified Resident Chip/Badge
                 Surface(
-                    shape = RoundedCornerShape(9999.dp),
+                    shape = MaterialTheme.shapes.extraLarge,
                     color = if (currentUser.isVerified) brandGreen else Color(0xFFD48800),
                     modifier = Modifier.padding(bottom = 12.dp)
                 ) {
@@ -474,7 +473,7 @@ fun DashboardScreen(
                         Text(
                             text = if (currentUser.isVerified) "VERIFIED RESIDENT" else "PENDING VERIFICATION",
                             color = Color.White,
-                            fontSize = 10.sp,
+                            style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.ExtraBold,
                             letterSpacing = 1.sp
                         )
@@ -486,22 +485,20 @@ fun DashboardScreen(
                     text = "Welcome Home,",
                     fontWeight = FontWeight.Normal,
                     color = BrandSlate,
-                    fontSize = 32.sp,
-                    lineHeight = 36.sp
+                    style = MaterialTheme.typography.headlineMedium
                 )
                 Text(
                     text = userFirstName,
                     fontWeight = FontWeight.ExtraBold,
-                    color = brandNavy,
-                    fontSize = 42.sp,
-                    lineHeight = 46.sp,
+                    color = ConciergeBrandNavy,
+                    style = MaterialTheme.typography.displaySmall,
                     modifier = Modifier.padding(bottom = 6.dp)
                 )
 
                 // Greeting Subtitle
                 Text(
                     text = "It's a beautiful morning at The Urban Sanctuary.",
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = Color.Gray,
                     fontWeight = FontWeight.Medium
                 )
@@ -567,12 +564,12 @@ fun DashboardScreen(
                         Text(
                             text = "Fresh Today",
                             fontWeight = FontWeight.ExtraBold,
-                            fontSize = 22.sp,
+                            style = MaterialTheme.typography.titleLarge,
                             color = BrandSlate
                         )
                         Text(
                             text = "IN YOUR BUILDING",
-                            fontSize = 10.sp,
+                            style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = Color.Gray,
                             letterSpacing = 1.sp
@@ -585,13 +582,13 @@ fun DashboardScreen(
                         Text(
                             "See All",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            color = brandNavy
+                            style = MaterialTheme.typography.labelLarge,
+                            color = ConciergeBrandNavy
                         )
                         Icon(
                             imageVector = Icons.Default.ChevronRight,
                             contentDescription = "See All",
-                            tint = brandNavy,
+                            tint = ConciergeBrandNavy,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -629,7 +626,7 @@ fun DashboardScreen(
                 Text(
                     text = "Trending in $selectedSociety",
                     fontWeight = FontWeight.ExtraBold,
-                    fontSize = 22.sp,
+                    style = MaterialTheme.typography.titleLarge,
                     color = BrandSlate,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
@@ -639,7 +636,7 @@ fun DashboardScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onModuleClicked("MARKETPLACE") },
-                    shape = RoundedCornerShape(16.dp),
+                    shape = MaterialTheme.shapes.medium,
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     border = BorderStroke(0.5.dp, BrandOutline.copy(alpha = 0.4f))
                 ) {
@@ -652,11 +649,11 @@ fun DashboardScreen(
                         Box(
                             modifier = Modifier
                                 .size(96.dp)
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(MaterialTheme.shapes.small)
                                 .background(Brush.linearGradient(listOf(Color(0xFFE2E8F0), Color(0xFF94A3B8)))),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("🚲", fontSize = 42.sp)
+                            Text("🚲", style = MaterialTheme.typography.displaySmall)
                         }
 
                         Spacer(modifier = Modifier.width(16.dp))
@@ -671,29 +668,29 @@ fun DashboardScreen(
                             ) {
                                 Text(
                                     text = "TOP DEAL",
-                                    color = brandNavy,
+                                    color = ConciergeBrandNavy,
                                     fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 10.sp,
+                                    style = MaterialTheme.typography.labelSmall,
                                     letterSpacing = 1.sp
                                 )
                                 Text(
                                     text = "2h ago",
                                     color = Color.Gray,
-                                    fontSize = 10.sp
+                                    style = MaterialTheme.typography.labelSmall
                                 )
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "Specialized Allez Road Bike",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
+                                style = MaterialTheme.typography.titleSmall,
                                 color = BrandSlate,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = "Excellent condition, size L.",
-                                fontSize = 12.sp,
+                                style = MaterialTheme.typography.bodySmall,
                                 color = Color.Gray,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -707,14 +704,14 @@ fun DashboardScreen(
                                 Text(
                                     text = "₹45,000",
                                     fontWeight = FontWeight.Black,
-                                    fontSize = 16.sp,
-                                    color = brandNavy
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = ConciergeBrandNavy
                                 )
                                 Text(
                                     text = "View Details",
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    color = brandNavy
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = ConciergeBrandNavy
                                 )
                             }
                         }
@@ -726,7 +723,7 @@ fun DashboardScreen(
                 // Community Warning Alert Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = MaterialTheme.shapes.medium,
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF1F1)),
                     border = BorderStroke(1.dp, Color(0xFFFFCDCD))
                 ) {
@@ -747,15 +744,14 @@ fun DashboardScreen(
                             Text(
                                 text = "Gate 2 Maintenance Notice",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
+                                style = MaterialTheme.typography.titleSmall,
                                 color = Color(0xFFC62828)
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "Gate 2 closed for 2 hours (11:00 AM - 1:00 PM) due to flooring maintenance. Please use Gate 1.",
-                                fontSize = 12.sp,
-                                color = Color(0xFF5D4037),
-                                lineHeight = 16.sp
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF5D4037)
                             )
                         }
                     }
@@ -775,7 +771,7 @@ fun DashboardScreen(
             onDismissRequest = { selectedMealForOrder = null },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(meal.emoji, fontSize = 28.sp)
+                    Text(meal.emoji, style = MaterialTheme.typography.headlineMedium)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Place Meal Order", fontWeight = FontWeight.Bold)
                 }
@@ -785,46 +781,46 @@ fun DashboardScreen(
                     Text(
                         text = meal.dishName,
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = 18.sp,
-                        color = brandNavy
+                        style = MaterialTheme.typography.titleMedium,
+                        color = ConciergeBrandNavy
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Chef: ${meal.chefName} (${meal.location})",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = Color.DarkGray
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = "Price: ₹${meal.price} / order",
                         fontWeight = FontWeight.Black,
-                        fontSize = 16.sp,
+                        style = MaterialTheme.typography.titleMedium,
                         color = brandGreen
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "Connect with the resident chef directly via Phone/WhatsApp to finalize details:",
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         color = Color.Gray
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Surface(
                         color = colorGrayLight,
-                        shape = RoundedCornerShape(8.dp),
+                        shape = MaterialTheme.shapes.extraSmall,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Phone, contentDescription = "Phone icon", tint = brandNavy)
+                            Icon(Icons.Default.Phone, contentDescription = "Phone icon", tint = ConciergeBrandNavy)
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = meal.contactPhone,
                                 fontWeight = FontWeight.ExtraBold,
-                                fontSize = 16.sp,
-                                color = brandNavy
+                                style = MaterialTheme.typography.titleMedium,
+                                color = ConciergeBrandNavy
                             )
                         }
                     }
@@ -833,7 +829,7 @@ fun DashboardScreen(
             confirmButton = {
                 Button(
                     onClick = { selectedMealForOrder = null },
-                    colors = ButtonDefaults.buttonColors(containerColor = brandNavy)
+                    colors = ButtonDefaults.buttonColors(containerColor = ConciergeBrandNavy)
                 ) {
                     Text("Close")
                 }
@@ -856,7 +852,7 @@ fun DashboardScreen(
             onDismissRequest = { selectedListingMealForOrder = null },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(if (isVeg) "🥗" else "🥩", fontSize = 28.sp)
+                    Text(if (isVeg) "🥗" else "🥩", style = MaterialTheme.typography.headlineMedium)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Place Meal Order", fontWeight = FontWeight.Bold)
                 }
@@ -866,21 +862,21 @@ fun DashboardScreen(
                     Text(
                         text = listing.title,
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = 18.sp,
-                        color = brandNavy
+                        style = MaterialTheme.typography.titleMedium,
+                        color = ConciergeBrandNavy
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Chef: ${listing.authorName} (${listing.authorFlat})",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = Color.DarkGray
                     )
                     if (deliveryInfo.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Delivery Info: $deliveryInfo",
-                            fontSize = 13.sp,
+                            style = MaterialTheme.typography.bodySmall,
                             color = Color.Gray
                         )
                     }
@@ -888,32 +884,32 @@ fun DashboardScreen(
                     Text(
                         text = "Price: ₹${price.toInt()} / order",
                         fontWeight = FontWeight.Black,
-                        fontSize = 16.sp,
+                        style = MaterialTheme.typography.titleMedium,
                         color = brandGreen
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "Connect with the resident chef directly via Phone/WhatsApp to finalize details:",
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         color = Color.Gray
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Surface(
                         color = colorGrayLight,
-                        shape = RoundedCornerShape(8.dp),
+                        shape = MaterialTheme.shapes.extraSmall,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Phone, contentDescription = "Phone icon", tint = brandNavy)
+                            Icon(Icons.Default.Phone, contentDescription = "Phone icon", tint = ConciergeBrandNavy)
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = listing.contact,
                                 fontWeight = FontWeight.ExtraBold,
-                                fontSize = 16.sp,
-                                color = brandNavy
+                                style = MaterialTheme.typography.titleMedium,
+                                color = ConciergeBrandNavy
                             )
                         }
                     }
@@ -922,7 +918,7 @@ fun DashboardScreen(
             confirmButton = {
                 Button(
                     onClick = { selectedListingMealForOrder = null },
-                    colors = ButtonDefaults.buttonColors(containerColor = brandNavy)
+                    colors = ButtonDefaults.buttonColors(containerColor = ConciergeBrandNavy)
                 ) {
                     Text("Close")
                 }
@@ -946,12 +942,12 @@ fun DashboardScreen(
                     Text(
                         text = currentUser.fullName,
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = 20.sp,
+                        style = MaterialTheme.typography.titleLarge,
                         color = BrandSlate
                     )
                     Text(
                         text = "Phone: ${currentUser.phoneNumber}",
-                        fontSize = 14.sp,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = Color.Gray
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -960,23 +956,23 @@ fun DashboardScreen(
                     Text(
                         text = "Society: ${currentUser.society}",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
+                        style = MaterialTheme.typography.bodyMedium
                     )
                     Text(
                         text = "${currentUser.blockTower}, Flat ${currentUser.flatNumber}",
-                        fontSize = 14.sp,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = Color.DarkGray
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Verified Document proof:",
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         color = Color.Gray
                     )
                     Text(
                         text = "simulated_proof_of_residence.pdf",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         color = brandGreen
                     )
                     Spacer(modifier = Modifier.height(24.dp))
@@ -987,7 +983,7 @@ fun DashboardScreen(
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBA1A1A)),
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = MaterialTheme.shapes.small
                     ) {
                         Icon(Icons.Default.ExitToApp, contentDescription = "Exit icon")
                         Spacer(modifier = Modifier.width(8.dp))
@@ -997,7 +993,7 @@ fun DashboardScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showProfileDetailsDialog = false }) {
-                    Text("Close", color = brandNavy, fontWeight = FontWeight.Bold)
+                    Text("Close", color = ConciergeBrandNavy, fontWeight = FontWeight.Bold)
                 }
             }
         )
@@ -1008,14 +1004,14 @@ fun DashboardScreen(
         AlertDialog(
             onDismissRequest = { showCreateChoiceDialog = false },
             title = {
-                Text("Select Community Pillar", fontWeight = FontWeight.Black, color = brandNavy)
+                Text("Select Community Pillar", fontWeight = FontWeight.Black, color = ConciergeBrandNavy)
             },
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text("Where would you like to post an update or offer?", fontSize = 13.sp, color = Color.Gray)
+                    Text("Where would you like to post an update or offer?", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                     Spacer(modifier = Modifier.height(4.dp))
                     
                     CreateChoiceItem(
@@ -1088,7 +1084,7 @@ fun BentoCard(
             .height(150.dp)
             .clickable { onClick() }
             .testTag("module_card_${pillar.id}"),
-        shape = RoundedCornerShape(24.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(0.5.dp, BrandOutline.copy(alpha = 0.3f))
     ) {
@@ -1134,14 +1130,14 @@ fun BentoCard(
                     Text(
                         text = pillar.title,
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = 15.sp,
+                        style = MaterialTheme.typography.titleSmall,
                         color = pillar.textColor,
                         lineHeight = 18.sp
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = pillar.subtitle,
-                        fontSize = 11.sp,
+                        style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Normal,
                         color = pillar.textColor.copy(alpha = 0.75f)
                     )
@@ -1160,7 +1156,7 @@ fun ChefMealItem(
     Card(
         modifier = modifier
             .width(260.dp),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(0.5.dp, BrandOutline.copy(alpha = 0.4f))
     ) {
@@ -1175,7 +1171,7 @@ fun ChefMealItem(
             ) {
                 Text(
                     text = meal.emoji,
-                    fontSize = 54.sp,
+                    style = MaterialTheme.typography.displayMedium,
                     modifier = Modifier.align(Alignment.Center)
                 )
 
@@ -1183,13 +1179,13 @@ fun ChefMealItem(
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .clip(RoundedCornerShape(99.dp))
+                        .clip(MaterialTheme.shapes.extraLarge)
                         .background(Color.White)
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
                         text = if (meal.isVeg) "🥗 VEG MEAL" else "🥩 NON-VEG",
-                        fontSize = 9.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.ExtraBold,
                         color = if (meal.isVeg) ConciergeVegGreenDark else ConciergeNonVegRed
                     )
@@ -1209,12 +1205,12 @@ fun ChefMealItem(
                             .background(Color(0xFFE8EAF6)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(meal.chefName.take(1), fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                        Text(meal.chefName.take(1), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "${meal.chefName} · ${meal.location}",
-                        fontSize = 11.sp,
+                        style = MaterialTheme.typography.labelMedium,
                         color = Color.Gray,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
@@ -1227,7 +1223,7 @@ fun ChefMealItem(
                 Text(
                     text = meal.dishName,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.titleSmall,
                     color = BrandSlate,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -1243,16 +1239,16 @@ fun ChefMealItem(
                     Text(
                         text = "₹${meal.price}",
                         fontWeight = FontWeight.Black,
-                        fontSize = 16.sp,
+                        style = MaterialTheme.typography.titleMedium,
                         color = Color(0xFF1A237E)
                     )
                     Button(
                         onClick = onOrderClicked,
-                        shape = RoundedCornerShape(8.dp),
+                        shape = MaterialTheme.shapes.extraSmall,
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A237E)),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                     ) {
-                        Text("Order Now", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text("Order Now", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -1270,14 +1266,14 @@ fun CreateChoiceItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.small,
         colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
         border = BorderStroke(0.5.dp, Color.LightGray.copy(alpha = 0.6f))
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1A237E))
+            Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium, color = Color(0xFF1A237E))
             Spacer(modifier = Modifier.height(2.dp))
-            Text(description, fontSize = 11.sp, color = Color.Gray)
+            Text(description, style = MaterialTheme.typography.labelMedium, color = Color.Gray)
         }
     }
 }
@@ -1301,7 +1297,7 @@ fun FreshTodayCard(
     Card(
         modifier = modifier
             .width(260.dp),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(0.5.dp, ConciergeOutlineVariant.copy(alpha = 0.4f))
     ) {
@@ -1333,7 +1329,7 @@ fun FreshTodayCard(
                     ) {
                         Text(
                             text = "🥗",
-                            fontSize = 54.sp
+                            style = MaterialTheme.typography.displayMedium
                         )
                     }
                 }
@@ -1343,13 +1339,13 @@ fun FreshTodayCard(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(12.dp)
-                        .clip(RoundedCornerShape(99.dp))
+                        .clip(MaterialTheme.shapes.extraLarge)
                         .background(Color.White)
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
                         text = if (isVeg) "🥗 VEG MEAL" else "🥩 NON-VEG",
-                        fontSize = 9.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.ExtraBold,
                         color = if (isVeg) ConciergeVegGreenDark else ConciergeNonVegRed
                     )
@@ -1369,12 +1365,12 @@ fun FreshTodayCard(
                             .background(Color(0xFFE8EAF6)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(listing.authorName.take(1), fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                        Text(listing.authorName.take(1), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "${listing.authorName} · ${listing.authorFlat}",
-                        fontSize = 11.sp,
+                        style = MaterialTheme.typography.labelMedium,
                         color = Color.Gray,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
@@ -1387,7 +1383,7 @@ fun FreshTodayCard(
                 Text(
                     text = listing.title,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.titleSmall,
                     color = ConciergeOnBackground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -1397,7 +1393,7 @@ fun FreshTodayCard(
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "Delivery: $deliveryInfo",
-                        fontSize = 10.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         color = Color.Gray,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -1414,16 +1410,16 @@ fun FreshTodayCard(
                     Text(
                         text = "₹${price.toInt()}",
                         fontWeight = FontWeight.Black,
-                        fontSize = 16.sp,
+                        style = MaterialTheme.typography.titleMedium,
                         color = ConciergePrimaryContainer
                     )
                     Button(
                         onClick = onOrderClicked,
-                        shape = RoundedCornerShape(8.dp),
+                        shape = MaterialTheme.shapes.extraSmall,
                         colors = ButtonDefaults.buttonColors(containerColor = ConciergePrimaryContainer),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                     ) {
-                        Text("Order Now", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text("Order Now", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                     }
                 }
             }

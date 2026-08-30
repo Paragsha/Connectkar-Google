@@ -35,8 +35,8 @@ import com.example.ui.components.shimmerEffect
 import com.example.ui.theme.*
 
 // --- Brand Colors (Unified with Digital Concierge design tokens) ---
-val BrandEmerald = ConciergePrimaryContainer
-val BrandEmeraldLight = ConciergePrimaryFixed
+val BrandIndigo = ConciergePrimaryContainer
+val BrandIndigoLight = ConciergePrimaryFixed
 val BrandGold = ConciergeTertiary
 val BrandGoldLight = ConciergeSurfaceVariant
 val BrandSlate = ConciergeOnBackground
@@ -110,22 +110,22 @@ fun VerifiedBadge(
         isVerified -> {
             Row(
                 modifier = modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(BrandEmeraldLight)
+                    .clip(MaterialTheme.shapes.small)
+                    .background(ConciergeVegGreenLight)
                     .padding(horizontal = 8.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = "Verified Resident",
-                    tint = BrandEmerald,
+                    tint = ConciergeVegGreenDark,
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = "VERIFIED",
-                    color = BrandEmerald,
-                    fontSize = 10.sp,
+                    color = ConciergeVegGreenDark,
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -133,7 +133,7 @@ fun VerifiedBadge(
         isPending -> {
             Row(
                 modifier = modifier
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(MaterialTheme.shapes.small)
                     .background(BrandGoldLight)
                     .padding(horizontal = 8.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -148,7 +148,7 @@ fun VerifiedBadge(
                 Text(
                     text = "PENDING VERIFICATION",
                     color = BrandGold,
-                    fontSize = 10.sp,
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -156,7 +156,7 @@ fun VerifiedBadge(
         else -> {
             Row(
                 modifier = modifier
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(MaterialTheme.shapes.small)
                     .background(Color(0xFFF1F5F9))
                     .padding(horizontal = 8.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -171,7 +171,7 @@ fun VerifiedBadge(
                 Text(
                     text = "UNVERIFIED",
                     color = Color.Gray,
-                    fontSize = 10.sp,
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -183,7 +183,7 @@ fun VerifiedBadge(
 fun SocietyBadge(society: String, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(MaterialTheme.shapes.small)
             .background(Color(0xFFEEF2F6))
             .padding(horizontal = 10.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -198,7 +198,7 @@ fun SocietyBadge(society: String, modifier: Modifier = Modifier) {
         Text(
             text = society,
             color = BrandSlate,
-            fontSize = 11.sp,
+            style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Medium
         )
     }
@@ -217,7 +217,7 @@ fun SyncStatusBanner(
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),
                 color = Color(0xFFEFF6FF),
-                shape = RoundedCornerShape(12.dp),
+                shape = MaterialTheme.shapes.small,
                 border = BorderStroke(1.dp, Color(0xFFBFDBFE))
             ) {
                 Row(
@@ -235,7 +235,7 @@ fun SyncStatusBanner(
                     Text(
                         text = "Synchronizing with community network...",
                         color = Color(0xFF1E40AF),
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -247,7 +247,7 @@ fun SyncStatusBanner(
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),
                 color = Color(0xFFFEF2F2),
-                shape = RoundedCornerShape(12.dp),
+                shape = MaterialTheme.shapes.small,
                 border = BorderStroke(1.dp, Color(0xFFFCA5A5))
             ) {
                 Row(
@@ -270,14 +270,13 @@ fun SyncStatusBanner(
                             Text(
                                 text = "Firestore Sync Failed",
                                 color = ConciergeNonVegRedDark,
-                                fontSize = 13.sp,
+                                style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = "Viewing stale/offline local data. ${syncState.message}",
                                 color = ConciergeNonVegRedDark,
-                                fontSize = 11.sp,
-                                lineHeight = 14.sp
+                                style = MaterialTheme.typography.labelMedium
                             )
                         }
                     }
@@ -293,7 +292,7 @@ fun SyncStatusBanner(
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Retry Sync", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("Retry Sync", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -317,7 +316,7 @@ fun StatusBanner(
                 .fillMaxWidth()
                 .padding(bottom = 16.dp),
             colors = CardDefaults.cardColors(containerColor = BrandGoldLight),
-            shape = RoundedCornerShape(16.dp),
+            shape = MaterialTheme.shapes.medium,
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -334,13 +333,12 @@ fun StatusBanner(
                             text = "Verification Pending",
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFFD48800),
-                            fontSize = 16.sp
+                            style = MaterialTheme.typography.titleMedium
                         )
                         Text(
                             text = "Your profile is under review by ${user.society} admin. You can browse listings but cannot create posts or contact residents.",
                             color = Color(0xFF595959),
-                            fontSize = 13.sp,
-                            lineHeight = 18.sp
+                            style = MaterialTheme.typography.bodySmall
                         )
                     }
                 }
@@ -353,7 +351,7 @@ fun StatusBanner(
                         modifier = Modifier
                             .align(Alignment.End)
                             .testTag("simulate_verify_button"),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = MaterialTheme.shapes.extraSmall
                     ) {
                         Surface(
                             color = Color(0xFFF97316),
@@ -363,7 +361,7 @@ fun StatusBanner(
                             Text(
                                 "DEV",
                                 color = Color.White,
-                                fontSize = 9.sp,
+                                style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                             )
@@ -375,7 +373,7 @@ fun StatusBanner(
                             tint = Color.White
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Instant Self-Verify (Demo)", fontSize = 12.sp, color = Color.White)
+                        Text("Instant Self-Verify (Demo)", style = MaterialTheme.typography.labelMedium, color = Color.White)
                     }
                 }
             }
@@ -399,7 +397,7 @@ fun ListingCard(
             .padding(vertical = 8.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        shape = RoundedCornerShape(24.dp),
+        shape = MaterialTheme.shapes.large,
         border = BorderStroke(1.dp, BrandOutline)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -416,26 +414,26 @@ fun ListingCard(
                             text = listing.authorName,
                             fontWeight = FontWeight.Bold,
                             color = BrandSlate,
-                            fontSize = 14.sp
+                            style = MaterialTheme.typography.titleSmall
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Box(
                             modifier = Modifier
                                 .size(6.dp)
                                 .clip(CircleShape)
-                                .background(BrandEmerald)
+                                .background(BrandIndigo)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = listing.authorFlat,
                             color = Color.Gray,
-                            fontSize = 12.sp
+                            style = MaterialTheme.typography.labelMedium
                         )
                     }
                     Text(
                         text = "Posted in ${listing.society}",
                         color = Color.Gray,
-                        fontSize = 11.sp
+                        style = MaterialTheme.typography.labelMedium
                     )
                 }
 
@@ -446,7 +444,7 @@ fun ListingCard(
                     Icon(
                         imageVector = if (listing.isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                         contentDescription = "Bookmark",
-                        tint = if (listing.isBookmarked) BrandEmerald else Color.Gray
+                        tint = if (listing.isBookmarked) BrandIndigo else Color.Gray
                     )
                 }
             }
@@ -457,7 +455,7 @@ fun ListingCard(
             Text(
                 text = listing.title,
                 fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
+                style = MaterialTheme.typography.titleMedium,
                 color = BrandSlate,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
@@ -466,8 +464,7 @@ fun ListingCard(
             Text(
                 text = listing.description,
                 color = Color(0xFF475569),
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 maxLines = 4,
                 overflow = TextOverflow.Ellipsis
             )
@@ -504,7 +501,7 @@ fun ListingCard(
                     Text(
                         text = "${listing.likesCount}",
                         color = Color.Gray,
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -514,9 +511,9 @@ fun ListingCard(
                         Button(
                             onClick = { showContactInfo = !showContactInfo },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (showContactInfo) BrandSlate else BrandEmerald
+                                containerColor = if (showContactInfo) BrandSlate else BrandIndigo
                             ),
-                            shape = RoundedCornerShape(8.dp),
+                            shape = MaterialTheme.shapes.extraSmall,
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
                         ) {
                             Icon(
@@ -527,14 +524,14 @@ fun ListingCard(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = if (showContactInfo) "Hide Contact" else "Connect",
-                                fontSize = 13.sp,
+                                style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
                     } else {
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(MaterialTheme.shapes.extraSmall)
                                 .background(Color(0xFFF1F5F9))
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
@@ -546,7 +543,7 @@ fun ListingCard(
                                     tint = Color.Gray
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Verify to Connect", color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("Verify to Connect", color = Color.Gray, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -562,20 +559,20 @@ fun ListingCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 12.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(MaterialTheme.shapes.extraSmall)
                         .background(Color(0xFFEEF2F6))
                         .padding(12.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(16.dp), tint = BrandSlate)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "Resident: ${listing.authorName} (${listing.authorFlat})", color = BrandSlate, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text(text = "Resident: ${listing.authorName} (${listing.authorFlat})", color = BrandSlate, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(16.dp), tint = BrandEmerald)
+                        Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(16.dp), tint = BrandIndigo)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "Phone/WhatsApp: ${listing.contact}", color = BrandEmerald, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text(text = "Phone/WhatsApp: ${listing.contact}", color = BrandIndigo, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -595,20 +592,20 @@ fun ModuleSpecificContent(listing: ListingEntity) {
             ) {
                 Text(
                     text = "₹${listing.price.toInt()}",
-                    color = BrandEmerald,
-                    fontSize = 18.sp,
+                    color = BrandIndigo,
+                    style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.ExtraBold
                 )
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(BrandEmeraldLight)
+                        .clip(MaterialTheme.shapes.extraSmall)
+                        .background(BrandIndigoLight)
                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     Text(
                         text = details.category.uppercase(),
-                        color = BrandEmerald,
-                        fontSize = 10.sp,
+                        color = BrandIndigo,
+                        style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -627,13 +624,13 @@ fun ModuleSpecificContent(listing: ListingEntity) {
                         text = details.rating,
                         fontWeight = FontWeight.Bold,
                         color = BrandSlate,
-                        fontSize = 14.sp
+                        style = MaterialTheme.typography.titleSmall
                     )
                 }
                 Text(
                     text = "Base rate: ₹${details.baseRate.toInt()}/visit",
                     color = BrandSlate,
-                    fontSize = 13.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -642,20 +639,20 @@ fun ModuleSpecificContent(listing: ListingEntity) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(MaterialTheme.shapes.extraSmall)
                     .background(Color(0xFFF1F5F9))
                     .padding(10.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.TripOrigin, contentDescription = "Origin", tint = Color.Blue, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = "From: ${details.origin}", fontSize = 13.sp, color = BrandSlate)
+                    Text(text = "From: ${details.origin}", style = MaterialTheme.typography.bodySmall, color = BrandSlate)
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.LocationOn, contentDescription = "Destination", tint = Color.Red, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = "To: ${details.destination}", fontSize = 13.sp, color = BrandSlate)
+                    Text(text = "To: ${details.destination}", style = MaterialTheme.typography.bodySmall, color = BrandSlate)
                 }
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(
@@ -665,12 +662,12 @@ fun ModuleSpecificContent(listing: ListingEntity) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.AccessTime, contentDescription = "Time", tint = Color.Gray, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = details.departureTime, fontSize = 12.sp, color = Color.Gray)
+                        Text(text = details.departureTime, style = MaterialTheme.typography.labelMedium, color = Color.Gray)
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.AirlineSeatReclineNormal, contentDescription = "Seats", tint = BrandEmerald, modifier = Modifier.size(14.dp))
+                        Icon(Icons.Default.AirlineSeatReclineNormal, contentDescription = "Seats", tint = BrandIndigo, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = details.seats, fontSize = 12.sp, color = BrandEmerald, fontWeight = FontWeight.Bold)
+                        Text(text = details.seats, style = MaterialTheme.typography.labelMedium, color = BrandIndigo, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -679,9 +676,9 @@ fun ModuleSpecificContent(listing: ListingEntity) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(MaterialTheme.shapes.extraSmall)
                     .background(Color(0xFFF8FAFC))
-                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
+                    .border(1.dp, Color(0xFFE2E8F0), MaterialTheme.shapes.extraSmall)
                     .padding(10.dp)
             ) {
                 Row(
@@ -692,17 +689,17 @@ fun ModuleSpecificContent(listing: ListingEntity) {
                         text = details.bhk,
                         fontWeight = FontWeight.Bold,
                         color = BrandSlate,
-                        fontSize = 14.sp
+                        style = MaterialTheme.typography.titleSmall
                     )
                     Text(
                         text = "₹${details.rent.toInt()}/mo",
                         fontWeight = FontWeight.ExtraBold,
-                        color = BrandEmerald,
-                        fontSize = 16.sp
+                        color = BrandIndigo,
+                        style = MaterialTheme.typography.titleMedium
                     )
                 }
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(text = "Status: ${details.status}", fontSize = 12.sp, color = Color.Gray)
+                Text(text = "Status: ${details.status}", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
             }
         }
         is com.example.data.local.ListingDetails.Meal -> {
@@ -714,20 +711,20 @@ fun ModuleSpecificContent(listing: ListingEntity) {
                 Column {
                     Text(
                         text = listing.title,
-                        fontSize = 14.sp,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = BrandSlate
                     )
                     Text(
                         text = "Delivery: ${details.deliveryInfo}",
-                        fontSize = 11.sp,
+                        style = MaterialTheme.typography.labelMedium,
                         color = Color.Gray
                     )
                 }
                 Text(
                     text = "₹${details.mealPrice.toInt()}",
-                    color = BrandEmerald,
-                    fontSize = 16.sp,
+                    color = BrandIndigo,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.ExtraBold
                 )
             }
@@ -736,7 +733,7 @@ fun ModuleSpecificContent(listing: ListingEntity) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(MaterialTheme.shapes.extraSmall)
                     .background(Color(0xFFEEF2F6))
                     .padding(10.dp)
             ) {
@@ -748,25 +745,25 @@ fun ModuleSpecificContent(listing: ListingEntity) {
                         text = details.plateNumber,
                         fontWeight = FontWeight.ExtraBold,
                         color = BrandSlate,
-                        fontSize = 15.sp
+                        style = MaterialTheme.typography.titleMedium
                     )
                     Text(
                         text = details.vehicleModel,
                         fontWeight = FontWeight.Medium,
                         color = Color.Gray,
-                        fontSize = 13.sp
+                        style = MaterialTheme.typography.bodySmall
                     )
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Location/Spot: ${details.locationSpot}",
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.labelMedium,
                     color = BrandSlate
                 )
                 Text(
                     text = "Security Tag: ${details.securityTag}",
-                    fontSize = 11.sp,
-                    color = BrandEmerald,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = BrandIndigo,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -775,23 +772,23 @@ fun ModuleSpecificContent(listing: ListingEntity) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(BrandEmeraldLight)
+                    .clip(MaterialTheme.shapes.extraSmall)
+                    .background(BrandIndigoLight)
                     .padding(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Event, contentDescription = null, tint = BrandEmerald, modifier = Modifier.size(24.dp))
+                Icon(Icons.Default.Event, contentDescription = null, tint = BrandIndigo, modifier = Modifier.size(24.dp))
                 Spacer(modifier = Modifier.width(10.dp))
                 Column {
                     Text(
                         text = details.eventLocation.ifEmpty { "Community Hall" },
                         fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         color = BrandSlate
                     )
                     Text(
                         text = details.timing.ifEmpty { "This Sunday" },
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.labelMedium,
                         color = Color.Gray
                     )
                 }

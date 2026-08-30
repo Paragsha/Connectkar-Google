@@ -46,7 +46,6 @@ fun SavedPropertiesScreen(
     val context = LocalContext.current
     var selectedListingForDetails by remember { mutableStateOf<ListingEntity?>(null) }
 
-    val brandNavy = Color(0xFF001A40)
     val lightBg = Color(0xFFF8FAFC)
 
     if (selectedListingForDetails != null) {
@@ -93,7 +92,7 @@ fun SavedPropertiesScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = brandNavy,
+                            tint = ConciergeBrandNavy,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -109,7 +108,7 @@ fun SavedPropertiesScreen(
                             Icon(
                                 imageVector = Icons.Default.Notifications,
                                 contentDescription = "Notifications",
-                                tint = brandNavy,
+                                tint = ConciergeBrandNavy,
                                 modifier = Modifier.size(20.dp)
                             )
                             Box(
@@ -130,7 +129,7 @@ fun SavedPropertiesScreen(
                     text = "Saved Properties",
                     fontWeight = FontWeight.Bold,
                     fontSize = 26.sp,
-                    color = brandNavy,
+                    color = ConciergeBrandNavy,
                     modifier = Modifier
                         .padding(top = 16.dp, bottom = 20.dp)
                         .testTag("saved_properties_title")
@@ -158,7 +157,7 @@ fun SavedPropertiesScreen(
                                 text = "No saved properties yet",
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = brandNavy
+                                color = ConciergeBrandNavy
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
@@ -181,8 +180,7 @@ fun SavedPropertiesScreen(
                     onToggleBookmark = {
                         onToggleBookmark(property.id)
                         Toast.makeText(context, "Removed from saved properties", Toast.LENGTH_SHORT).show()
-                    },
-                    brandNavy = brandNavy
+                    }
                 )
                 Spacer(modifier = Modifier.height(20.dp))
             }
@@ -198,8 +196,7 @@ fun SavedPropertiesScreen(
 private fun SavedPropertyCard(
     property: ListingEntity,
     onViewDetails: () -> Unit,
-    onToggleBookmark: () -> Unit,
-    brandNavy: Color
+    onToggleBookmark: () -> Unit
 ) {
     val specs = getPropertySpecs(property)
     val details = property.propertyDetails()
@@ -360,7 +357,7 @@ private fun SavedPropertyCard(
                     text = property.title,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
-                    color = brandNavy,
+                    color = ConciergeBrandNavy,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(bottom = 12.dp)
@@ -435,7 +432,7 @@ private fun SavedPropertyCard(
                             text = "₹${String.format("%,.0f", property.price)}",
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 20.sp,
-                            color = brandNavy
+                            color = ConciergeBrandNavy
                         )
                         Text(
                             text = "per month",

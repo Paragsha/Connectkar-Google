@@ -31,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.theme.ConciergeBrandNavy
 
 /**
  * Friendly, minimal illustration for empty listing states (My Listings, Saved Properties, etc.)
@@ -47,7 +48,6 @@ fun NoListingsEmptyState(
     val context = LocalContext.current
     val drawableResId = rememberDrawableId(context, "img_no_listings")
 
-    val brandNavy = Color(0xFF001A40)
     val brandBlue = Color(0xFF003FB1)
     val softBlueBg = Color(0xFFEFF4FF)
     val mutedGray = Color(0xFF64748B)
@@ -83,7 +83,7 @@ fun NoListingsEmptyState(
             text = title,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
-            color = brandNavy,
+            color = ConciergeBrandNavy,
             textAlign = TextAlign.Center
         )
 
@@ -219,14 +219,14 @@ fun FriendlyNoListingsIllustration(
                 center = lensCenter
             )
             drawCircle(
-                color = Color(0xFF001A40),
+                color = ConciergeBrandNavy,
                 radius = lensRadius,
                 center = lensCenter,
                 style = Stroke(width = 6f)
             )
             // Lens handle
             drawLine(
-                color = Color(0xFF001A40),
+                color = ConciergeBrandNavy,
                 start = Offset(lensCenter.x + lensRadius * 0.7f, lensCenter.y + lensRadius * 0.7f),
                 end = Offset(lensCenter.x + lensRadius * 1.35f, lensCenter.y + lensRadius * 1.35f),
                 strokeWidth = 7f

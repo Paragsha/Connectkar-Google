@@ -32,8 +32,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.local.UserEntity
-import com.example.ui.BrandEmerald
-import com.example.ui.BrandEmeraldLight
 import com.example.ui.BrandGold
 import com.example.ui.OperationsUiState
 import com.example.ui.theme.*
@@ -203,13 +201,13 @@ fun ChefOnboardingScreen(
                         )
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = BrandEmeraldLight
+                            color = ConciergeVegGreenLight
                         ) {
                             Text(
                                 text = "Verified Resident",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = BrandEmerald,
+                                color = ConciergeVegGreenDark,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }

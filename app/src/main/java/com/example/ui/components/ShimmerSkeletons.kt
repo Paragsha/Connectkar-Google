@@ -398,3 +398,499 @@ fun PropertyListingSkeletonCard(
         }
     }
 }
+
+/**
+ * Shimmer Skeleton for Admin Verification / Resident Cards
+ */
+@Composable
+fun AdminUserItemSkeleton(
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ShimmerBox(
+                    modifier = Modifier.size(48.dp),
+                    shape = CircleShape
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    ShimmerBox(
+                        modifier = Modifier
+                            .height(16.dp)
+                            .fillMaxWidth(0.5f),
+                        shape = RoundedCornerShape(4.dp)
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    ShimmerBox(
+                        modifier = Modifier
+                            .height(12.dp)
+                            .fillMaxWidth(0.35f),
+                        shape = RoundedCornerShape(4.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Address info block skeleton
+            ShimmerBox(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(8.dp)
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Action buttons skeleton
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ShimmerBox(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(40.dp),
+                    shape = RoundedCornerShape(8.dp)
+                )
+                ShimmerBox(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(40.dp),
+                    shape = RoundedCornerShape(8.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Shimmer Skeleton for Dashboard "Fresh Today" cards
+ */
+@Composable
+fun FreshTodayCardSkeleton(
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.width(260.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(0.5.dp, Color(0xFFE2E8F0))
+    ) {
+        Column {
+            ShimmerBox(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(130.dp),
+                shape = RoundedCornerShape(0.dp)
+            )
+
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ShimmerBox(
+                        modifier = Modifier
+                            .height(16.dp)
+                            .fillMaxWidth(0.6f),
+                        shape = RoundedCornerShape(4.dp)
+                    )
+                    ShimmerBox(
+                        modifier = Modifier
+                            .height(14.dp)
+                            .width(36.dp),
+                        shape = RoundedCornerShape(4.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                ShimmerBox(
+                    modifier = Modifier
+                        .height(12.dp)
+                        .fillMaxWidth(0.45f),
+                    shape = RoundedCornerShape(4.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ShimmerBox(
+                        modifier = Modifier
+                            .height(18.dp)
+                            .width(60.dp),
+                        shape = RoundedCornerShape(4.dp)
+                    )
+                    ShimmerBox(
+                        modifier = Modifier
+                            .height(32.dp)
+                            .width(72.dp),
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Shimmer Skeleton for Incoming/Active Meal Orders (Chef Portal & My Meals)
+ */
+@Composable
+fun ChefOrderCardSkeleton(
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = ConciergeSurfaceContainerLow),
+        border = BorderStroke(1.dp, ConciergeOutlineVariant)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ShimmerBox(
+                    modifier = Modifier
+                        .height(16.dp)
+                        .width(90.dp),
+                    shape = RoundedCornerShape(4.dp)
+                )
+                ShimmerBox(
+                    modifier = Modifier
+                        .height(20.dp)
+                        .width(70.dp),
+                    shape = RoundedCornerShape(9999.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            ShimmerBox(
+                modifier = Modifier
+                    .height(18.dp)
+                    .fillMaxWidth(0.7f),
+                shape = RoundedCornerShape(4.dp)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            ShimmerBox(
+                modifier = Modifier
+                    .height(14.dp)
+                    .fillMaxWidth(0.5f),
+                shape = RoundedCornerShape(4.dp)
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ShimmerBox(
+                    modifier = Modifier
+                        .height(18.dp)
+                        .width(80.dp),
+                    shape = RoundedCornerShape(4.dp)
+                )
+                ShimmerBox(
+                    modifier = Modifier
+                        .height(36.dp)
+                        .width(110.dp),
+                    shape = RoundedCornerShape(10.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Shimmer Skeleton for Chef Menu Items (Chef Portal & Public Profile)
+ */
+@Composable
+fun ChefMenuItemSkeleton(
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = ConciergeSurfaceContainerLow),
+        border = BorderStroke(1.dp, ConciergeOutlineVariant)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ShimmerBox(
+                modifier = Modifier.size(76.dp),
+                shape = RoundedCornerShape(14.dp)
+            )
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ShimmerBox(
+                        modifier = Modifier
+                            .height(16.dp)
+                            .fillMaxWidth(0.6f),
+                        shape = RoundedCornerShape(4.dp)
+                    )
+                    ShimmerBox(
+                        modifier = Modifier
+                            .height(14.dp)
+                            .width(36.dp),
+                        shape = RoundedCornerShape(4.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                ShimmerBox(
+                    modifier = Modifier
+                        .height(12.dp)
+                        .fillMaxWidth(0.85f),
+                    shape = RoundedCornerShape(4.dp)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ShimmerBox(
+                        modifier = Modifier
+                            .height(16.dp)
+                            .width(55.dp),
+                        shape = RoundedCornerShape(4.dp)
+                    )
+                    ShimmerBox(
+                        modifier = Modifier
+                            .height(24.dp)
+                            .width(44.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Shimmer Skeleton for Chef Public Profile Header
+ */
+@Composable
+fun ChefHeroProfileSkeleton(
+    modifier: Modifier = Modifier
+) {
+    Card(
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = ConciergeSurfaceContainerLow),
+        border = BorderStroke(1.dp, ConciergeOutlineVariant),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            ShimmerBox(
+                modifier = Modifier.size(76.dp),
+                shape = CircleShape
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            ShimmerBox(
+                modifier = Modifier
+                    .height(20.dp)
+                    .width(140.dp),
+                shape = RoundedCornerShape(4.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            ShimmerBox(
+                modifier = Modifier
+                    .height(14.dp)
+                    .width(180.dp),
+                shape = RoundedCornerShape(4.dp)
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            ShimmerBox(
+                modifier = Modifier
+                    .height(12.dp)
+                    .fillMaxWidth(0.85f),
+                shape = RoundedCornerShape(4.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                repeat(3) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        ShimmerBox(
+                            modifier = Modifier
+                                .height(16.dp)
+                                .width(36.dp),
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        ShimmerBox(
+                            modifier = Modifier
+                                .height(12.dp)
+                                .width(50.dp),
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Shimmer Skeleton for Subscriptions (Chef Portal & My Meals)
+ */
+@Composable
+fun ChefSubscriptionSkeleton(
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = ConciergeSurfaceContainerLow),
+        border = BorderStroke(1.dp, ConciergeOutlineVariant)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ShimmerBox(
+                    modifier = Modifier
+                        .height(18.dp)
+                        .width(110.dp),
+                    shape = RoundedCornerShape(4.dp)
+                )
+                ShimmerBox(
+                    modifier = Modifier
+                        .height(20.dp)
+                        .width(60.dp),
+                    shape = RoundedCornerShape(9999.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            ShimmerBox(
+                modifier = Modifier
+                    .height(14.dp)
+                    .fillMaxWidth(0.6f),
+                shape = RoundedCornerShape(4.dp)
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ShimmerBox(
+                    modifier = Modifier
+                        .height(18.dp)
+                        .width(90.dp),
+                    shape = RoundedCornerShape(4.dp)
+                )
+                ShimmerBox(
+                    modifier = Modifier
+                        .height(34.dp)
+                        .width(90.dp),
+                    shape = RoundedCornerShape(8.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Shimmer Skeleton for Property Details Screen
+ */
+@Composable
+fun PropertyDetailsSkeleton(
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color(0xFFF8FAFC))
+    ) {
+        ShimmerBox(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(280.dp),
+            shape = RoundedCornerShape(0.dp)
+        )
+        Column(modifier = Modifier.padding(20.dp)) {
+            ShimmerBox(
+                modifier = Modifier
+                    .height(24.dp)
+                    .fillMaxWidth(0.7f),
+                shape = RoundedCornerShape(4.dp)
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            ShimmerBox(
+                modifier = Modifier
+                    .height(16.dp)
+                    .fillMaxWidth(0.45f),
+                shape = RoundedCornerShape(4.dp)
+            )
+            Spacer(modifier = Modifier.height(20.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                repeat(3) {
+                    ShimmerBox(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(64.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(20.dp))
+            ShimmerBox(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp),
+                shape = RoundedCornerShape(16.dp)
+            )
+        }
+    }
+}
+

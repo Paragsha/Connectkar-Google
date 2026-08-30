@@ -27,8 +27,6 @@ import androidx.compose.ui.unit.sp
 import com.example.data.local.MealOrderEntity
 import com.example.data.local.MealSubscriptionEntity
 import com.example.data.local.UserEntity
-import com.example.ui.BrandEmerald
-import com.example.ui.BrandEmeraldLight
 import com.example.ui.BrandGold
 import com.example.ui.BrandGoldLight
 import com.example.ui.BrandSlate
@@ -207,7 +205,7 @@ fun BuyerActiveOrderCard(order: MealOrderEntity) {
                     color = when (order.status) {
                         "PENDING" -> BrandGoldLight
                         "PREPARING" -> Color(0xFFE0F2FE)
-                        "READY" -> BrandEmeraldLight
+                        "READY" -> ConciergeVegGreenLight
                         else -> Color(0xFFF1F5F9)
                     }
                 ) {
@@ -218,7 +216,7 @@ fun BuyerActiveOrderCard(order: MealOrderEntity) {
                         color = when (order.status) {
                             "PENDING" -> BrandGold
                             "PREPARING" -> Color(0xFF0284C7)
-                            "READY" -> BrandEmerald
+                            "READY" -> ConciergeVegGreenDark
                             else -> ConciergeOutline
                         },
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
@@ -406,13 +404,13 @@ fun BuyerSubscriptionCard(
 
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = if (sub.status == "ACTIVE") BrandEmeraldLight else ConciergeStatusAmberBadgeBg
+                    color = if (sub.status == "ACTIVE") ConciergeVegGreenLight else ConciergeStatusAmberBadgeBg
                 ) {
                     Text(
                         text = sub.status,
                         fontWeight = FontWeight.Bold,
                         fontSize = 10.sp,
-                        color = if (sub.status == "ACTIVE") BrandEmerald else ConciergeStatusAmber,
+                        color = if (sub.status == "ACTIVE") ConciergeVegGreenDark else ConciergeStatusAmberDark,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                     )
                 }
