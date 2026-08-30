@@ -41,6 +41,12 @@ interface AppDao {
     @Query("SELECT * FROM listings WHERE type = :type ORDER BY timestamp DESC")
     fun getListingsByType(type: String): Flow<List<ListingEntity>>
 
+    @Query("SELECT * FROM listings WHERE authorUid = :uid ORDER BY timestamp DESC")
+    fun getListingsByAuthor(uid: String): Flow<List<ListingEntity>>
+
+    @Query("SELECT * FROM listings WHERE isBookmarked = 1 AND type = :type AND isDraft = 0 ORDER BY timestamp DESC")
+    fun getBookmarkedListingsByType(type: String): Flow<List<ListingEntity>>
+
     @Query("SELECT * FROM listings WHERE society = :society OR isPublic = 1 ORDER BY timestamp DESC")
     fun getListingsBySociety(society: String): Flow<List<ListingEntity>>
 

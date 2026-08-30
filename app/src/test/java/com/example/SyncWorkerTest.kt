@@ -35,4 +35,15 @@ class SyncWorkerTest {
         
         assertEquals(ListenableWorker.Result.retry(), result)
     }
+
+    @Test
+    fun testSyncWorker_exceedsMaxRunAttemptCount_returnsFailureAndReEnqueues() = runBlocking {
+        val worker = TestListenableWorkerBuilder<SyncWorker>(context)
+            .setRunAttemptCount(4)
+            .build()
+
+        val result = worker.doWork()
+
+        assertEquals(ListenableWorker.Result.failure(), result)
+    }
 }

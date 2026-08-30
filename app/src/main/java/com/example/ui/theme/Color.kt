@@ -78,3 +78,22 @@ val ConciergeSurfaceVariant = Color(0xFFE1E2E8)
 val ConciergeHomeLiving = Color(0xFF4FA69D)
 val ConciergeVehicles = Color(0xFFD97706)
 val ConciergeParking = Color(0xFF475569)
+
+// Semantic Meal & Status Colors
+val ConciergeVegGreen = Color(0xFF16A34A)
+val ConciergeVegGreenDark = Color(0xFF14532D)
+val ConciergeVegGreenMedium = Color(0xFF166534)
+val ConciergeVegGreenLight = Color(0xFFDCFCE7)
+val ConciergeVegGreenContainer = Color(0xFFF0FDF4)
+val ConciergeVegGreenBorder = Color(0xFFBBF7D0)
+
+val ConciergeNonVegRed = Color(0xFFDC2626)
+val ConciergeNonVegRedDark = Color(0xFF991B1B)
+val ConciergeNonVegRedLight = Color(0xFFFEE2E2)
+
+val ConciergeStatusAmber = Color(0xFFD97706)
+val ConciergeStatusAmberDark = Color(0xFF92400E)
+val ConciergeStatusAmberMedium = Color(0xFFB45309)
+val ConciergeStatusAmberLight = Color(0xFFFFFBEB)
+val ConciergeStatusAmberBorder = Color(0xFFFDE68A)
+val ConciergeStatusAmberBadgeBg = Color(0xFFFEF3C7)

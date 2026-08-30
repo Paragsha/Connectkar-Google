@@ -391,10 +391,10 @@ fun ChefOnboardingScreen(
                             .clickable { isVeg = true }
                             .testTag("veg_toggle"),
                         shape = RoundedCornerShape(14.dp),
-                        color = if (isVeg) Color(0xFFDCFCE7) else ConciergeSurfaceContainerLow,
+                        color = if (isVeg) ConciergeVegGreenLight else ConciergeSurfaceContainerLow,
                         border = BorderStroke(
                             1.dp,
-                            if (isVeg) Color(0xFF16A34A) else ConciergeOutlineVariant
+                            if (isVeg) ConciergeVegGreen else ConciergeOutlineVariant
                         )
                     ) {
                         Row(
@@ -406,14 +406,14 @@ fun ChefOnboardingScreen(
                                 modifier = Modifier
                                     .size(10.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFF16A34A))
+                                    .background(ConciergeVegGreen)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Pure Vegetarian",
                                 fontSize = 13.sp,
                                 fontWeight = if (isVeg) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isVeg) Color(0xFF166534) else ConciergeOnBackground
+                                color = if (isVeg) ConciergeVegGreenMedium else ConciergeOnBackground
                             )
                         }
                     }
@@ -425,10 +425,10 @@ fun ChefOnboardingScreen(
                             .clickable { isVeg = false }
                             .testTag("non_veg_toggle"),
                         shape = RoundedCornerShape(14.dp),
-                        color = if (!isVeg) Color(0xFFFEE2E2) else ConciergeSurfaceContainerLow,
+                        color = if (!isVeg) ConciergeNonVegRedLight else ConciergeSurfaceContainerLow,
                         border = BorderStroke(
                             1.dp,
-                            if (!isVeg) Color(0xFFDC2626) else ConciergeOutlineVariant
+                            if (!isVeg) ConciergeNonVegRed else ConciergeOutlineVariant
                         )
                     ) {
                         Row(
@@ -440,14 +440,14 @@ fun ChefOnboardingScreen(
                                 modifier = Modifier
                                     .size(10.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFFDC2626))
+                                    .background(ConciergeNonVegRed)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Non-Vegetarian",
                                 fontSize = 13.sp,
                                 fontWeight = if (!isVeg) FontWeight.Bold else FontWeight.Normal,
-                                color = if (!isVeg) Color(0xFF991B1B) else ConciergeOnBackground
+                                color = if (!isVeg) ConciergeNonVegRedDark else ConciergeOnBackground
                             )
                         }
                     }
@@ -507,8 +507,8 @@ fun ChefOnboardingScreen(
             // Pro Tip Card
             Card(
                 shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBEB)),
-                border = BorderStroke(1.dp, Color(0xFFFDE68A))
+                colors = CardDefaults.cardColors(containerColor = ConciergeStatusAmberLight),
+                border = BorderStroke(1.dp, ConciergeStatusAmberBorder)
             ) {
                 Row(
                     modifier = Modifier.padding(14.dp),
@@ -517,7 +517,7 @@ fun ChefOnboardingScreen(
                     Icon(
                         imageVector = Icons.Default.Lightbulb,
                         contentDescription = null,
-                        tint = Color(0xFFD97706),
+                        tint = ConciergeStatusAmber,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
@@ -526,12 +526,12 @@ fun ChefOnboardingScreen(
                             text = "Community Chef Tip",
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
-                            color = Color(0xFF92400E)
+                            color = ConciergeStatusAmberDark
                         )
                         Text(
                             text = "Neighbors love knowing your prep schedule. Keep portions capped so you can cook comfortably with pristine hygiene standards.",
                             fontSize = 12.sp,
-                            color = Color(0xFFB45309),
+                            color = ConciergeStatusAmberMedium,
                             modifier = Modifier.padding(top = 2.dp)
                         )
                     }

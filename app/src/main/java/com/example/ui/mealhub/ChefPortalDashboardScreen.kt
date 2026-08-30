@@ -415,7 +415,7 @@ fun ChefOrderCard(
                         Text(
                             text = "Notes: ${order.dietaryNotes}",
                             fontSize = 12.sp,
-                            color = Color(0xFFD97706),
+                            color = ConciergeStatusAmber,
                             modifier = Modifier.padding(top = 2.dp)
                         )
                     }
@@ -459,7 +459,7 @@ fun ChefOrderCard(
                         Button(
                             onClick = { onStatusUpdate("READY") },
                             shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
+                            colors = ButtonDefaults.buttonColors(containerColor = ConciergeVegGreen),
                             modifier = Modifier.testTag("update_order_${order.id}")
                         ) {
                             Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -482,7 +482,7 @@ fun ChefOrderCard(
                             text = "Order Complete ✓",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF16A34A)
+                            color = ConciergeVegGreen
                         )
                     }
                 }
@@ -535,7 +535,7 @@ fun ChefMenuItemCard(
                         modifier = Modifier
                             .size(8.dp)
                             .clip(CircleShape)
-                            .background(if (dish.isVeg) Color(0xFF16A34A) else Color(0xFFDC2626))
+                            .background(if (dish.isVeg) ConciergeVegGreen else ConciergeNonVegRed)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
@@ -551,8 +551,9 @@ fun ChefMenuItemCard(
                     color = ConciergeOutline,
                     modifier = Modifier.padding(top = 2.dp)
                 )
+                val portionsLeft = maxOf(0, dish.portionsAvailable - dish.portionsBooked)
                 Text(
-                    text = "${dish.portionsAvailable} portions limit",
+                    text = "$portionsLeft of ${dish.portionsAvailable} left (${dish.portionsBooked} booked)",
                     fontSize = 11.sp,
                     color = ConciergePrimaryContainer,
                     fontWeight = FontWeight.Medium
@@ -573,7 +574,7 @@ fun ChefMenuItemCard(
                     text = if (dish.isSoldOut) "Sold Out" else "Available",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (dish.isSoldOut) Color(0xFFDC2626) else Color(0xFF16A34A)
+                    color = if (dish.isSoldOut) ConciergeNonVegRed else ConciergeVegGreen
                 )
             }
         }

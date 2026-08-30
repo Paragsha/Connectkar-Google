@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.UserEntity
 import com.example.data.local.ListingEntity
+import com.example.data.local.primaryPhotoUrl
 import com.example.ui.theme.*
 import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
@@ -64,12 +66,14 @@ fun DashboardScreen(
     currentUser: UserEntity,
     selectedSociety: String,
     syncState: SyncState,
+    isRefreshing: Boolean = false,
     mealListings: List<ListingEntity> = emptyList(),
     onSocietySelected: (String) -> Unit,
     onModuleClicked: (String) -> Unit,
     onSimulateApprove: () -> Unit,
     onLogout: () -> Unit,
     onRetrySync: () -> Unit,
+    onRefresh: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -421,28 +425,35 @@ fun DashboardScreen(
         containerColor = BrandBackground,
         modifier = modifier
     ) { innerPadding ->
-        Column(
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
+                .testTag("dashboard_pull_to_refresh")
         ) {
-            // Sync status banner
-            Box(modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
-                SyncStatusBanner(syncState = syncState, onRetrySync = onRetrySync)
-            }
-
-            // Status review banner for unverified/pending
-            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
-                StatusBanner(user = currentUser, onSimulateApprove = onSimulateApprove)
-            }
-
-            // 1. HERO SECTION (Editorial Welcome)
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
             ) {
+                // Sync status banner
+                Box(modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
+                    SyncStatusBanner(syncState = syncState, onRetrySync = onRetrySync)
+                }
+
+                // Status review banner for unverified/pending
+                Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                    StatusBanner(user = currentUser, onSimulateApprove = onSimulateApprove)
+                }
+
+                // 1. HERO SECTION (Editorial Welcome)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 16.dp)
+                ) {
                 // Verified Resident Chip/Badge
                 Surface(
                     shape = RoundedCornerShape(9999.dp),
@@ -752,6 +763,7 @@ fun DashboardScreen(
             }
 
             Spacer(modifier = Modifier.height(40.dp))
+        }
         }
     }
 
@@ -1179,7 +1191,7 @@ fun ChefMealItem(
                         text = if (meal.isVeg) "🥗 VEG MEAL" else "🥩 NON-VEG",
                         fontSize = 9.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = if (meal.isVeg) Color(0xFF006C49) else Color(0xFFC62828)
+                        color = if (meal.isVeg) ConciergeVegGreenDark else ConciergeNonVegRed
                     )
                 }
             }
@@ -1284,7 +1296,7 @@ fun FreshTodayCard(
     val price = obj?.mealPrice ?: listing.price
     val deliveryInfo = obj?.deliveryInfo ?: listing.extra3
     val isVeg = listing.extra2 == "VEG" || listing.category.contains("Veg", ignoreCase = true)
-    val imageUrl = listing.extra1 // Image URL is stored in extra1
+    val imageUrl = listing.primaryPhotoUrl.ifEmpty { listing.extra1 } // Image URL is stored in extra1
 
     Card(
         modifier = modifier
@@ -1339,7 +1351,7 @@ fun FreshTodayCard(
                         text = if (isVeg) "🥗 VEG MEAL" else "🥩 NON-VEG",
                         fontSize = 9.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = if (isVeg) Color(0xFF006C49) else Color(0xFFC62828)
+                        color = if (isVeg) ConciergeVegGreenDark else ConciergeNonVegRed
                     )
                 }
             }

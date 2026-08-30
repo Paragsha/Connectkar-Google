@@ -231,7 +231,7 @@ fun MealCheckoutScreen(
                                 modifier = Modifier
                                     .size(8.dp)
                                     .clip(CircleShape)
-                                    .background(if (menuItem.isVeg) Color(0xFF16A34A) else Color(0xFFDC2626))
+                                    .background(if (menuItem.isVeg) ConciergeVegGreen else ConciergeNonVegRed)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
@@ -259,6 +259,7 @@ fun MealCheckoutScreen(
             }
 
             // 2. Portion Counter
+            val portionsLeft = maxOf(0, menuItem.portionsAvailable - menuItem.portionsBooked)
             Card(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = ConciergeSurfaceContainerLow),
@@ -279,7 +280,7 @@ fun MealCheckoutScreen(
                             color = ConciergeOnBackground
                         )
                         Text(
-                            text = "${menuItem.portionsAvailable} portions available today",
+                            text = "$portionsLeft portions available today",
                             fontSize = 11.sp,
                             color = ConciergeOutline
                         )
@@ -306,8 +307,8 @@ fun MealCheckoutScreen(
                         )
 
                         FilledIconButton(
-                            onClick = { if (portionCount < menuItem.portionsAvailable) portionCount++ },
-                            enabled = portionCount < menuItem.portionsAvailable,
+                            onClick = { if (portionCount < portionsLeft) portionCount++ },
+                            enabled = portionCount < portionsLeft,
                             modifier = Modifier.size(36.dp).testTag("portion_plus"),
                             colors = IconButtonDefaults.filledIconButtonColors(
                                 containerColor = ConciergePrimaryContainer

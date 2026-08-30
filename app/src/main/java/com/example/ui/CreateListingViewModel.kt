@@ -8,6 +8,7 @@ import com.example.data.local.ExtendedMarketplaceDetails
 import com.example.data.local.ListingEntity
 import com.example.data.local.MoshiHelper
 import com.example.data.local.UserEntity
+import com.example.data.local.photoUrls
 import com.example.data.repository.TownshipRepository
 import com.squareup.moshi.JsonClass
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,9 +47,19 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
     private val _isSocietyOnly = MutableStateFlow(true) // Default to Society Only
     val isSocietyOnly: StateFlow<Boolean> = _isSocietyOnly.asStateFlow()
 
-    // Local Photo Picker URI previews before upload
+    // Local Photo Picker URI previews before upload (used in create-flow UI)
     private val _selectedPhotos = MutableStateFlow<List<String>>(emptyList())
     val selectedPhotos: StateFlow<List<String>> = _selectedPhotos.asStateFlow()
+
+    // Uploaded Firebase Storage download URLs (localUri -> downloadUrl)
+    private val _uploadedPhotoUrls = MutableStateFlow<Map<String, String>>(emptyMap())
+    val uploadedPhotoUrls: StateFlow<Map<String, String>> = _uploadedPhotoUrls.asStateFlow()
+
+    private val _isUploadingPhoto = MutableStateFlow(false)
+    val isUploadingPhoto: StateFlow<Boolean> = _isUploadingPhoto.asStateFlow()
+
+    // Unique storage folder key for listing photos
+    private var storageListingKey: String = "listing_${System.currentTimeMillis()}"
 
     // Step 2: Marketplace Specifications (Step 2 content is Swappable per Category/Module)
     private val _brand = MutableStateFlow("")
@@ -117,6 +128,7 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
         activeType = type
         _currentStep.value = 1
         _errorMessage.value = null
+        storageListingKey = "listing_${System.currentTimeMillis()}_${java.util.UUID.randomUUID().toString().take(6)}"
 
         viewModelScope.launch {
             val draft = repository.getDraftListing(type)
@@ -130,10 +142,17 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
                 _isSocietyOnly.value = !draft.isPublic
 
                 if (draft.extra1.isNotEmpty()) {
-                    // Extract photos from extra1 if available (delimited by comma)
-                    _selectedPhotos.value = draft.extra1.split(",").filter { it.isNotBlank() }
+                    // Extract photos from extra1 if available (JSON array or comma-delimited)
+                    val loadedPhotos = draft.photoUrls()
+                    _selectedPhotos.value = loadedPhotos
+                    val urlMap = mutableMapOf<String, String>()
+                    for (photo in loadedPhotos) {
+                        urlMap[photo] = photo
+                    }
+                    _uploadedPhotoUrls.value = urlMap
                 } else {
                     _selectedPhotos.value = emptyList()
+                    _uploadedPhotoUrls.value = emptyMap()
                 }
 
                 // Load step 2 details
@@ -172,6 +191,7 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
                 _condition.value = "Like New"
                 _isSocietyOnly.value = true
                 _selectedPhotos.value = emptyList()
+                _uploadedPhotoUrls.value = emptyMap()
                 _brand.value = ""
                 _model.value = ""
                 _itemAge.value = "New"
@@ -203,8 +223,40 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
     fun setCategory(value: String) { _category.value = value }
     fun setCondition(value: String) { _condition.value = value }
     fun setSocietyOnly(value: Boolean) { _isSocietyOnly.value = value }
-    fun addPhoto(uri: String) { _selectedPhotos.value = _selectedPhotos.value + uri }
-    fun removePhoto(uri: String) { _selectedPhotos.value = _selectedPhotos.value - uri }
+    
+    fun addPhoto(uri: String) {
+        if (uri.isBlank()) return
+        if (!_selectedPhotos.value.contains(uri)) {
+            _selectedPhotos.value = _selectedPhotos.value + uri
+        }
+
+        // If it's already a remote HTTP/HTTPS URL, map directly
+        if (uri.startsWith("http://", ignoreCase = true) || uri.startsWith("https://", ignoreCase = true)) {
+            _uploadedPhotoUrls.value = _uploadedPhotoUrls.value + (uri to uri)
+            return
+        }
+
+        // Upload picked URI's bytes to Firebase Storage
+        viewModelScope.launch {
+            _isUploadingPhoto.value = true
+            val photoIndex = _selectedPhotos.value.indexOf(uri) + 1
+            val downloadUrl = com.example.data.FirebaseManager.uploadListingImage(
+                context = getApplication(),
+                uriString = uri,
+                listingId = storageListingKey,
+                n = if (photoIndex > 0) photoIndex else (_uploadedPhotoUrls.value.size + 1)
+            )
+            if (downloadUrl != null) {
+                _uploadedPhotoUrls.value = _uploadedPhotoUrls.value + (uri to downloadUrl)
+            }
+            _isUploadingPhoto.value = false
+        }
+    }
+
+    fun removePhoto(uri: String) {
+        _selectedPhotos.value = _selectedPhotos.value - uri
+        _uploadedPhotoUrls.value = _uploadedPhotoUrls.value - uri
+    }
 
     fun setBrand(value: String) { _brand.value = value }
     fun setModel(value: String) { _model.value = value }
@@ -242,19 +294,55 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
     fun setAvailable(value: Boolean) { _isAvailable.value = value }
     fun setVerificationRequested(value: Boolean) { _verificationRequested.value = value }
 
-    fun nextStep() {
-        if (_currentStep.value < 3) {
-            _currentStep.value = _currentStep.value + 1
+    fun validateCurrentStep(): String? {
+        return when (_currentStep.value) {
+            1 -> FormValidators.getStep1ValidationError(
+                type = activeType,
+                title = _title.value,
+                category = _category.value,
+                price = _price.value,
+                description = _description.value,
+                wingFlatNumber = _wingFlatNumber.value,
+                bhkType = _bhkType.value,
+                propertyType = _propertyType.value
+            )
+            2 -> FormValidators.getStep2ValidationError(
+                type = activeType,
+                price = _price.value,
+                wingFlatNumber = _wingFlatNumber.value,
+                propertyType = _propertyType.value,
+                bhkType = _bhkType.value
+            )
+            else -> null
         }
     }
 
+    fun nextStep(): Boolean {
+        val error = validateCurrentStep()
+        if (error != null) {
+            _errorMessage.value = error
+            return false
+        }
+        _errorMessage.value = null
+        if (_currentStep.value < 3) {
+            _currentStep.value = _currentStep.value + 1
+        }
+        return true
+    }
+
     fun prevStep() {
+        _errorMessage.value = null
         if (_currentStep.value > 1) {
             _currentStep.value = _currentStep.value - 1
         }
     }
 
+    fun clearError() {
+        _errorMessage.value = null
+    }
+
     fun setStep(step: Int) {
+        _errorMessage.value = null
         _currentStep.value = step
     }
 
@@ -262,19 +350,50 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
     fun saveDraft(currentUser: UserEntity, onComplete: () -> Unit) {
         viewModelScope.launch {
             val draft = buildListingEntity(currentUser, isDraft = true)
-            repository.saveDraftListing(draft)
+            val generatedId = repository.saveDraftListing(draft)
+            if (activeDraftId == 0 && generatedId > 0) {
+                activeDraftId = generatedId.toInt()
+            }
             onComplete()
         }
     }
 
     // Publish Listing (Writes to Room and syncs to Firestore)
     fun publishListing(currentUser: UserEntity, onComplete: () -> Unit) {
-        if (_title.value.isBlank()) {
-            _errorMessage.value = "Title cannot be blank."
+        val validationError = FormValidators.getPublishValidationError(
+            type = activeType,
+            title = _title.value,
+            category = _category.value,
+            price = _price.value,
+            description = _description.value,
+            wingFlatNumber = _wingFlatNumber.value,
+            bhkType = _bhkType.value,
+            propertyType = _propertyType.value
+        )
+        if (validationError != null) {
+            _errorMessage.value = validationError
             return
         }
+        _errorMessage.value = null
 
         viewModelScope.launch {
+            // Ensure any picked URIs without completed upload finish uploading to Firebase Storage
+            val currentMap = _uploadedPhotoUrls.value.toMutableMap()
+            for ((index, uri) in _selectedPhotos.value.withIndex()) {
+                if (!currentMap.containsKey(uri) && !uri.startsWith("http://", ignoreCase = true) && !uri.startsWith("https://", ignoreCase = true)) {
+                    val downloadUrl = com.example.data.FirebaseManager.uploadListingImage(
+                        context = getApplication(),
+                        uriString = uri,
+                        listingId = storageListingKey,
+                        n = index + 1
+                    )
+                    if (downloadUrl != null) {
+                        currentMap[uri] = downloadUrl
+                    }
+                }
+            }
+            _uploadedPhotoUrls.value = currentMap
+
             // Build final published listing entity
             val listing = buildListingEntity(currentUser, isDraft = false)
             
@@ -318,8 +437,20 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
         )
         val detailsJsonStr = MoshiHelper.toJson(extendedDetails)
 
-        // Store photos comma-delimited in extra1
-        val photosStr = _selectedPhotos.value.joinToString(",")
+        // Store resolved Firebase Storage download URLs in extra1 as JSON array (with comma fallback compatibility)
+        val resolvedPhotos = _selectedPhotos.value.mapNotNull { uri ->
+            val downloadUrl = _uploadedPhotoUrls.value[uri]
+            if (downloadUrl != null) {
+                downloadUrl
+            } else if (uri.startsWith("http://", ignoreCase = true) || uri.startsWith("https://", ignoreCase = true)) {
+                uri
+            } else if (isDraft) {
+                uri // Keep local URI only in local draft
+            } else {
+                null
+            }
+        }
+        val photosStr = if (resolvedPhotos.isNotEmpty()) MoshiHelper.toJsonStringList(resolvedPhotos) else ""
 
         return ListingEntity(
             id = if (isDraft) activeDraftId else 0,
@@ -335,7 +466,7 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
             authorUid = currentUser.uid,
             timestamp = System.currentTimeMillis(),
             category = if (isProperty) _bhkType.value else _category.value,
-            extra1 = photosStr, // Pass selected local URIs here for preview / rendering
+            extra1 = photosStr, // Stores Firebase Storage download URLs for published listings
             extra2 = if (isProperty) _bhkType.value else _brand.value, // Keep fallback model variables
             extra3 = if (isProperty) { if (_isAvailable.value) "Available" else "Not Available" } else _condition.value,
             extra4 = if (isProperty) _propertyType.value else _itemAge.value,

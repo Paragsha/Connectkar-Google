@@ -52,6 +52,7 @@ class MainActivity : ComponentActivity() {
                 val filteredListings by viewModel.filteredListings.collectAsStateWithLifecycle()
                 val selectedSociety by viewModel.selectedSociety.collectAsStateWithLifecycle()
                 val syncState by viewModel.syncState.collectAsStateWithLifecycle()
+                val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
                 val mealListings by viewModel.mealListingsForSociety.collectAsStateWithLifecycle()
                 val operationsState by viewModel.operationsState.collectAsStateWithLifecycle()
 
@@ -102,6 +103,7 @@ class MainActivity : ComponentActivity() {
                                     currentUser = user,
                                     selectedSociety = selectedSociety,
                                     syncState = syncState,
+                                    isRefreshing = isRefreshing,
                                     mealListings = mealListings,
                                     onSocietySelected = { viewModel.selectSociety(it) },
                                     onModuleClicked = { moduleId ->
@@ -124,6 +126,9 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onRetrySync = {
                                         viewModel.triggerSync()
+                                    },
+                                    onRefresh = {
+                                        viewModel.refresh()
                                     }
                                 )
                             }
@@ -140,6 +145,7 @@ class MainActivity : ComponentActivity() {
                                     menuItems = menuItems,
                                     chefs = allChefs,
                                     currentChefProfile = currentChefProfile,
+                                    isRefreshing = isRefreshing,
                                     onDishClicked = { dish ->
                                         navController.navigate("meal_checkout/${dish.id}")
                                     },
@@ -160,6 +166,9 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onRetrySync = {
                                         viewModel.triggerSync()
+                                    },
+                                    onRefresh = {
+                                        viewModel.refresh()
                                     }
                                 )
                             }
@@ -329,6 +338,7 @@ class MainActivity : ComponentActivity() {
                                         listings = filteredListings,
                                         selectedSociety = selectedSociety,
                                         syncState = syncState,
+                                        isRefreshing = isRefreshing,
                                         onBack = { navController.popBackStack() },
                                         onLikeListing = { viewModel.toggleLike(it) },
                                         onBookmarkListing = { viewModel.toggleBookmark(it) },
@@ -337,6 +347,9 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onRetrySync = {
                                             viewModel.triggerSync()
+                                        },
+                                        onRefresh = {
+                                            viewModel.refresh()
                                         },
                                         onNavigateToSaved = {
                                             navController.navigate("saved_properties")
@@ -352,6 +365,7 @@ class MainActivity : ComponentActivity() {
                                         currentUser = user,
                                         selectedSociety = selectedSociety,
                                         syncState = syncState,
+                                        isRefreshing = isRefreshing,
                                         onBack = { navController.popBackStack() },
                                         onLikeListing = { viewModel.toggleLike(it) },
                                         onBookmarkListing = { viewModel.toggleBookmark(it) },
@@ -360,6 +374,9 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onRetrySync = {
                                             viewModel.triggerSync()
+                                        },
+                                        onRefresh = {
+                                            viewModel.refresh()
                                         }
                                     )
                                 }
@@ -403,6 +420,7 @@ class MainActivity : ComponentActivity() {
                                     currentUser = user,
                                     myListings = myListings,
                                     selectedSociety = selectedSociety,
+                                    syncState = syncState,
                                     onDeleteListing = { viewModel.deleteListing(it) },
                                     onBack = { navController.popBackStack() },
                                     onBottomNavClick = { target ->

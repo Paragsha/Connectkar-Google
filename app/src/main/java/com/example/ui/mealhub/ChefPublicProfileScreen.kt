@@ -246,8 +246,8 @@ fun ChefPublicProfileScreen(
             item {
                 Card(
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
-                    border = BorderStroke(1.dp, Color(0xFFBBF7D0))
+                    colors = CardDefaults.cardColors(containerColor = ConciergeVegGreenContainer),
+                    border = BorderStroke(1.dp, ConciergeVegGreenBorder)
                 ) {
                     Column(modifier = Modifier.padding(18.dp)) {
                         Row(
@@ -262,12 +262,12 @@ fun ChefPublicProfileScreen(
                                     text = "Subscribe to Daily Tiffin",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp,
-                                    color = Color(0xFF14532D)
+                                    color = ConciergeVegGreenDark
                                 )
                             }
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = Color(0xFF16A34A)
+                                color = ConciergeVegGreen
                             ) {
                                 Text(
                                     text = "Save $discountPercent%",
@@ -291,16 +291,16 @@ fun ChefPublicProfileScreen(
                                     .weight(1f)
                                     .clip(RoundedCornerShape(14.dp))
                                     .clickable { selectedPlan = "WEEKLY" },
-                                color = if (selectedPlan == "WEEKLY") Color(0xFFDCFCE7) else Color.White,
-                                border = BorderStroke(1.dp, if (selectedPlan == "WEEKLY") Color(0xFF16A34A) else Color(0xFFE2E8F0)),
+                                color = if (selectedPlan == "WEEKLY") ConciergeVegGreenLight else Color.White,
+                                border = BorderStroke(1.dp, if (selectedPlan == "WEEKLY") ConciergeVegGreen else Color(0xFFE2E8F0)),
                                 shape = RoundedCornerShape(14.dp)
                             ) {
                                 Column(
                                     modifier = Modifier.padding(12.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Text("Weekly (5 Days)", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF14532D))
-                                    Text("₹${discountedPricePerMeal.toInt()} / meal", fontSize = 11.sp, color = Color(0xFF166534))
+                                    Text("Weekly (5 Days)", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = ConciergeVegGreenDark)
+                                    Text("₹${discountedPricePerMeal.toInt()} / meal", fontSize = 11.sp, color = ConciergeVegGreenMedium)
                                 }
                             }
 
@@ -309,21 +309,21 @@ fun ChefPublicProfileScreen(
                                     .weight(1f)
                                     .clip(RoundedCornerShape(14.dp))
                                     .clickable { selectedPlan = "MONTHLY" },
-                                color = if (selectedPlan == "MONTHLY") Color(0xFFDCFCE7) else Color.White,
-                                border = BorderStroke(1.dp, if (selectedPlan == "MONTHLY") Color(0xFF16A34A) else Color(0xFFE2E8F0)),
+                                color = if (selectedPlan == "MONTHLY") ConciergeVegGreenLight else Color.White,
+                                border = BorderStroke(1.dp, if (selectedPlan == "MONTHLY") ConciergeVegGreen else Color(0xFFE2E8F0)),
                                 shape = RoundedCornerShape(14.dp)
                             ) {
                                 Column(
                                     modifier = Modifier.padding(12.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Text("Monthly (20 Days)", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF14532D))
-                                    Text("₹${discountedPricePerMeal.toInt()} / meal", fontSize = 11.sp, color = Color(0xFF166534))
+                                    Text("Monthly (20 Days)", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = ConciergeVegGreenDark)
+                                    Text("₹${discountedPricePerMeal.toInt()} / meal", fontSize = 11.sp, color = ConciergeVegGreenMedium)
                                 }
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         Button(
                             onClick = {
@@ -336,7 +336,7 @@ fun ChefPublicProfileScreen(
                                 .testTag("subscribe_button"),
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF16A34A),
+                                containerColor = ConciergeVegGreen,
                                 contentColor = Color.White
                             )
                         ) {
@@ -401,7 +401,7 @@ fun ChefPublicProfileScreen(
                                     modifier = Modifier
                                         .size(8.dp)
                                         .clip(CircleShape)
-                                        .background(if (dish.isVeg) Color(0xFF16A34A) else Color(0xFFDC2626))
+                                        .background(if (dish.isVeg) ConciergeVegGreen else ConciergeNonVegRed)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
@@ -419,24 +419,26 @@ fun ChefPublicProfileScreen(
                                 color = ConciergeOutline,
                                 modifier = Modifier.padding(top = 2.dp)
                             )
+                            val portionsLeft = maxOf(0, dish.portionsAvailable - dish.portionsBooked)
                             Text(
-                                text = "${dish.portionsAvailable} portions left today",
+                                text = "$portionsLeft portions left today",
                                 fontSize = 11.sp,
                                 color = ConciergePrimaryContainer,
                                 fontWeight = FontWeight.Medium
                             )
                         }
 
+                        val portionsLeft = maxOf(0, dish.portionsAvailable - dish.portionsBooked)
                         Button(
                             onClick = { onDishClicked(dish) },
-                            enabled = !dish.isSoldOut,
+                            enabled = !dish.isSoldOut && portionsLeft > 0,
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = ConciergePrimaryContainer),
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                             modifier = Modifier.testTag("order_dish_${dish.id}")
                         ) {
                             Text(
-                                text = if (dish.isSoldOut) "Sold Out" else "Order",
+                                text = if (dish.isSoldOut || portionsLeft <= 0) "Sold Out" else "Order",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp
                             )

@@ -54,7 +54,9 @@ fun MenuItemEntity.toFirestoreMap(): HashMap<String, Any?> {
         "deliveryWindow" to deliveryWindow,
         "society" to society,
         "isSoldOut" to isSoldOut,
-        "timestamp" to timestamp,
+        "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+        "serverTimestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+        "clientTimestamp" to timestamp,
         "localId" to id
     )
 }

@@ -12,7 +12,7 @@ import androidx.room.RoomDatabase
         MealOrderEntity::class,
         MealSubscriptionEntity::class
     ],
-    version = 7,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -81,6 +81,19 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_meal_subscriptions_buyerUid` ON `meal_subscriptions` (`buyerUid`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_meal_subscriptions_chefUid` ON `meal_subscriptions` (`chefUid`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_meal_subscriptions_society` ON `meal_subscriptions` (`society`)")
+            }
+        }
+
+        val MIGRATION_7_8 = object : androidx.room.migration.Migration(7, 8) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE users ADD COLUMN timestamp INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_8_9 = object : androidx.room.migration.Migration(8, 9) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_listings_authorUid` ON `listings` (`authorUid`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_listings_isBookmarked_type` ON `listings` (`isBookmarked`, `type`)")
             }
         }
     }

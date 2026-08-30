@@ -23,6 +23,15 @@ object MoshiHelper {
             null
         }
     }
+
+    fun toJsonStringList(list: List<String>): String {
+        return try {
+            val listType = com.squareup.moshi.Types.newParameterizedType(List::class.java, String::class.java)
+            moshi.adapter<List<String>>(listType).toJson(list)
+        } catch (e: Exception) {
+            list.joinToString(",")
+        }
+    }
 }
 
 @com.squareup.moshi.JsonClass(generateAdapter = true)
@@ -75,12 +84,38 @@ fun ListingEntity.propertyDetails(): ExtendedMarketplaceDetails {
     return MoshiHelper.fromJson<ExtendedMarketplaceDetails>(detailsJson) ?: ExtendedMarketplaceDetails()
 }
 
+fun ListingEntity.photoUrls(): List<String> {
+    if (extra1.isBlank()) return emptyList()
+    val trimmed = extra1.trim()
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+        try {
+            val listType = com.squareup.moshi.Types.newParameterizedType(List::class.java, String::class.java)
+            val adapter = MoshiHelper.moshi.adapter<List<String>>(listType)
+            val parsed = adapter.fromJson(trimmed)
+            if (parsed != null) return parsed.filter { it.isNotBlank() }
+        } catch (e: Exception) {
+            // fallback below
+        }
+    }
+    return trimmed.split(",").map { it.trim() }.filter { it.isNotBlank() }
+}
+
+val ListingEntity.primaryPhotoUrl: String
+    get() = photoUrls().firstOrNull() ?: ""
+
+fun ListingEntity.primaryPhotoUrl(fallback: String): String {
+    val first = photoUrls().firstOrNull()
+    return if (!first.isNullOrBlank()) first else fallback
+}
+
 @Entity(
     tableName = "listings",
     indices = [
         androidx.room.Index(value = ["firestoreId"]),
         androidx.room.Index(value = ["society"]),
-        androidx.room.Index(value = ["type"])
+        androidx.room.Index(value = ["type"]),
+        androidx.room.Index(value = ["authorUid"]),
+        androidx.room.Index(value = ["isBookmarked", "type"])
     ]
 )
 data class ListingEntity(
@@ -203,7 +238,9 @@ fun ListingEntity.toFirestoreMap(): HashMap<String, Any?> {
         "authorFlat" to authorFlat,
         "authorPhone" to authorPhone,
         "authorUid" to authorUid,
-        "timestamp" to timestamp,
+        "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+        "serverTimestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+        "clientTimestamp" to timestamp,
         "likesCount" to likesCount,
         "isLikedByMe" to isLikedByMe,
         "isBookmarked" to isBookmarked,

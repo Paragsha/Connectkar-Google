@@ -32,6 +32,9 @@ sealed interface OperationsUiState {
 class TownshipViewModel(private val repository: TownshipRepository) : ViewModel() {
 
     // --- State Observables ---
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
     private val _operationsState = MutableStateFlow<OperationsUiState>(OperationsUiState.Idle)
     val operationsState: StateFlow<OperationsUiState> = _operationsState.asStateFlow()
 
@@ -139,57 +142,34 @@ class TownshipViewModel(private val repository: TownshipRepository) : ViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Combined Flow for reactive filtering
+    // Reactive SQL-delegated Flow for filtered listings
     val filteredListings: StateFlow<List<ListingEntity>> = combine(
-        repository.allListings,
         _selectedSociety,
         _activeModule
-    ) { listings, society, module ->
-        listings.filter { listing ->
-            val isNotDraft = !listing.isDraft
-            val matchesModule = listing.type == module
-            val matchesSociety = society == "All Societies" || 
-                                 listing.isPublic ||
-                                 listing.society == society || 
-                                 listing.society.isEmpty() ||
-                                 society.isEmpty()
-            isNotDraft && matchesModule && matchesSociety
-        }
+    ) { society, module ->
+        society to module
+    }.flatMapLatest { (society, module) ->
+        repository.getListingsByTypeAndSociety(module, society)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val mealListingsForSociety: StateFlow<List<ListingEntity>> = combine(
-        repository.allListings,
-        _selectedSociety
-    ) { listings, society ->
-        listings.filter { listing ->
-            val isNotDraft = !listing.isDraft
-            val matchesModule = listing.type == "MEAL"
-            val matchesSociety = society == "All Societies" || 
-                                 listing.isPublic ||
-                                 listing.society == society || 
-                                 listing.society.isEmpty() ||
-                                 society.isEmpty()
-            isNotDraft && matchesModule && matchesSociety
+    val mealListingsForSociety: StateFlow<List<ListingEntity>> = _selectedSociety
+        .flatMapLatest { society ->
+            repository.getListingsByTypeAndSociety("MEAL", society)
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val myPropertyListings: StateFlow<List<ListingEntity>> = combine(
-        repository.allListings,
-        currentUser
-    ) { listings, user ->
-        if (user == null || user.uid.isEmpty()) {
-            emptyList()
-        } else {
-            listings.filter { it.type == "PROPERTY" && it.authorUid == user.uid }
+    val myPropertyListings: StateFlow<List<ListingEntity>> = currentUser
+        .flatMapLatest { user ->
+            if (user != null && user.uid.isNotEmpty()) {
+                repository.getListingsByAuthor(user.uid)
+            } else {
+                flowOf(emptyList())
+            }
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val savedPropertyListings: StateFlow<List<ListingEntity>> = combine(
-        repository.allListings,
-        _selectedSociety
-    ) { listings, _ ->
-        listings.filter { it.type == "PROPERTY" && it.isBookmarked && !it.isDraft }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val savedPropertyListings: StateFlow<List<ListingEntity>> = repository.getBookmarkedListingsByType("PROPERTY")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
         viewModelScope.launch {
@@ -366,6 +346,20 @@ class TownshipViewModel(private val repository: TownshipRepository) : ViewModel(
 
     fun triggerSync() {
         repository.triggerSync()
+    }
+
+    fun refresh(onComplete: ((Boolean) -> Unit)? = null) {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            val startTime = System.currentTimeMillis()
+            val result = repository.manualSync()
+            val elapsed = System.currentTimeMillis() - startTime
+            if (elapsed < 600) {
+                kotlinx.coroutines.delay(600 - elapsed)
+            }
+            _isRefreshing.value = false
+            onComplete?.invoke(result.isSuccess)
+        }
     }
 
     // Quick switch helper for simulation / testing

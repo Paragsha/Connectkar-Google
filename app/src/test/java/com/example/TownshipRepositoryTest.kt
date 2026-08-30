@@ -7,6 +7,8 @@ import com.example.data.local.AppDao
 import com.example.data.local.AppDatabase
 import com.example.data.local.UserEntity
 import com.example.data.local.ListingEntity
+import com.example.data.local.MenuItemEntity
+import com.example.data.local.MealOrderEntity
 import com.example.data.repository.TownshipRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -229,5 +231,175 @@ class TownshipRepositoryTest {
         val finalListing = dao.getListingByFirestoreIdDirect("list_456")
         assertNotNull(finalListing)
         assertEquals("Newer Remote Title", finalListing?.title)
+    }
+
+    @Test
+    fun testCreateMealOrder_incrementsPortionsBooked_andUpdatesSoldOut() = runBlocking {
+        val repository = TownshipRepository(dao, context, null)
+
+        val initialItem = MenuItemEntity(
+            id = 1,
+            firestoreId = "item_101",
+            dishName = "Dal Makhani with Jeera Rice",
+            portionsAvailable = 5,
+            portionsBooked = 1,
+            isSoldOut = false
+        )
+        dao.insertMenuItem(initialItem)
+
+        val order = MealOrderEntity(
+            menuItemId = 1,
+            dishName = "Dal Makhani with Jeera Rice",
+            servingSize = 2,
+            grandTotal = 300.0,
+            buyerUid = "buyer_1"
+        )
+        repository.createMealOrder(order)
+
+        val updatedItem = dao.getMenuItemByIdDirect(1)
+        assertNotNull(updatedItem)
+        assertEquals("Portions booked should increase from 1 to 3", 3, updatedItem?.portionsBooked)
+        assertFalse("Item should not be sold out yet (3/5 booked)", updatedItem?.isSoldOut ?: true)
+
+        // Place another order that completes available portions
+        val secondOrder = MealOrderEntity(
+            menuItemId = 1,
+            dishName = "Dal Makhani with Jeera Rice",
+            servingSize = 2,
+            grandTotal = 300.0,
+            buyerUid = "buyer_2"
+        )
+        repository.createMealOrder(secondOrder)
+
+        val soldOutItem = dao.getMenuItemByIdDirect(1)
+        assertNotNull(soldOutItem)
+        assertEquals("Portions booked should now be 5", 5, soldOutItem?.portionsBooked)
+        assertTrue("Item should be marked sold out when portionsBooked >= portionsAvailable", soldOutItem?.isSoldOut ?: false)
+    }
+
+    @Test
+    fun testUpdateVerificationStatus_setsPendingSync_whenRemoteCallThrows() = runBlocking {
+        val repository = TownshipRepository(dao, context, null)
+
+        val unverifiedUser = UserEntity(
+            id = 1,
+            uid = "user_999",
+            fullName = "Pending Approval Resident",
+            phoneNumber = "9876543210",
+            society = "Greenwood",
+            blockTower = "Block B",
+            flatNumber = "202",
+            isVerified = false,
+            isPending = true,
+            pendingSync = false
+        )
+        dao.insertUser(unverifiedUser)
+
+        // When updating verification status where Firestore/Functions are not reachable
+        repository.updateVerificationStatus(1, isVerified = true)
+
+        val updatedUser = dao.getUserById(1)
+        assertNotNull(updatedUser)
+        assertTrue("User should be optimistically marked verified", updatedUser?.isVerified == true)
+        assertFalse("User should no longer be isPending", updatedUser?.isPending == true)
+        assertTrue("User must be marked pendingSync = true so SyncWorker will retry remote update", updatedUser?.pendingSync == true)
+    }
+
+    @Test
+    fun testGetListingsByAuthor_and_getBookmarkedListingsByType() = runBlocking {
+        val repository = TownshipRepository(dao, context, null)
+
+        val listing1 = ListingEntity(
+            id = 1,
+            type = "PROPERTY",
+            title = "2 BHK Apartment",
+            description = "Spacious 2 BHK",
+            price = 25000.0,
+            authorUid = "author_1",
+            isBookmarked = true,
+            isDraft = false
+        )
+        val listing2 = ListingEntity(
+            id = 2,
+            type = "PROPERTY",
+            title = "3 BHK Villa",
+            description = "Luxury 3 BHK Villa",
+            price = 45000.0,
+            authorUid = "author_2",
+            isBookmarked = false,
+            isDraft = false
+        )
+        val listing3 = ListingEntity(
+            id = 3,
+            type = "MARKETPLACE",
+            title = "Dining Table",
+            description = "Wooden dining table",
+            price = 5000.0,
+            authorUid = "author_1",
+            isBookmarked = true,
+            isDraft = false
+        )
+
+        dao.insertListing(listing1)
+        dao.insertListing(listing2)
+        dao.insertListing(listing3)
+
+        // Test getListingsByAuthor
+        val author1Listings = repository.getListingsByAuthor("author_1").first()
+        assertEquals(2, author1Listings.size)
+        assertTrue(author1Listings.any { it.id == 1 })
+        assertTrue(author1Listings.any { it.id == 3 })
+
+        val author2Listings = repository.getListingsByAuthor("author_2").first()
+        assertEquals(1, author2Listings.size)
+        assertEquals(2, author2Listings[0].id)
+
+        // Test getBookmarkedListingsByType for PROPERTY
+        val bookmarkedProperties = repository.getBookmarkedListingsByType("PROPERTY").first()
+        assertEquals(1, bookmarkedProperties.size)
+        assertEquals(1, bookmarkedProperties[0].id)
+
+        // Test getBookmarkedListingsByType for MARKETPLACE
+        val bookmarkedMarketplace = repository.getBookmarkedListingsByType("MARKETPLACE").first()
+        assertEquals(1, bookmarkedMarketplace.size)
+        assertEquals(3, bookmarkedMarketplace[0].id)
+    }
+
+    @Test
+    fun testToggleLikeAndBookmarkListing_setsPendingSync_whenOffline() = runBlocking {
+        val repository = TownshipRepository(dao, context, null)
+
+        val listing = ListingEntity(
+            id = 10,
+            type = "MARKETPLACE",
+            title = "Bicycle",
+            description = "Good condition bike",
+            price = 3000.0,
+            authorUid = "user_1",
+            isLikedByMe = false,
+            likesCount = 2,
+            isBookmarked = false,
+            pendingSync = false,
+            isDraft = false
+        )
+        dao.insertListing(listing)
+
+        // Toggle like
+        repository.toggleLikeListing(10)
+        val likedListing = dao.getListingById(10)
+        assertNotNull(likedListing)
+        assertTrue(likedListing?.isLikedByMe == true)
+        assertEquals(3, likedListing?.likesCount)
+        assertTrue("Must be marked pendingSync = true for background worker retry", likedListing?.pendingSync == true)
+
+        // Reset pendingSync
+        dao.updateListing(likedListing!!.copy(pendingSync = false))
+
+        // Toggle bookmark
+        repository.toggleBookmarkListing(10)
+        val bookmarkedListing = dao.getListingById(10)
+        assertNotNull(bookmarkedListing)
+        assertTrue(bookmarkedListing?.isBookmarked == true)
+        assertTrue("Must be marked pendingSync = true for background worker retry", bookmarkedListing?.pendingSync == true)
     }
 }

@@ -142,21 +142,28 @@ fun CreateListingScreen(
                         onClick = {
                             when (currentStep) {
                                 1 -> {
-                                    val titleVal = viewModel.title.value
-                                    val catVal = viewModel.category.value
-                                    if (titleVal.isBlank()) {
-                                        Toast.makeText(context, "Please enter a title", Toast.LENGTH_SHORT).show()
-                                    } else if (catVal.isBlank()) {
-                                        Toast.makeText(context, "Please select a category", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        viewModel.nextStep()
+                                    val ok = viewModel.nextStep()
+                                    if (!ok) {
+                                        viewModel.errorMessage.value?.let { msg ->
+                                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                        }
                                     }
                                 }
-                                2 -> viewModel.nextStep()
+                                2 -> {
+                                    val ok = viewModel.nextStep()
+                                    if (!ok) {
+                                        viewModel.errorMessage.value?.let { msg ->
+                                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
                                 3 -> {
                                     viewModel.publishListing(currentUser) {
                                         Toast.makeText(context, "Listing published successfully!", Toast.LENGTH_LONG).show()
                                         onBack()
+                                    }
+                                    viewModel.errorMessage.value?.let { msg ->
+                                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             }
@@ -204,6 +211,48 @@ fun CreateListingScreen(
         ) {
             // STEP PROGRESS BAR
             StepProgressBar(currentStep = currentStep, moduleType = initialType)
+
+            // ERROR BANNER IF ANY
+            if (errorMessage != null) {
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 6.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.ErrorOutline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = errorMessage!!,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(
+                            onClick = { viewModel.clearError() },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Dismiss error",
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
 
             Box(
                 modifier = Modifier

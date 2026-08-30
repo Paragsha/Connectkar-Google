@@ -220,4 +220,74 @@ class TownshipViewModelTest {
 
         collectJob.cancel()
     }
+
+    @Test
+    fun testMyPropertyListings_and_SavedPropertyListings_flows() = runTest {
+        val user = UserEntity(
+            id = 1,
+            uid = "user_me",
+            fullName = "Parag Shah",
+            phoneNumber = "9988776655",
+            society = "Sylvan County",
+            blockTower = "Block A",
+            flatNumber = "101",
+            isCurrent = true,
+            isVerified = true
+        )
+        dao.insertUser(user)
+
+        val listing1 = ListingEntity(
+            id = 1,
+            type = "PROPERTY",
+            title = "My Property",
+            description = "Spacious apartment",
+            price = 30000.0,
+            authorUid = "user_me",
+            isBookmarked = true,
+            isDraft = false
+        )
+        val listing2 = ListingEntity(
+            id = 2,
+            type = "PROPERTY",
+            title = "Other's Property",
+            description = "Villa",
+            price = 50000.0,
+            authorUid = "user_other",
+            isBookmarked = true,
+            isDraft = false
+        )
+        val listing3 = ListingEntity(
+            id = 3,
+            type = "PROPERTY",
+            title = "Unsaved Property",
+            description = "Studio",
+            price = 15000.0,
+            authorUid = "user_other",
+            isBookmarked = false,
+            isDraft = false
+        )
+        dao.insertListing(listing1)
+        dao.insertListing(listing2)
+        dao.insertListing(listing3)
+
+        val myJob = launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.myPropertyListings.collect {}
+        }
+        val savedJob = launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.savedPropertyListings.collect {}
+        }
+
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val myList = viewModel.myPropertyListings.first { it.isNotEmpty() }
+        assertEquals(1, myList.size)
+        assertEquals("user_me", myList[0].authorUid)
+
+        val savedList = viewModel.savedPropertyListings.first { it.size >= 2 }
+        assertEquals(2, savedList.size)
+        assertTrue(savedList.all { it.isBookmarked && it.type == "PROPERTY" })
+
+        myJob.cancel()
+        savedJob.cancel()
+    }
 }

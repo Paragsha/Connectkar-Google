@@ -27,7 +27,8 @@ data class UserEntity(
     val floor: String = "",
     val residentType: String = "OWNER",
     val moveInDate: String = "",
-    val proofDocumentUri: String = ""
+    val proofDocumentUri: String = "",
+    val timestamp: Long = System.currentTimeMillis()
 )
 
 fun UserEntity.toFirestoreMap(): HashMap<String, Any?> {
@@ -46,6 +47,9 @@ fun UserEntity.toFirestoreMap(): HashMap<String, Any?> {
         "floor" to floor,
         "residentType" to residentType,
         "moveInDate" to moveInDate,
-        "proofDocumentUri" to proofDocumentUri
+        "proofDocumentUri" to proofDocumentUri,
+        "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+        "serverTimestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+        "clientTimestamp" to timestamp
     )
 }

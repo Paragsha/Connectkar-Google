@@ -20,7 +20,9 @@ import com.example.data.toMealSubscriptionEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 class TownshipRepository(
@@ -65,36 +67,147 @@ class TownshipRepository(
     }
 
     private fun scheduleSyncJob() {
-        try {
-            val constraints = androidx.work.Constraints.Builder()
-                .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
-                .build()
-
-            val syncRequest = androidx.work.OneTimeWorkRequestBuilder<SyncWorker>()
-                .setConstraints(constraints)
-                .setBackoffCriteria(
-                    androidx.work.BackoffPolicy.EXPONENTIAL,
-                    androidx.work.WorkRequest.MIN_BACKOFF_MILLIS,
-                    java.util.concurrent.TimeUnit.MILLISECONDS
-                )
-                .build()
-
-            androidx.work.WorkManager.getInstance(context).enqueueUniqueWork(
-                "ConnectKarSyncWork",
-                androidx.work.ExistingWorkPolicy.REPLACE,
-                syncRequest
-            )
-        } catch (e: Exception) {
-            android.util.Log.e("SyncJob", "Failed to schedule sync job: ${e.message}")
-        }
+        SyncWorker.enqueueSync(context)
     }
 
     val syncWorkInfo: Flow<List<androidx.work.WorkInfo>> = 
         androidx.work.WorkManager.getInstance(context)
-            .getWorkInfosForUniqueWorkFlow("ConnectKarSyncWork")
+            .getWorkInfosForUniqueWorkFlow(SyncWorker.UNIQUE_WORK_NAME)
 
     fun triggerSync() {
         scheduleSyncJob()
+    }
+
+    suspend fun manualSync(): Result<Unit> {
+        val fs = firestore
+        return try {
+            if (fs != null) {
+                // 1. Push pending local changes
+                val unsyncedUsers = appDao.getUnsyncedUsers()
+                val fns = FirebaseManager.functions
+                for (user in unsyncedUsers) {
+                    if (user.uid.isNotEmpty()) {
+                        if (fns != null) {
+                            val functionName = if (user.isVerified) "approveUser" else "rejectUser"
+                            try {
+                                fns.getHttpsCallable(functionName)
+                                    .call(mapOf("userId" to user.uid))
+                                    .await()
+                            } catch (e: Exception) {
+                                android.util.Log.e("ManualSync", "Error re-invoking callable $functionName for ${user.uid}: ${e.message}")
+                            }
+                        }
+                        fs.collection("users").document(user.uid).set(user.toFirestoreMap()).await()
+                        appDao.updateUser(user.copy(pendingSync = false))
+                    }
+                }
+
+                val unsyncedListings = appDao.getUnsyncedListings()
+                for (listing in unsyncedListings) {
+                    val docRef = if (listing.firestoreId.isNotEmpty() && !listing.firestoreId.startsWith("local_")) {
+                        fs.collection("listings").document(listing.firestoreId)
+                    } else {
+                        fs.collection("listings").document()
+                    }
+                    val finalListing = listing.copy(firestoreId = docRef.id, pendingSync = false)
+                    docRef.set(finalListing.toFirestoreMap()).await()
+                    appDao.updateListing(finalListing)
+                }
+
+                val unsyncedChefs = appDao.getUnsyncedChefProfiles()
+                for (chef in unsyncedChefs) {
+                    if (chef.uid.isNotEmpty()) {
+                        fs.collection("chefProfiles").document(chef.uid).set(chef.toFirestoreMap()).await()
+                        appDao.updateChefProfile(chef.copy(pendingSync = false))
+                    }
+                }
+
+                val unsyncedMenuItems = appDao.getUnsyncedMenuItems()
+                for (item in unsyncedMenuItems) {
+                    val docRef = if (item.firestoreId.isNotEmpty() && !item.firestoreId.startsWith("local_")) {
+                        fs.collection("menuItems").document(item.firestoreId)
+                    } else {
+                        fs.collection("menuItems").document()
+                    }
+                    val finalItem = item.copy(firestoreId = docRef.id, pendingSync = false)
+                    docRef.set(finalItem.toFirestoreMap()).await()
+                    appDao.updateMenuItem(finalItem)
+                }
+
+                val unsyncedOrders = appDao.getUnsyncedMealOrders()
+                for (order in unsyncedOrders) {
+                    val docRef = if (order.firestoreId.isNotEmpty() && !order.firestoreId.startsWith("local_")) {
+                        fs.collection("mealOrders").document(order.firestoreId)
+                    } else {
+                        fs.collection("mealOrders").document()
+                    }
+                    val finalOrder = order.copy(firestoreId = docRef.id, pendingSync = false)
+                    docRef.set(finalOrder.toFirestoreMap()).await()
+                    appDao.updateMealOrder(finalOrder)
+                }
+
+                val unsyncedSubs = appDao.getUnsyncedMealSubscriptions()
+                for (sub in unsyncedSubs) {
+                    val docRef = if (sub.firestoreId.isNotEmpty() && !sub.firestoreId.startsWith("local_")) {
+                        fs.collection("mealSubscriptions").document(sub.firestoreId)
+                    } else {
+                        fs.collection("mealSubscriptions").document()
+                    }
+                    val finalSub = sub.copy(firestoreId = docRef.id, pendingSync = false)
+                    docRef.set(finalSub.toFirestoreMap()).await()
+                    appDao.updateMealSubscription(finalSub)
+                }
+
+                // 2. Fetch fresh remote data for current society
+                val currentUser = getCurrentUser()
+                val society = currentUser?.society ?: ""
+                if (society.isNotEmpty()) {
+                    val listingsSnap = fs.collection("listings")
+                        .whereEqualTo("society", society)
+                        .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                        .limit(20)
+                        .get().await()
+
+                    for (doc in listingsSnap.documents) {
+                        val listing = doc.toListingEntity()
+                        if (listing != null) {
+                            val existing = appDao.getListingByFirestoreIdDirect(listing.firestoreId)
+                            if (existing != null) {
+                                if (!existing.pendingSync || listing.timestamp > existing.timestamp) {
+                                    appDao.updateListing(listing.copy(id = existing.id))
+                                }
+                            } else {
+                                appDao.insertListing(listing)
+                            }
+                        }
+                    }
+
+                    val menuSnap = fs.collection("menuItems")
+                        .whereEqualTo("society", society)
+                        .get().await()
+                    for (doc in menuSnap.documents) {
+                        val item = doc.toMenuItemEntity()
+                        if (item != null) {
+                            val existing = appDao.getMenuItemByFirestoreIdDirect(item.firestoreId)
+                            if (existing != null) {
+                                if (!existing.pendingSync || item.timestamp > existing.timestamp) {
+                                    appDao.updateMenuItem(item.copy(id = existing.id))
+                                }
+                            } else {
+                                appDao.insertMenuItem(item)
+                            }
+                        }
+                    }
+                }
+            } else {
+                scheduleSyncJob()
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("ManualSync", "Manual sync error: ${e.message}", e)
+            scheduleSyncJob()
+            Result.failure(e)
+        }
     }
 
     val allUsers: Flow<List<UserEntity>> = appDao.getAllUsers()
@@ -105,14 +218,16 @@ class TownshipRepository(
         // Start reactive sync based on current user's society
         scope.launch {
             try {
-                currentUserFlow.collect { user ->
-                    val society = user?.society ?: ""
-                    if (society.isNotEmpty()) {
-                        restartFirestoreSync(society)
-                    } else {
-                        removeListeners()
+                currentUserFlow
+                    .map { it?.society ?: "" }
+                    .distinctUntilChanged()
+                    .collect { society ->
+                        if (society.isNotEmpty()) {
+                            restartFirestoreSync(society)
+                        } else {
+                            removeListeners()
+                        }
                     }
-                }
             } catch (e: Exception) {
                 android.util.Log.w("Sync", "Sync collection closed/cancelled: ${e.message}")
             }
@@ -146,8 +261,8 @@ class TownshipRepository(
                                 if (user != null) {
                                     val existing = appDao.getUserByUidDirect(user.uid)
                                     if (existing != null) {
-                                        // Conflict Resolution: Only update if no local unsynced edits are pending
-                                        if (!existing.pendingSync) {
+                                        // Conflict Resolution: Only update if no local unsynced edits are pending or remote timestamp is newer
+                                        if (!existing.pendingSync || user.timestamp > existing.timestamp) {
                                             // Keep current flag of local user intact
                                             appDao.updateUser(user.copy(id = existing.id, isCurrent = existing.isCurrent))
                                         }
@@ -186,11 +301,7 @@ class TownshipRepository(
                                     val existing = appDao.getListingByFirestoreIdDirect(listing.firestoreId)
                                     if (existing != null) {
                                         // Conflict Resolution: Avoid clobbering pending local edits unless remote is newer
-                                        if (existing.pendingSync) {
-                                            if (listing.timestamp > existing.timestamp) {
-                                                appDao.updateListing(listing.copy(id = existing.id))
-                                            }
-                                        } else {
+                                        if (!existing.pendingSync || listing.timestamp > existing.timestamp) {
                                             appDao.updateListing(listing.copy(id = existing.id))
                                         }
                                     } else {
@@ -222,7 +333,7 @@ class TownshipRepository(
                                 if (chef != null) {
                                     val existing = appDao.getChefProfileByUidDirect(chef.uid)
                                     if (existing != null) {
-                                        if (!existing.pendingSync) {
+                                        if (!existing.pendingSync || chef.timestamp > existing.timestamp) {
                                             appDao.updateChefProfile(chef)
                                         }
                                     } else {
@@ -254,11 +365,7 @@ class TownshipRepository(
                                 if (item != null) {
                                     val existing = appDao.getMenuItemByFirestoreIdDirect(item.firestoreId)
                                     if (existing != null) {
-                                        if (existing.pendingSync) {
-                                            if (item.timestamp > existing.timestamp) {
-                                                appDao.updateMenuItem(item.copy(id = existing.id))
-                                            }
-                                        } else {
+                                        if (!existing.pendingSync || item.timestamp > existing.timestamp) {
                                             appDao.updateMenuItem(item.copy(id = existing.id))
                                         }
                                     } else {
@@ -290,11 +397,7 @@ class TownshipRepository(
                                 if (order != null) {
                                     val existing = appDao.getOrderByFirestoreIdDirect(order.firestoreId)
                                     if (existing != null) {
-                                        if (existing.pendingSync) {
-                                            if (order.timestamp > existing.timestamp) {
-                                                appDao.updateMealOrder(order.copy(id = existing.id))
-                                            }
-                                        } else {
+                                        if (!existing.pendingSync || order.timestamp > existing.timestamp) {
                                             appDao.updateMealOrder(order.copy(id = existing.id))
                                         }
                                     } else {
@@ -326,11 +429,7 @@ class TownshipRepository(
                                 if (sub != null) {
                                     val existing = appDao.getSubscriptionByFirestoreIdDirect(sub.firestoreId)
                                     if (existing != null) {
-                                        if (existing.pendingSync) {
-                                            if (sub.timestamp > existing.timestamp) {
-                                                appDao.updateMealSubscription(sub.copy(id = existing.id))
-                                            }
-                                        } else {
+                                        if (!existing.pendingSync || sub.timestamp > existing.timestamp) {
                                             appDao.updateMealSubscription(sub.copy(id = existing.id))
                                         }
                                     } else {
@@ -372,7 +471,7 @@ class TownshipRepository(
                 for (entity in entities) {
                     val existing = appDao.getListingByFirestoreIdDirect(entity.firestoreId)
                     if (existing != null) {
-                        if (!existing.pendingSync) {
+                        if (!existing.pendingSync || entity.timestamp > existing.timestamp) {
                             appDao.updateListing(entity.copy(id = existing.id))
                         }
                     } else {
@@ -390,6 +489,10 @@ class TownshipRepository(
     }
 
     fun getListingsByType(type: String): Flow<List<ListingEntity>> = appDao.getListingsByType(type)
+    
+    fun getListingsByAuthor(uid: String): Flow<List<ListingEntity>> = appDao.getListingsByAuthor(uid)
+
+    fun getBookmarkedListingsByType(type: String): Flow<List<ListingEntity>> = appDao.getBookmarkedListingsByType(type)
     
     fun getListingsByTypeAndSociety(type: String, society: String): Flow<List<ListingEntity>> {
         return if (society.isEmpty() || society == "All Societies") {
@@ -470,7 +573,11 @@ class TownshipRepository(
         val firestore = FirebaseManager.firestore
         if (firestore != null && user.uid.isNotEmpty()) {
             try {
-                firestore.collection("users").document(user.uid).update("isCurrent", true)
+                firestore.collection("users").document(user.uid).update(
+                    "isCurrent", true,
+                    "timestamp", com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                    "serverTimestamp", com.google.firebase.firestore.FieldValue.serverTimestamp()
+                )
             } catch (e: Exception) {
                 android.util.Log.e("Firestore", "Error updating current status: ${e.message}")
             }
@@ -488,21 +595,51 @@ class TownshipRepository(
         if (user != null) {
             val updatedUser = user.copy(
                 isVerified = isVerified,
-                isPending = false
+                isPending = false,
+                pendingSync = false
             )
             appDao.updateUser(updatedUser)
             
-            // Call Cloud Function callable
+            // Call Cloud Function callable (or directly update Firestore)
             val functions = FirebaseManager.functions
+            val firestore = FirebaseManager.firestore
+            var functionSucceeded = false
+            
             if (functions != null && user.uid.isNotEmpty()) {
                 val functionName = if (isVerified) "approveUser" else "rejectUser"
                 try {
                     functions.getHttpsCallable(functionName)
                         .call(mapOf("userId" to user.uid))
                         .await()
+                    functionSucceeded = true
                 } catch (e: Exception) {
                     android.util.Log.e("Functions", "Error calling $functionName: ${e.message}")
                 }
+            }
+            
+            if (!functionSucceeded) {
+                // If Cloud Function threw or functions unavailable, attempt direct Firestore write or mark pendingSync = true
+                if (firestore != null && user.uid.isNotEmpty()) {
+                    try {
+                        firestore.collection("users").document(user.uid).update(
+                            mapOf(
+                                "isVerified" to isVerified,
+                                "isPending" to false,
+                                "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                                "serverTimestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                            )
+                        ).await()
+                        functionSucceeded = true
+                    } catch (e: Exception) {
+                        android.util.Log.e("Firestore", "Error direct-updating user verification: ${e.message}")
+                    }
+                }
+            }
+
+            if (!functionSucceeded) {
+                // Mark user row as pendingSync = true so SyncWorker will retry, and schedule background sync
+                appDao.updateUser(updatedUser.copy(pendingSync = true))
+                scheduleSyncJob()
             }
         }
     }
@@ -511,9 +648,9 @@ class TownshipRepository(
         return appDao.getDraftListingByTypeDirect(type)
     }
 
-    suspend fun saveDraftListing(listing: ListingEntity) {
+    suspend fun saveDraftListing(listing: ListingEntity): Long {
         val typedListing = listing.copy(isDraft = true).withSerializedDetails()
-        appDao.insertListing(typedListing)
+        return appDao.insertListing(typedListing)
     }
 
     suspend fun deleteDraft(id: Int) {
@@ -565,7 +702,11 @@ class TownshipRepository(
         if (listing != null) {
             val newLiked = !listing.isLikedByMe
             val newCount = if (newLiked) listing.likesCount + 1 else maxOf(0, listing.likesCount - 1)
-            val updated = listing.copy(isLikedByMe = newLiked, likesCount = newCount)
+            val updated = listing.copy(
+                isLikedByMe = newLiked,
+                likesCount = newCount,
+                timestamp = System.currentTimeMillis()
+            )
             appDao.updateListing(updated)
             
             val firestore = FirebaseManager.firestore
@@ -573,11 +714,18 @@ class TownshipRepository(
                 try {
                     firestore.collection("listings").document(listing.firestoreId).update(
                         "isLikedByMe", newLiked,
-                        "likesCount", newCount
+                        "likesCount", newCount,
+                        "timestamp", com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                        "serverTimestamp", com.google.firebase.firestore.FieldValue.serverTimestamp()
                     ).await()
                 } catch (e: Exception) {
                     android.util.Log.e("Firestore", "Error toggling like: ${e.message}")
+                    appDao.updateListing(updated.copy(pendingSync = true))
+                    scheduleSyncJob()
                 }
+            } else {
+                appDao.updateListing(updated.copy(pendingSync = true))
+                scheduleSyncJob()
             }
         }
     }
@@ -585,18 +733,28 @@ class TownshipRepository(
     suspend fun toggleBookmarkListing(listingId: Int) {
         val listing = appDao.getListingById(listingId)
         if (listing != null) {
-            val updated = listing.copy(isBookmarked = !listing.isBookmarked)
+            val updated = listing.copy(
+                isBookmarked = !listing.isBookmarked,
+                timestamp = System.currentTimeMillis()
+            )
             appDao.updateListing(updated)
             
             val firestore = FirebaseManager.firestore
             if (firestore != null && listing.firestoreId.isNotEmpty()) {
                 try {
                     firestore.collection("listings").document(listing.firestoreId).update(
-                        "isBookmarked", updated.isBookmarked
+                        "isBookmarked", updated.isBookmarked,
+                        "timestamp", com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                        "serverTimestamp", com.google.firebase.firestore.FieldValue.serverTimestamp()
                     ).await()
                 } catch (e: Exception) {
                     android.util.Log.e("Firestore", "Error toggling bookmark: ${e.message}")
+                    appDao.updateListing(updated.copy(pendingSync = true))
+                    scheduleSyncJob()
                 }
+            } else {
+                appDao.updateListing(updated.copy(pendingSync = true))
+                scheduleSyncJob()
             }
         }
     }
@@ -812,8 +970,10 @@ class TownshipRepository(
                     val seeded = typedListing.copy(firestoreId = docRef.id)
                     val listingMap = seeded.toFirestoreMap()
                     try {
-                        docRef.set(listingMap)
-                    } catch (e: Exception) {}
+                        docRef.set(listingMap).await()
+                    } catch (e: Exception) {
+                        android.util.Log.e("SeedData", "Error seeding listing ${seeded.title} to Firestore: ${e.message}")
+                    }
                     appDao.insertListing(seeded)
                 } else {
                     appDao.insertListing(typedListing)
@@ -849,8 +1009,10 @@ class TownshipRepository(
             for (chef in mockChefs) {
                 if (firestore != null) {
                     try {
-                        firestore.collection("chefProfiles").document(chef.uid).set(chef.toFirestoreMap())
-                    } catch (e: Exception) {}
+                        firestore.collection("chefProfiles").document(chef.uid).set(chef.toFirestoreMap()).await()
+                    } catch (e: Exception) {
+                        android.util.Log.e("SeedData", "Error seeding chef ${chef.uid} to Firestore: ${e.message}")
+                    }
                 }
                 appDao.insertChefProfile(chef)
             }
@@ -915,8 +1077,10 @@ class TownshipRepository(
             for (item in mockMenuItems) {
                 if (firestore != null) {
                     try {
-                        firestore.collection("menuItems").document(item.firestoreId).set(item.toFirestoreMap())
-                    } catch (e: Exception) {}
+                        firestore.collection("menuItems").document(item.firestoreId).set(item.toFirestoreMap()).await()
+                    } catch (e: Exception) {
+                        android.util.Log.e("SeedData", "Error seeding menu item ${item.firestoreId} to Firestore: ${e.message}")
+                    }
                 }
                 appDao.insertMenuItem(item)
             }
@@ -1005,7 +1169,11 @@ class TownshipRepository(
         if (fs != null && updated.firestoreId.isNotEmpty()) {
             try {
                 fs.collection("menuItems").document(updated.firestoreId).update(
-                    mapOf("isSoldOut" to isSoldOut, "timestamp" to updated.timestamp)
+                    mapOf(
+                        "isSoldOut" to isSoldOut,
+                        "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                        "serverTimestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                    )
                 ).await()
             } catch (e: Exception) {
                 appDao.updateMenuItem(updated.copy(pendingSync = true))
@@ -1037,6 +1205,41 @@ class TownshipRepository(
             appDao.updateMealOrder(finalOrder)
             scheduleSyncJob()
         }
+
+        if (order.menuItemId > 0) {
+            val menuItem = appDao.getMenuItemByIdDirect(order.menuItemId)
+            if (menuItem != null) {
+                val newPortionsBooked = menuItem.portionsBooked + order.servingSize
+                val isSoldOut = newPortionsBooked >= menuItem.portionsAvailable
+                val updatedItem = menuItem.copy(
+                    portionsBooked = newPortionsBooked,
+                    isSoldOut = isSoldOut,
+                    pendingSync = false,
+                    timestamp = System.currentTimeMillis()
+                )
+                appDao.updateMenuItem(updatedItem)
+                if (fs != null && updatedItem.firestoreId.isNotEmpty()) {
+                    try {
+                        fs.collection("menuItems").document(updatedItem.firestoreId).update(
+                            mapOf(
+                                "portionsBooked" to newPortionsBooked,
+                                "isSoldOut" to isSoldOut,
+                                "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                                "serverTimestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                            )
+                        ).await()
+                    } catch (e: Exception) {
+                        android.util.Log.e("MealHub", "Failed to sync menu item portion update: ${e.message}")
+                        appDao.updateMenuItem(updatedItem.copy(pendingSync = true))
+                        scheduleSyncJob()
+                    }
+                } else {
+                    appDao.updateMenuItem(updatedItem.copy(pendingSync = true))
+                    scheduleSyncJob()
+                }
+            }
+        }
+
         return insertedId
     }
 
@@ -1048,7 +1251,11 @@ class TownshipRepository(
         if (fs != null && updated.firestoreId.isNotEmpty()) {
             try {
                 fs.collection("mealOrders").document(updated.firestoreId).update(
-                    mapOf("status" to newStatus, "timestamp" to updated.timestamp)
+                    mapOf(
+                        "status" to newStatus,
+                        "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                        "serverTimestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                    )
                 ).await()
             } catch (e: Exception) {
                 appDao.updateMealOrder(updated.copy(pendingSync = true))
@@ -1095,7 +1302,11 @@ class TownshipRepository(
         if (fs != null && updated.firestoreId.isNotEmpty()) {
             try {
                 fs.collection("mealSubscriptions").document(updated.firestoreId).update(
-                    mapOf("status" to newStatus, "timestamp" to updated.timestamp)
+                    mapOf(
+                        "status" to newStatus,
+                        "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                        "serverTimestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                    )
                 ).await()
             } catch (e: Exception) {
                 appDao.updateMealSubscription(updated.copy(pendingSync = true))

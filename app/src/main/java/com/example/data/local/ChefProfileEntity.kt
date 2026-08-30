@@ -39,6 +39,8 @@ fun ChefProfileEntity.toFirestoreMap(): HashMap<String, Any?> {
         "isSocietyVouched" to isSocietyVouched,
         "speciality" to speciality,
         "society" to society,
-        "timestamp" to timestamp
+        "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+        "serverTimestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+        "clientTimestamp" to timestamp
     )
 }

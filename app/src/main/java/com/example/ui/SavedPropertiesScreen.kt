@@ -28,8 +28,10 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.local.ListingEntity
 import com.example.data.local.UserEntity
+import com.example.data.local.primaryPhotoUrl
 import com.example.data.local.propertyDetails
 import com.example.ui.components.ConnectKarBottomBar
+import com.example.ui.theme.*
 
 @Composable
 fun SavedPropertiesScreen(
@@ -203,7 +205,7 @@ private fun SavedPropertyCard(
     val details = property.propertyDetails()
 
     val fallbackImage = "https://lh3.googleusercontent.com/aida-public/AB6AXuA1ilwu0-nL4Uf4RDnlpLjtgUgVcugQkNHj9n-5km498WAcH_Yp290Dxq7oDHFCSUpMJgfx5AsoC_DbRl59YgzgrghIq1GC_BhE8rekPsJSzLROBEnYSl5EM64MfXqnJn7d2ycWMMkCG-v9aptZFlP6Ad3gRbnIGZ1PbEmDv6XgkjtrYtfS7JHTD7Ubmi5cWHX1nsSccrkiZjStXigCV5NM07oLlrsJAMC0zu6YBKaj7YLurQ1XhdDx"
-    val imageUrl = property.extra1.ifEmpty { fallbackImage }
+    val imageUrl = property.primaryPhotoUrl(fallbackImage)
 
     Card(
         modifier = Modifier
@@ -269,7 +271,7 @@ private fun SavedPropertyCard(
                         if (property.extra4 == "SOCIETY_APPROVED") {
                             Surface(
                                 shape = RoundedCornerShape(9999.dp),
-                                color = Color(0xFFD97706)
+                                color = ConciergeStatusAmber
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -340,11 +342,11 @@ private fun SavedPropertyCard(
                     if (isAvailable) {
                         Surface(
                             shape = RoundedCornerShape(9999.dp),
-                            color = Color(0xFFDCFCE7)
+                            color = ConciergeVegGreenLight
                         ) {
                             Text(
                                 text = "AVAILABLE",
-                                color = Color(0xFF15803D),
+                                color = ConciergeVegGreenDark,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)

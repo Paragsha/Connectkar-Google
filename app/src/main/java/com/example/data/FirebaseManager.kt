@@ -3,6 +3,8 @@ package com.example.data
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.StorageMetadata
 import com.example.data.local.UserEntity
 import com.example.data.local.ListingEntity
 import com.example.data.local.ChefProfileEntity
@@ -74,6 +76,76 @@ object FirebaseManager {
 
     val functions: FirebaseFunctions?
         get() = if (isAvailable) FirebaseFunctions.getInstance() else null
+
+    val storage: FirebaseStorage?
+        get() = if (isAvailable) {
+            try {
+                FirebaseStorage.getInstance()
+            } catch (e: Exception) {
+                android.util.Log.e("FirebaseManager", "FirebaseStorage unavailable: ${e.message}")
+                null
+            }
+        } else null
+
+    suspend fun uploadListingImage(
+        context: android.content.Context,
+        uriString: String,
+        listingId: String,
+        n: Int
+    ): String? {
+        if (uriString.isBlank()) return null
+        if (uriString.startsWith("http://", ignoreCase = true) || uriString.startsWith("https://", ignoreCase = true)) {
+            return uriString
+        }
+
+        val storageInstance = storage ?: return null
+        return try {
+            val uri = android.net.Uri.parse(uriString)
+            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            if (bytes == null || bytes.isEmpty()) {
+                android.util.Log.w("FirebaseManager", "Unable to read bytes from URI: $uriString")
+                return null
+            }
+
+            val storagePath = "listings/$listingId/$n.jpg"
+            val storageRef = storageInstance.reference.child(storagePath)
+            val metadata = StorageMetadata.Builder()
+                .setContentType("image/jpeg")
+                .build()
+
+            storageRef.putBytes(bytes, metadata).await()
+            val downloadUrl = storageRef.downloadUrl.await()
+            downloadUrl.toString()
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseManager", "Error uploading image to Firebase Storage for $uriString: ${e.message}")
+            null
+        }
+    }
+}
+
+fun DocumentSnapshot.extractServerTimestamp(vararg keys: String = arrayOf("serverTimestamp", "timestamp", "clientTimestamp")): Long {
+    for (key in keys) {
+        if (!contains(key)) continue
+        try {
+            val ts = getTimestamp(key, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
+            if (ts != null) return ts.toDate().time
+        } catch (_: Exception) {}
+        try {
+            val ts = getTimestamp(key)
+            if (ts != null) return ts.toDate().time
+        } catch (_: Exception) {}
+        try {
+            val num = getLong(key)
+            if (num != null) return num
+        } catch (_: Exception) {}
+        try {
+            val raw = try { get(key, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE) } catch (_: Exception) { get(key) }
+            if (raw is com.google.firebase.Timestamp) return raw.toDate().time
+            if (raw is java.util.Date) return raw.time
+            if (raw is Number) return raw.toLong()
+        } catch (_: Exception) {}
+    }
+    return System.currentTimeMillis()
 }
 
 fun DocumentSnapshot.toUserEntity(): UserEntity? {
@@ -93,6 +165,7 @@ fun DocumentSnapshot.toUserEntity(): UserEntity? {
         val residentType = getString("residentType") ?: "OWNER"
         val moveInDate = getString("moveInDate") ?: ""
         val proofDocumentUri = getString("proofDocumentUri") ?: ""
+        val timestamp = extractServerTimestamp("serverTimestamp", "timestamp", "clientTimestamp")
         
         UserEntity(
             uid = uid,
@@ -109,7 +182,8 @@ fun DocumentSnapshot.toUserEntity(): UserEntity? {
             floor = floor,
             residentType = residentType,
             moveInDate = moveInDate,
-            proofDocumentUri = proofDocumentUri
+            proofDocumentUri = proofDocumentUri,
+            timestamp = timestamp
         )
     } catch (e: Exception) {
         null
@@ -130,7 +204,7 @@ fun DocumentSnapshot.toListingEntity(): ListingEntity? {
         val authorFlat = getString("authorFlat") ?: ""
         val authorPhone = getString("authorPhone") ?: ""
         val authorUid = getString("authorUid") ?: ""
-        val timestamp = getLong("timestamp") ?: System.currentTimeMillis()
+        val timestamp = extractServerTimestamp("serverTimestamp", "timestamp", "clientTimestamp")
         val likesCount = getLong("likesCount")?.toInt() ?: 0
         val isLikedByMe = getBoolean("isLikedByMe") ?: false
         val isBookmarked = getBoolean("isBookmarked") ?: false
@@ -190,7 +264,7 @@ fun DocumentSnapshot.toChefProfileEntity(): ChefProfileEntity? {
         val isSocietyVouched = getBoolean("isSocietyVouched") ?: true
         val speciality = getString("speciality") ?: ""
         val society = getString("society") ?: ""
-        val timestamp = getLong("timestamp") ?: System.currentTimeMillis()
+        val timestamp = extractServerTimestamp("serverTimestamp", "timestamp", "clientTimestamp")
 
         ChefProfileEntity(
             uid = uid,
@@ -228,7 +302,7 @@ fun DocumentSnapshot.toMenuItemEntity(): MenuItemEntity? {
         val deliveryWindow = getString("deliveryWindow") ?: "12:30 PM - 1:30 PM"
         val society = getString("society") ?: ""
         val isSoldOut = getBoolean("isSoldOut") ?: false
-        val timestamp = getLong("timestamp") ?: System.currentTimeMillis()
+        val timestamp = extractServerTimestamp("serverTimestamp", "timestamp", "clientTimestamp")
 
         MenuItemEntity(
             id = idVal,
@@ -277,7 +351,7 @@ fun DocumentSnapshot.toMealOrderEntity(): MealOrderEntity? {
         val grandTotal = getDouble("grandTotal") ?: 0.0
         val status = getString("status") ?: "PENDING"
         val society = getString("society") ?: ""
-        val timestamp = getLong("timestamp") ?: System.currentTimeMillis()
+        val timestamp = extractServerTimestamp("serverTimestamp", "timestamp", "clientTimestamp")
 
         MealOrderEntity(
             id = idVal,
@@ -322,7 +396,7 @@ fun DocumentSnapshot.toMealSubscriptionEntity(): MealSubscriptionEntity? {
         val status = getString("status") ?: "ACTIVE"
         val pricePerMeal = getDouble("pricePerMeal") ?: 120.0
         val society = getString("society") ?: ""
-        val timestamp = getLong("timestamp") ?: System.currentTimeMillis()
+        val timestamp = extractServerTimestamp("serverTimestamp", "timestamp", "clientTimestamp")
 
         MealSubscriptionEntity(
             id = idVal,

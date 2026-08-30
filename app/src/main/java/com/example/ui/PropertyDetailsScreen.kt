@@ -6,6 +6,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,7 +30,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.local.ListingEntity
+import com.example.data.local.photoUrls
 import com.example.data.local.propertyDetails
+import com.example.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,12 +47,13 @@ fun PropertyDetailsScreen(
 
     val brandNavy = Color(0xFF001A40)
     val brandTeal = Color(0xFF007A5A)
-    val brandOrange = Color(0xFFD97706)
+    val brandOrange = ConciergeStatusAmber
     val lightBg = Color(0xFFF8FAFC)
     val chipBg = Color(0xFFEFF4FF)
 
     val fallbackImage = "https://lh3.googleusercontent.com/aida-public/AB6AXuA1ilwu0-nL4Uf4RDnlpLjtgUgVcugQkNHj9n-5km498WAcH_Yp290Dxq7oDHFCSUpMJgfx5AsoC_DbRl59YgzgrghIq1GC_BhE8rekPsJSzLROBEnYSl5EM64MfXqnJn7d2ycWMMkCG-v9aptZFlP6Ad3gRbnIGZ1PbEmDv6XgkjtrYtfS7JHTD7Ubmi5cWHX1nsSccrkiZjStXigCV5NM07oLlrsJAMC0zu6YBKaj7YLurQ1XhdDx"
-    val imageUrl = property.extra1.ifEmpty { fallbackImage }
+    val photoList = property.photoUrls().ifEmpty { listOf(fallbackImage) }
+    val pagerState = rememberPagerState(pageCount = { photoList.size })
 
     val rawAmenities = details.amenities.filter { it.isNotBlank() }
     val amenitiesList = if (rawAmenities.isNotEmpty()) {
@@ -169,18 +174,41 @@ fun PropertyDetailsScreen(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Hero Image
+            // Hero Image Carousel
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(1.5f)
             ) {
-                AsyncImage(
-                    model = imageUrl,
-                    contentDescription = property.title,
-                    contentScale = ContentScale.Crop,
+                HorizontalPager(
+                    state = pagerState,
                     modifier = Modifier.fillMaxSize()
-                )
+                ) { page ->
+                    AsyncImage(
+                        model = photoList[page],
+                        contentDescription = "${property.title} photo ${page + 1}",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                if (photoList.size > 1) {
+                    Box(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .align(Alignment.BottomEnd)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.Black.copy(alpha = 0.65f))
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Text(
+                            text = "${pagerState.currentPage + 1}/${photoList.size}",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
 
                 // Overlaid Badges
                 Row(
@@ -508,7 +536,7 @@ fun PropertyDetailsScreen(
                                 modifier = Modifier
                                     .size(44.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFFDC2626)),
+                                    .background(ConciergeNonVegRed),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(

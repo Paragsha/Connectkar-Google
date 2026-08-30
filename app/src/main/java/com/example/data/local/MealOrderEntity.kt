@@ -61,7 +61,9 @@ fun MealOrderEntity.toFirestoreMap(): HashMap<String, Any?> {
         "grandTotal" to grandTotal,
         "status" to status,
         "society" to society,
-        "timestamp" to timestamp,
+        "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+        "serverTimestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+        "clientTimestamp" to timestamp,
         "localId" to id
     )
 }

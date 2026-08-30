@@ -30,6 +30,8 @@ import com.example.data.local.ListingEntity
 import com.example.data.local.UserEntity
 import com.example.data.local.ListingDetails
 
+import com.example.ui.components.ShimmerBox
+import com.example.ui.components.shimmerEffect
 import com.example.ui.theme.*
 
 // --- Brand Colors (Unified with Digital Concierge design tokens) ---
@@ -222,17 +224,19 @@ fun SyncStatusBanner(
                     modifier = Modifier.padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                        color = Color(0xFF3B82F6)
+                    ShimmerBox(
+                        modifier = Modifier
+                            .size(16.dp),
+                        shape = CircleShape,
+                        baseColor = Color(0xFF93C5FD),
+                        highlightColor = Color(0xFFEFF6FF)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = "Synchronizing with community network...",
                         color = Color(0xFF1E40AF),
                         fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
@@ -265,13 +269,13 @@ fun SyncStatusBanner(
                         Column {
                             Text(
                                 text = "Firestore Sync Failed",
-                                color = Color(0xFF991B1B),
+                                color = ConciergeNonVegRedDark,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = "Viewing stale/offline local data. ${syncState.message}",
-                                color = Color(0xFFB91C1C),
+                                color = ConciergeNonVegRedDark,
                                 fontSize = 11.sp,
                                 lineHeight = 14.sp
                             )

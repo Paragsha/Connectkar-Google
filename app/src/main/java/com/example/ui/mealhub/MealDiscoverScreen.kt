@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +39,8 @@ import com.example.ui.BrandGoldLight
 import com.example.ui.BrandSlate
 import com.example.ui.SyncState
 import com.example.ui.SyncStatusBanner
+import com.example.ui.components.DishCardSkeleton
+import com.example.ui.components.ChefSummaryCardSkeleton
 import com.example.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,13 +52,15 @@ fun MealDiscoverScreen(
     menuItems: List<MenuItemEntity>,
     chefs: List<ChefProfileEntity>,
     currentChefProfile: ChefProfileEntity?,
+    isRefreshing: Boolean = false,
     onDishClicked: (MenuItemEntity) -> Unit,
     onChefProfileClicked: (String) -> Unit,
     onChefPortalClicked: () -> Unit,
     onChefOnboardingClicked: () -> Unit,
     onMyMealsClicked: () -> Unit,
     onBackClicked: () -> Unit,
-    onRetrySync: () -> Unit = {}
+    onRetrySync: () -> Unit = {},
+    onRefresh: () -> Unit = {}
 ) {
     var selectedCategory by remember { mutableStateOf("ALL") }
     val categories = listOf(
@@ -150,17 +155,23 @@ fun MealDiscoverScreen(
         },
         containerColor = ConciergeBackground
     ) { paddingValues ->
-        LazyColumn(
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(bottom = 80.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .padding(paddingValues)
+                .testTag("meal_discover_pull_to_refresh")
         ) {
-            // 0. Sync Status Banner
-            item {
-                SyncStatusBanner(syncState = syncState, onRetrySync = onRetrySync)
-            }
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 80.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                // 0. Sync Status Banner
+                item {
+                    SyncStatusBanner(syncState = syncState, onRetrySync = onRetrySync)
+                }
 
             // 1. Greeting & Hero Spotlight
             item {
@@ -325,7 +336,16 @@ fun MealDiscoverScreen(
 
             // 5. Horizontal Dish Carousel
             item {
-                if (filteredItems.isEmpty()) {
+                if (syncState is SyncState.Syncing && menuItems.isEmpty()) {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        items(3) {
+                            DishCardSkeleton()
+                        }
+                    }
+                } else if (filteredItems.isEmpty()) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -377,8 +397,8 @@ fun MealDiscoverScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
-                    border = BorderStroke(1.dp, Color(0xFFBBF7D0))
+                    colors = CardDefaults.cardColors(containerColor = ConciergeVegGreenContainer),
+                    border = BorderStroke(1.dp, ConciergeVegGreenBorder)
                 ) {
                     Row(
                         modifier = Modifier
@@ -388,7 +408,7 @@ fun MealDiscoverScreen(
                     ) {
                         Surface(
                             shape = CircleShape,
-                            color = Color(0xFFDCFCE7),
+                            color = ConciergeVegGreenLight,
                             modifier = Modifier.size(48.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
@@ -402,12 +422,12 @@ fun MealDiscoverScreen(
                                     text = "Daily Tiffin Plans",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp,
-                                    color = Color(0xFF14532D)
+                                    color = ConciergeVegGreenDark
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Surface(
                                     shape = RoundedCornerShape(8.dp),
-                                    color = Color(0xFF16A34A)
+                                    color = ConciergeVegGreen
                                 ) {
                                     Text(
                                         text = "15% OFF",
@@ -421,7 +441,7 @@ fun MealDiscoverScreen(
                             Text(
                                 text = "Subscribe weekly or monthly with your verified neighbor chef. Fresh, hot, and on-time.",
                                 fontSize = 12.sp,
-                                color = Color(0xFF166534),
+                                color = ConciergeVegGreenMedium,
                                 modifier = Modifier.padding(top = 2.dp)
                             )
                         }
@@ -448,12 +468,19 @@ fun MealDiscoverScreen(
             }
 
             // 8. Chef Cards Grid / List
-            items(chefs) { chef ->
-                ChefSummaryCard(
-                    chef = chef,
-                    onClick = { onChefProfileClicked(chef.uid) }
-                )
+            if (syncState is SyncState.Syncing && chefs.isEmpty()) {
+                items(3) {
+                    ChefSummaryCardSkeleton()
+                }
+            } else {
+                items(chefs) { chef ->
+                    ChefSummaryCard(
+                        chef = chef,
+                        onClick = { onChefProfileClicked(chef.uid) }
+                    )
+                }
             }
+        }
         }
     }
 }
@@ -464,6 +491,8 @@ fun DishCard(
     onOrder: () -> Unit,
     onChefClick: () -> Unit
 ) {
+    val portionsLeft = maxOf(0, dish.portionsAvailable - dish.portionsBooked)
+
     Card(
         modifier = Modifier
             .width(260.dp)
@@ -516,20 +545,20 @@ fun DishCard(
                             modifier = Modifier
                                 .size(8.dp)
                                 .clip(CircleShape)
-                                .background(if (dish.isVeg) Color(0xFF16A34A) else Color(0xFFDC2626))
+                                .background(if (dish.isVeg) ConciergeVegGreen else ConciergeNonVegRed)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = if (dish.isVeg) "VEG" else "NON-VEG",
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (dish.isVeg) Color(0xFF16A34A) else Color(0xFFDC2626)
+                            color = if (dish.isVeg) ConciergeVegGreen else ConciergeNonVegRed
                         )
                     }
                 }
 
                 // Portions Left Badge
-                if (dish.portionsAvailable > 0 && !dish.isSoldOut) {
+                if (portionsLeft > 0 && !dish.isSoldOut) {
                     Surface(
                         modifier = Modifier
                             .padding(10.dp)
@@ -538,7 +567,7 @@ fun DishCard(
                         color = Color(0xFF1E293B).copy(alpha = 0.85f)
                     ) {
                         Text(
-                            text = "${dish.portionsAvailable} left",
+                            text = "$portionsLeft left",
                             color = Color.White,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
@@ -551,7 +580,7 @@ fun DishCard(
                             .padding(10.dp)
                             .align(Alignment.TopEnd),
                         shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFFDC2626)
+                        color = ConciergeNonVegRed
                     ) {
                         Text(
                             text = "SOLD OUT",
@@ -646,7 +675,7 @@ fun DishCard(
 
                     Button(
                         onClick = onOrder,
-                        enabled = !dish.isSoldOut,
+                        enabled = !dish.isSoldOut && portionsLeft > 0,
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = ConciergePrimaryContainer,
@@ -656,7 +685,7 @@ fun DishCard(
                         modifier = Modifier.testTag("order_dish_${dish.id}")
                     ) {
                         Text(
-                            text = if (dish.isSoldOut) "Sold Out" else "Order",
+                            text = if (dish.isSoldOut || portionsLeft <= 0) "Sold Out" else "Order",
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp
                         )

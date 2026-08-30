@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.ListingEntity
 import com.example.data.local.UserEntity
+import com.example.ui.components.PropertyListingSkeletonCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,11 +31,13 @@ fun ModuleListScreen(
     currentUser: UserEntity,
     selectedSociety: String,
     syncState: SyncState,
+    isRefreshing: Boolean = false,
     onBack: () -> Unit,
     onLikeListing: (Int) -> Unit,
     onBookmarkListing: (Int) -> Unit,
     onCreateListingClicked: () -> Unit,
     onRetrySync: () -> Unit,
+    onRefresh: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -121,113 +125,133 @@ fun ModuleListScreen(
         containerColor = BrandBackground,
         modifier = modifier
     ) { innerPadding ->
-        Column(
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 20.dp)
+                .testTag("module_list_pull_to_refresh")
         ) {
-            SyncStatusBanner(syncState = syncState, onRetrySync = onRetrySync)
-            
-            // Module Info Header
-            Card(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9)),
-                shape = RoundedCornerShape(12.dp)
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = null,
-                        tint = BrandSlate,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = activeSubtitle,
-                        fontSize = 12.sp,
-                        color = Color(0xFF475569),
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-
-            // Search Bar
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("Search title, description, or author...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray) },
-                singleLine = true,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp)
-                    .testTag("module_search_input"),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = BrandEmerald,
-                    unfocusedContainerColor = Color.White,
-                    focusedContainerColor = Color.White
-                )
-            )
-
-            if (filteredListings.isEmpty()) {
-                // Beautiful Empty State
-                Box(
+                SyncStatusBanner(syncState = syncState, onRetrySync = onRetrySync)
+                
+                // Module Info Header
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
+                        .padding(vertical = 8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9)),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                        modifier = Modifier.padding(32.dp)
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Inbox,
-                            contentDescription = "No listings",
-                            tint = Color.LightGray,
-                            modifier = Modifier.size(72.dp)
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = BrandSlate,
+                            modifier = Modifier.size(18.dp)
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "No listings found",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            color = BrandSlate
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = if (searchQuery.isNotEmpty()) "Try adjusting your search terms" else "Be the first verified resident to create an entry!",
-                            textAlign = TextAlign.Center,
-                            fontSize = 13.sp,
-                            color = Color.Gray
+                            text = activeSubtitle,
+                            fontSize = 12.sp,
+                            color = Color(0xFF475569),
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
-            } else {
-                // Listings List
-                LazyColumn(
+
+                // Search Bar
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Search title, description, or author...") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray) },
+                    singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f)
-                ) {
-                    items(filteredListings, key = { it.id }) { listing ->
-                        ListingCard(
-                            listing = listing,
-                            onLike = { onLikeListing(listing.id) },
-                            onBookmark = { onBookmarkListing(listing.id) },
-                            isCurrentUserVerified = currentUser.isVerified
-                        )
+                        .padding(vertical = 8.dp)
+                        .testTag("module_search_input"),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = BrandEmerald,
+                        unfocusedContainerColor = Color.White,
+                        focusedContainerColor = Color.White
+                    )
+                )
+
+                if (syncState is SyncState.Syncing && listings.isEmpty()) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    ) {
+                        items(3) {
+                            PropertyListingSkeletonCard(
+                                modifier = Modifier.padding(bottom = 16.dp)
+                            )
+                        }
                     }
-                    item {
-                        Spacer(modifier = Modifier.height(80.dp)) // Padding for FAB overlap
+                } else if (filteredListings.isEmpty()) {
+                    // Beautiful Empty State
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Inbox,
+                                contentDescription = "No listings",
+                                tint = Color.LightGray,
+                                modifier = Modifier.size(72.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "No listings found",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                color = BrandSlate
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = if (searchQuery.isNotEmpty()) "Try adjusting your search terms" else "Be the first verified resident to create an entry! (Pull down to refresh)",
+                                textAlign = TextAlign.Center,
+                                fontSize = 13.sp,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+                } else {
+                    // Listings List
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    ) {
+                        items(filteredListings, key = { it.id }) { listing ->
+                            ListingCard(
+                                listing = listing,
+                                onLike = { onLikeListing(listing.id) },
+                                onBookmark = { onBookmarkListing(listing.id) },
+                                isCurrentUserVerified = currentUser.isVerified
+                            )
+                        }
+                        item {
+                            Spacer(modifier = Modifier.height(80.dp)) // Padding for FAB overlap
+                        }
                     }
                 }
             }

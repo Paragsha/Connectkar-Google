@@ -367,7 +367,7 @@ fun BuyerPastOrderCard(order: MealOrderEntity) {
             Text(
                 text = "${order.servingSize} portion(s) • Delivered ✓",
                 fontSize = 12.sp,
-                color = Color(0xFF16A34A),
+                color = ConciergeVegGreen,
                 fontWeight = FontWeight.Medium
             )
         }
@@ -406,13 +406,13 @@ fun BuyerSubscriptionCard(
 
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = if (sub.status == "ACTIVE") BrandEmeraldLight else Color(0xFFFEF3C7)
+                    color = if (sub.status == "ACTIVE") BrandEmeraldLight else ConciergeStatusAmberBadgeBg
                 ) {
                     Text(
                         text = sub.status,
                         fontWeight = FontWeight.Bold,
                         fontSize = 10.sp,
-                        color = if (sub.status == "ACTIVE") BrandEmerald else Color(0xFFD97706),
+                        color = if (sub.status == "ACTIVE") BrandEmerald else ConciergeStatusAmber,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                     )
                 }

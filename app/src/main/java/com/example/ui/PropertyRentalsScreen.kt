@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,8 +34,10 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.local.ListingEntity
 import com.example.data.local.UserEntity
+import com.example.data.local.primaryPhotoUrl
 import com.example.data.local.propertyDetails
 import com.example.ui.components.ConnectKarBottomBar
+import com.example.ui.components.PropertyListingSkeletonCard
 import com.example.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,11 +47,13 @@ fun PropertyRentalsScreen(
     listings: List<ListingEntity>,
     selectedSociety: String,
     syncState: SyncState,
+    isRefreshing: Boolean = false,
     onBack: () -> Unit,
     onLikeListing: (Int) -> Unit,
     onBookmarkListing: (Int) -> Unit,
     onCreateListingClicked: () -> Unit,
     onRetrySync: () -> Unit,
+    onRefresh: () -> Unit = {},
     onNavigateToSaved: () -> Unit = {},
     onNavigateToMyListings: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -137,7 +142,11 @@ fun PropertyRentalsScreen(
                     listing.description.contains(furnishedFilter!!, ignoreCase = true)
         }
 
-        val matchesPrice = listing.price == 0.0 || (listing.price >= priceRange.start && listing.price <= priceRange.endInclusive)
+        val matchesPrice = if (listing.price > 0.0) {
+            listing.price >= priceRange.start && listing.price <= priceRange.endInclusive
+        } else {
+            priceRange.start <= 5000f
+        }
 
         val matchesPropertyType = if (propertyTypeFilter == null) {
             true
@@ -204,13 +213,20 @@ fun PropertyRentalsScreen(
         containerColor = Color(0xFFF8F9FF),
         modifier = modifier
     ) { innerPadding ->
-        LazyColumn(
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp)
+                .testTag("property_rentals_pull_to_refresh")
         ) {
-            // --- HEADER ROW ---
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+            ) {
+                // --- HEADER ROW ---
             item {
                 Row(
                     modifier = Modifier
@@ -450,8 +466,14 @@ fun PropertyRentalsScreen(
                 Spacer(modifier = Modifier.height(20.dp))
             }
 
-            // --- NO PROPERTIES FOUND STATE ---
-            if (filteredProperties.isEmpty()) {
+            // --- SHIMMER SKELETON / EMPTY STATE / PROPERTY CARDS ---
+            if (syncState is SyncState.Syncing && listings.isEmpty()) {
+                items(3) {
+                    PropertyListingSkeletonCard(
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                }
+            } else if (filteredProperties.isEmpty()) {
                 item {
                     Box(
                         modifier = Modifier
@@ -482,24 +504,25 @@ fun PropertyRentalsScreen(
                         }
                     }
                 }
-            }
-
-            // --- PROPERTY CARDS LIST ---
-            items(filteredProperties, key = { it.id }) { property ->
-                PropertyCard(
-                    property = property,
-                    onViewDetails = { selectedListingForDetails = property },
-                    brandNavy = brandNavy,
-                    brandTeal = brandTeal,
-                    ghostBorderColor = ghostBorderColor,
-                    surfaceContainerLowest = surfaceContainerLowest
-                )
-                Spacer(modifier = Modifier.height(24.dp))
+            } else {
+                // --- PROPERTY CARDS LIST ---
+                items(filteredProperties, key = { it.id }) { property ->
+                    PropertyCard(
+                        property = property,
+                        onViewDetails = { selectedListingForDetails = property },
+                        brandNavy = brandNavy,
+                        brandTeal = brandTeal,
+                        ghostBorderColor = ghostBorderColor,
+                        surfaceContainerLowest = surfaceContainerLowest
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
             }
 
             item {
                 Spacer(modifier = Modifier.height(120.dp))
             }
+        }
         }
     }
 
@@ -649,7 +672,7 @@ fun PropertyRentalsScreen(
                         letterSpacing = 1.sp
                     )
                     Text(
-                        text = "₹${(priceRange.start.toInt() / 1000)}k - ₹${(priceRange.endInclusive.toInt() / 1000)}k",
+                        text = "₹${String.format("%,d", priceRange.start.toInt())} - ₹${String.format("%,d", priceRange.endInclusive.toInt())}",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF003FB1)
@@ -668,9 +691,27 @@ fun PropertyRentalsScreen(
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 16.dp)
+                        .padding(bottom = 2.dp)
                         .testTag("price_range_slider")
                 )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Min: ₹5,000",
+                        fontSize = 11.sp,
+                        color = Color.Gray
+                    )
+                    Text(
+                        text = "Max: ₹1,00,000+",
+                        fontSize = 11.sp,
+                        color = Color.Gray
+                    )
+                }
 
                 // 4. PROPERTY TYPE
                 Text(
@@ -772,7 +813,7 @@ fun PropertyCard(
 
     // Fallback image in case the database entry is missing one
     val fallbackImage = "https://lh3.googleusercontent.com/aida-public/AB6AXuA1ilwu0-nL4Uf4RDnlpLjtgUgVcugQkNHj9n-5km498WAcH_Yp290Dxq7oDHFCSUpMJgfx5AsoC_DbRl59YgzgrghIq1GC_BhE8rekPsJSzLROBEnYSl5EM64MfXqnJn7d2ycWMMkCG-v9aptZFlP6Ad3gRbnIGZ1PbEmDv6XgkjtrYtfS7JHTD7Ubmi5cWHX1nsSccrkiZjStXigCV5NM07oLlrsJAMC0zu6YBKaj7YLurQ1XhdDx"
-    val imageUrl = property.extra1.ifEmpty { fallbackImage }
+    val imageUrl = property.primaryPhotoUrl(fallbackImage)
 
     Card(
         modifier = Modifier
@@ -839,7 +880,7 @@ fun PropertyCard(
                         Row(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(9999.dp))
-                                .background(Color(0xFFD97706))
+                                .background(ConciergeStatusAmber)
                                 .padding(horizontal = 10.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -870,13 +911,13 @@ fun PropertyCard(
                     ) {
                         Surface(
                             shape = RoundedCornerShape(9999.dp),
-                            color = Color(0xFFDCFCE7),
-                            border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                            color = ConciergeVegGreenLight,
+                            border = BorderStroke(1.dp, ConciergeVegGreenBorder),
                             modifier = Modifier.padding(bottom = 2.dp)
                         ) {
                             Text(
                                 text = "AVAILABLE",
-                                color = Color(0xFF15803D),
+                                color = ConciergeVegGreenDark,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)

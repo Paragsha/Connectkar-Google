@@ -29,7 +29,11 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.local.ListingEntity
 import com.example.data.local.UserEntity
+import com.example.data.local.primaryPhotoUrl
+import com.example.ui.SyncState
 import com.example.ui.components.ConnectKarBottomBar
+import com.example.ui.components.MyListingItemSkeleton
+import com.example.ui.theme.*
 
 @Composable
 fun MyListingsScreen(
@@ -39,6 +43,8 @@ fun MyListingsScreen(
     onDeleteListing: (Int) -> Unit,
     onBack: () -> Unit,
     onBottomNavClick: (String) -> Unit,
+    syncState: SyncState = SyncState.Idle,
+    isLoading: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -88,7 +94,7 @@ fun MyListingsScreen(
                         onDeleteListing(id)
                         Toast.makeText(context, "Listing deleted", Toast.LENGTH_SHORT).show()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
+                    colors = ButtonDefaults.buttonColors(containerColor = ConciergeNonVegRed)
                 ) {
                     Text("Delete", color = Color.White)
                 }
@@ -217,8 +223,15 @@ fun MyListingsScreen(
                 }
             }
 
-            // Empty State
-            if (filteredListings.isEmpty()) {
+            // Shimmer Skeleton loading state during initial fetch / syncing
+            if ((syncState is SyncState.Syncing || isLoading) && filteredListings.isEmpty()) {
+                items(3) {
+                    MyListingItemSkeleton(
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                }
+            } else if (filteredListings.isEmpty()) {
+                // Empty State
                 item {
                     Box(
                         modifier = Modifier
@@ -259,22 +272,22 @@ fun MyListingsScreen(
                         }
                     }
                 }
-            }
-
-            // Listings List
-            items(filteredListings, key = { it.id }) { listing ->
-                MyListingCard(
-                    listing = listing,
-                    onViewDetails = { selectedListingForDetails = listing },
-                    onEdit = {
-                        Toast.makeText(context, "Editing existing listings isn't available yet", Toast.LENGTH_SHORT).show()
-                    },
-                    onDelete = {
-                        listingToDelete = listing
-                    },
-                    brandNavy = brandNavy
-                )
-                Spacer(modifier = Modifier.height(16.dp))
+            } else {
+                // Listings List
+                items(filteredListings, key = { it.id }) { listing ->
+                    MyListingCard(
+                        listing = listing,
+                        onViewDetails = { selectedListingForDetails = listing },
+                        onEdit = {
+                            Toast.makeText(context, "Editing existing listings isn't available yet", Toast.LENGTH_SHORT).show()
+                        },
+                        onDelete = {
+                            listingToDelete = listing
+                        },
+                        brandNavy = brandNavy
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
             }
 
             item {
@@ -293,7 +306,7 @@ private fun MyListingCard(
     brandNavy: Color
 ) {
     val fallbackImage = "https://lh3.googleusercontent.com/aida-public/AB6AXuA1ilwu0-nL4Uf4RDnlpLjtgUgVcugQkNHj9n-5km498WAcH_Yp290Dxq7oDHFCSUpMJgfx5AsoC_DbRl59YgzgrghIq1GC_BhE8rekPsJSzLROBEnYSl5EM64MfXqnJn7d2ycWMMkCG-v9aptZFlP6Ad3gRbnIGZ1PbEmDv6XgkjtrYtfS7JHTD7Ubmi5cWHX1nsSccrkiZjStXigCV5NM07oLlrsJAMC0zu6YBKaj7YLurQ1XhdDx"
-    val imageUrl = listing.extra1.ifEmpty { fallbackImage }
+    val imageUrl = listing.primaryPhotoUrl(fallbackImage)
 
     Surface(
         shape = RoundedCornerShape(20.dp),
@@ -364,11 +377,11 @@ private fun MyListingCard(
                     } else {
                         Surface(
                             shape = RoundedCornerShape(9999.dp),
-                            color = Color(0xFFDCFCE7)
+                            color = ConciergeVegGreenLight
                         ) {
                             Text(
                                 text = "Active",
-                                color = Color(0xFF15803D),
+                                color = ConciergeVegGreenDark,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
@@ -417,7 +430,7 @@ private fun MyListingCard(
                         modifier = Modifier
                             .size(32.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFFEE2E2))
+                            .background(ConciergeNonVegRedLight)
                             .clickable { onDelete() }
                             .testTag("delete_listing_button_${listing.id}"),
                         contentAlignment = Alignment.Center
@@ -425,7 +438,7 @@ private fun MyListingCard(
                         Icon(
                             imageVector = Icons.Outlined.Delete,
                             contentDescription = "Delete Listing",
-                            tint = Color(0xFFDC2626),
+                            tint = ConciergeNonVegRed,
                             modifier = Modifier.size(16.dp)
                         )
                     }
