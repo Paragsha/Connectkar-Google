@@ -324,7 +324,7 @@ fun DashboardScreen(
 
                     // Explore (Feed) Tab
                     IconButton(
-                        onClick = { onModuleClicked("PROPERTY") },
+                        onClick = { onModuleClicked("EXPLORE") },
                         modifier = Modifier.weight(1f)
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1054,14 +1054,6 @@ fun DashboardScreen(
                             onModuleClicked("CARPOOL")
                         }
                     )
-                    CreateChoiceItem(
-                        title = "📣 Post Community Feed Alert",
-                        description = "Post general notices, events, or lost & found alerts.",
-                        onClick = {
-                            showCreateChoiceDialog = false
-                            onModuleClicked("FEED")
-                        }
-                    )
                 }
             },
             confirmButton = {
@@ -1292,7 +1284,7 @@ fun FreshTodayCard(
     val price = obj?.mealPrice ?: listing.price
     val deliveryInfo = obj?.deliveryInfo ?: listing.extra3
     val isVeg = listing.extra2 == "VEG" || listing.category.contains("Veg", ignoreCase = true)
-    val imageUrl = listing.primaryPhotoUrl.ifEmpty { listing.extra1 } // Image URL is stored in extra1
+    val imageUrl = listing.primaryPhotoUrl.ifEmpty { "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500" }
 
     Card(
         modifier = modifier

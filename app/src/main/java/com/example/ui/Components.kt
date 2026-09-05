@@ -29,6 +29,9 @@ import androidx.compose.ui.unit.sp
 import com.example.data.local.ListingEntity
 import com.example.data.local.UserEntity
 import com.example.data.local.ListingDetails
+import com.example.data.local.photoUrls
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 
 import com.example.ui.components.ShimmerBox
 import com.example.ui.components.shimmerEffect
@@ -437,6 +440,43 @@ fun ListingCard(
                     )
                 }
 
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier
+                        .padding(end = 4.dp)
+                        .testTag("listing_type_badge_${listing.id}")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val (typeIcon, typeLabel) = when (listing.type) {
+                            "MARKETPLACE" -> Icons.Default.ShoppingBasket to "Marketplace"
+                            "PROPERTY" -> Icons.Default.Apartment to "Property"
+                            "SERVICE" -> Icons.Default.Handyman to "Service"
+                            "MEAL" -> Icons.Default.Restaurant to "Meal"
+                            "CARPOOL" -> Icons.Default.DirectionsCar to "Carpool"
+                            "VEHICLE" -> Icons.Default.DirectionsCar to "Vehicle"
+                            "EVENT" -> Icons.Default.Event to "Event"
+                            else -> Icons.Default.Tag to listing.type
+                        }
+                        Icon(
+                            imageVector = typeIcon,
+                            contentDescription = typeLabel,
+                            modifier = Modifier.size(12.dp),
+                            tint = ConciergeBrandNavy
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = typeLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = ConciergeBrandNavy
+                        )
+                    }
+                }
+
                 IconButton(
                     onClick = onBookmark,
                     modifier = Modifier.testTag("bookmark_button_${listing.id}")
@@ -468,6 +508,41 @@ fun ListingCard(
                 maxLines = 4,
                 overflow = TextOverflow.Ellipsis
             )
+
+            val photos = listing.photoUrls()
+            if (photos.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFF1F5F9))
+                ) {
+                    AsyncImage(
+                        model = photos.first(),
+                        contentDescription = listing.title,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                    if (photos.size > 1) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color.Black.copy(alpha = 0.65f),
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(8.dp)
+                        ) {
+                            Text(
+                                text = "1/${photos.size} Photos",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -506,45 +581,43 @@ fun ListingCard(
                     )
                 }
 
-                if (listing.type != "FEED") {
-                    if (isCurrentUserVerified) {
-                        Button(
-                            onClick = { showContactInfo = !showContactInfo },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (showContactInfo) BrandSlate else BrandIndigo
-                            ),
-                            shape = MaterialTheme.shapes.extraSmall,
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
-                        ) {
+                if (isCurrentUserVerified) {
+                    Button(
+                        onClick = { showContactInfo = !showContactInfo },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (showContactInfo) BrandSlate else BrandIndigo
+                        ),
+                        shape = MaterialTheme.shapes.extraSmall,
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (showContactInfo) Icons.Default.Close else Icons.Default.Phone,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (showContactInfo) "Hide Contact" else "Connect",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .clip(MaterialTheme.shapes.extraSmall)
+                            .background(Color(0xFFF1F5F9))
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = if (showContactInfo) Icons.Default.Close else Icons.Default.Phone,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = "Locked: Profile verification is required to connect with this resident",
+                                modifier = Modifier.size(12.dp),
+                                tint = Color.Gray
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = if (showContactInfo) "Hide Contact" else "Connect",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .clip(MaterialTheme.shapes.extraSmall)
-                                .background(Color(0xFFF1F5F9))
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Lock,
-                                    contentDescription = "Locked: Profile verification is required to connect with this resident",
-                                    modifier = Modifier.size(12.dp),
-                                    tint = Color.Gray
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Verify to Connect", color = Color.Gray, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                            }
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Verify to Connect", color = Color.Gray, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

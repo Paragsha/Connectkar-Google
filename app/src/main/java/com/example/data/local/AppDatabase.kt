@@ -19,6 +19,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun appDao(): AppDao
 
     companion object {
+        // CRITICAL: Any future schema version bump must include a corresponding MIGRATION_N_N+1
+        // before merging. Precedent: A missing MIGRATION_5_6 caused fallbackToDestructiveMigration()
+        // to silently wipe all local UserEntity and ListingEntity tables during app upgrades from v5 to v6.
         val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE listings ADD COLUMN authorUid TEXT NOT NULL DEFAULT ''")

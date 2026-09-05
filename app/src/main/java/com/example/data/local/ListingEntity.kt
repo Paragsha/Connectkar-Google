@@ -31,14 +31,43 @@ object MoshiHelper {
     }
 
     fun toJsonStringList(list: List<String>): String {
+        return serializePhotoUrls(list)
+    }
+
+    fun serializePhotoUrls(list: List<String>): String {
+        if (list.isEmpty()) return ""
         return try {
             val listType = com.squareup.moshi.Types.newParameterizedType(List::class.java, String::class.java)
             moshi.adapter<List<String>>(listType).toJson(list)
         } catch (e: Exception) {
-            list.joinToString(",")
+            toJson(ListingPhotosJson(list))
         }
     }
+
+    fun deserializePhotoUrls(json: String): List<String> {
+        if (json.isBlank()) return emptyList()
+        val trimmed = json.trim()
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+            try {
+                val listType = com.squareup.moshi.Types.newParameterizedType(List::class.java, String::class.java)
+                val parsed = moshi.adapter<List<String>>(listType).fromJson(trimmed)
+                if (parsed != null) return parsed.filter { it.isNotBlank() }
+            } catch (_: Exception) {
+            }
+        }
+        if (trimmed.startsWith("{") && trimmed.contains("\"urls\"")) {
+            try {
+                val parsed = fromJson<ListingPhotosJson>(trimmed)
+                if (parsed != null && parsed.urls.isNotEmpty()) return parsed.urls.filter { it.isNotBlank() }
+            } catch (_: Exception) {
+            }
+        }
+        return trimmed.split(",").map { it.trim() }.filter { it.isNotBlank() }
+    }
 }
+
+@com.squareup.moshi.JsonClass(generateAdapter = true)
+data class ListingPhotosJson(val urls: List<String> = emptyList())
 
 @com.squareup.moshi.JsonClass(generateAdapter = true)
 data class MarketplaceDetailsJson(val category: String)
@@ -91,19 +120,7 @@ fun ListingEntity.propertyDetails(): ExtendedMarketplaceDetails {
 }
 
 fun ListingEntity.photoUrls(): List<String> {
-    if (extra1.isBlank()) return emptyList()
-    val trimmed = extra1.trim()
-    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-        try {
-            val listType = com.squareup.moshi.Types.newParameterizedType(List::class.java, String::class.java)
-            val adapter = MoshiHelper.moshi.adapter<List<String>>(listType)
-            val parsed = adapter.fromJson(trimmed)
-            if (parsed != null) return parsed.filter { it.isNotBlank() }
-        } catch (e: Exception) {
-            // fallback below
-        }
-    }
-    return trimmed.split(",").map { it.trim() }.filter { it.isNotBlank() }
+    return MoshiHelper.deserializePhotoUrls(extra1)
 }
 
 val ListingEntity.primaryPhotoUrl: String
@@ -232,7 +249,7 @@ fun ListingEntity.withSerializedDetails(): ListingEntity {
 }
 
 fun ListingEntity.toFirestoreMap(): HashMap<String, Any?> {
-    return hashMapOf(
+    val map = hashMapOf<String, Any?>(
         "localId" to id,
         "type" to type,
         "title" to title,
@@ -259,6 +276,10 @@ fun ListingEntity.toFirestoreMap(): HashMap<String, Any?> {
         "isDraft" to isDraft,
         "isPublic" to isPublic
     )
+    val photosList = photoUrls()
+    map["photos"] = photosList
+    map["photoUrls"] = photosList
+    return map
 }
 
 sealed class ListingDetails {

@@ -85,15 +85,6 @@ fun CreateHubScreen(
                 testTag = "category_marketplace_card"
             ),
             CreateCategory(
-                id = "FEED",
-                title = "Create Post",
-                subtitle = "News & Updates",
-                icon = Icons.Default.Edit,
-                iconBgColor = ConciergeSecondaryContainer,
-                iconTintColor = ConciergeOnSecondaryContainer,
-                testTag = "category_feed_card"
-            ),
-            CreateCategory(
                 id = "SERVICE",
                 title = "Offer Service",
                 subtitle = "Professional help",

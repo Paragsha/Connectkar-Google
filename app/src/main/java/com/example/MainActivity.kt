@@ -47,6 +47,7 @@ class MainActivity : ComponentActivity() {
                 val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
                 val allUsers by viewModel.allUsers.collectAsStateWithLifecycle()
                 val filteredListings by viewModel.filteredListings.collectAsStateWithLifecycle()
+                val exploreListings by viewModel.exploreListings.collectAsStateWithLifecycle()
                 val selectedSociety by viewModel.selectedSociety.collectAsStateWithLifecycle()
                 val syncState by viewModel.syncState.collectAsStateWithLifecycle()
                 val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
@@ -369,7 +370,7 @@ class MainActivity : ComponentActivity() {
                                 } else {
                                     ModuleListScreen(
                                         moduleType = moduleType,
-                                        listings = filteredListings,
+                                        listings = if (moduleType == "EXPLORE") exploreListings else filteredListings,
                                         currentUser = user,
                                         selectedSociety = selectedSociety,
                                         syncState = syncState,
@@ -378,7 +379,11 @@ class MainActivity : ComponentActivity() {
                                         onLikeListing = { viewModel.toggleLike(it) },
                                         onBookmarkListing = { viewModel.toggleBookmark(it) },
                                         onCreateListingClicked = {
-                                            navController.navigate("create_listing/$moduleType")
+                                            if (moduleType == "EXPLORE") {
+                                                navController.navigate("create_hub")
+                                            } else {
+                                                navController.navigate("create_listing/$moduleType")
+                                            }
                                         },
                                         onRetrySync = {
                                             viewModel.triggerSync()
@@ -437,8 +442,8 @@ class MainActivity : ComponentActivity() {
                                                 popUpTo("dashboard") { inclusive = true }
                                             }
                                             "explore" -> {
-                                                viewModel.setActiveModule("PROPERTY")
-                                                navController.navigate("module_list/PROPERTY")
+                                                viewModel.setActiveModule("EXPLORE")
+                                                navController.navigate("module_list/EXPLORE")
                                             }
                                             "create" -> navController.navigate("create_hub")
                                             "society" -> navController.navigate("admin")
@@ -465,8 +470,8 @@ class MainActivity : ComponentActivity() {
                                                 popUpTo("dashboard") { inclusive = true }
                                             }
                                             "explore" -> {
-                                                viewModel.setActiveModule("PROPERTY")
-                                                navController.navigate("module_list/PROPERTY")
+                                                viewModel.setActiveModule("EXPLORE")
+                                                navController.navigate("module_list/EXPLORE")
                                             }
                                             "create" -> navController.navigate("create_hub")
                                             "society" -> navController.navigate("admin")

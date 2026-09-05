@@ -158,6 +158,11 @@ class TownshipViewModel(private val repository: TownshipRepository) : ViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val exploreListings: StateFlow<List<ListingEntity>> = selectedSociety
+        .flatMapLatest { society -> repository.getListingsBySociety(society) }
+        .map { it.filter { listing -> !listing.isDraft } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val myPropertyListings: StateFlow<List<ListingEntity>> = currentUser
         .flatMapLatest { user ->
             if (user != null && user.uid.isNotEmpty()) {

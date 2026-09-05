@@ -55,6 +55,7 @@ fun CreateListingScreen(
     val context = LocalContext.current
     val currentStep by viewModel.currentStep.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val uploadProgress by viewModel.uploadProgress.collectAsState()
 
     // Initialize state once for this flow
     LaunchedEffect(initialType) {
@@ -168,9 +169,12 @@ fun CreateListingScreen(
                                 }
                             }
                         },
+                        enabled = if (currentStep == 3) !uploadProgress.isUploading else true,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = ConciergePrimary,
-                            contentColor = Color.White
+                            contentColor = Color.White,
+                            disabledContainerColor = ConciergePrimary.copy(alpha = 0.5f),
+                            disabledContentColor = Color.White.copy(alpha = 0.8f)
                         ),
                         modifier = Modifier
                             .weight(1.5f)
@@ -178,24 +182,45 @@ fun CreateListingScreen(
                             .testTag(if (currentStep == 3) "create_listing_submit_button" else "next_step_button"),
                         shape = RoundedCornerShape(16.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = when (currentStep) {
-                                    1 -> "Continue"
-                                    2 -> "Review"
-                                    else -> "Publish Listing"
-                                },
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            )
-                            Icon(
-                                imageVector = if (currentStep == 3) Icons.Default.Send else Icons.Default.ChevronRight,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
+                        if (currentStep == 3 && uploadProgress.isUploading) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp
+                                )
+                                Text(
+                                    text = if (uploadProgress.total > 0)
+                                        "Uploading (${uploadProgress.completed}/${uploadProgress.total})..."
+                                    else
+                                        "Publishing...",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                )
+                            }
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = when (currentStep) {
+                                        1 -> "Continue"
+                                        2 -> "Review"
+                                        else -> "Publish Listing"
+                                    },
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                                Icon(
+                                    imageVector = if (currentStep == 3) Icons.Default.Send else Icons.Default.ChevronRight,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -248,6 +273,52 @@ fun CreateListingScreen(
                                 contentDescription = "Dismiss error",
                                 tint = MaterialTheme.colorScheme.onErrorContainer,
                                 modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // UPLOAD PROGRESS BANNER
+            if (uploadProgress.isUploading) {
+                Surface(
+                    color = ConciergePrimary.copy(alpha = 0.08f),
+                    border = BorderStroke(1.dp, ConciergePrimary.copy(alpha = 0.25f)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = ConciergePrimary
+                            )
+                            Text(
+                                text = if (uploadProgress.total > 0)
+                                    "Uploading photo ${uploadProgress.completed} of ${uploadProgress.total} to Firebase Storage..."
+                                else
+                                    "Uploading photo...",
+                                color = ConciergePrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        if (uploadProgress.total > 0) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            LinearProgressIndicator(
+                                progress = { uploadProgress.completed.toFloat() / uploadProgress.total.toFloat() },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(4.dp)
+                                    .clip(RoundedCornerShape(2.dp)),
+                                color = ConciergePrimary,
+                                trackColor = ConciergePrimary.copy(alpha = 0.2f)
                             )
                         }
                     }
@@ -340,6 +411,7 @@ fun PropertyStep1BasicInfo(viewModel: CreateListingViewModel) {
     val bhkType by viewModel.bhkType.collectAsState()
     val furnishedStatus by viewModel.furnishedStatus.collectAsState()
     val propertyType by viewModel.propertyType.collectAsState()
+    val fieldErrors by viewModel.fieldErrors.collectAsState()
 
     Column(
         modifier = Modifier
@@ -377,13 +449,23 @@ fun PropertyStep1BasicInfo(viewModel: CreateListingViewModel) {
                         onValueChange = { viewModel.setWingFlatNumber(it) },
                         placeholder = { Text("e.g., Wing A, Flat 304", color = ConciergeOnSurfaceVariant.copy(alpha = 0.6f)) },
                         singleLine = true,
+                        isError = fieldErrors["wingFlatNumber"] != null,
+                        supportingText = {
+                            if (fieldErrors["wingFlatNumber"] != null) {
+                                Text(
+                                    text = fieldErrors["wingFlatNumber"]!!,
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("property_wing_flat_input"),
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = ConciergePrimary,
-                            unfocusedBorderColor = Color.Transparent,
+                            unfocusedBorderColor = if (fieldErrors["wingFlatNumber"] != null) MaterialTheme.colorScheme.error else Color.Transparent,
                             focusedContainerColor = Color.Transparent,
                             unfocusedContainerColor = Color.Transparent
                         )
@@ -435,6 +517,14 @@ fun PropertyStep1BasicInfo(viewModel: CreateListingViewModel) {
                         }
                     }
                 }
+            }
+            if (fieldErrors["bhkType"] != null) {
+                Text(
+                    text = fieldErrors["bhkType"]!!,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
             }
         }
 
@@ -559,6 +649,14 @@ fun PropertyStep1BasicInfo(viewModel: CreateListingViewModel) {
                     }
                 }
             }
+            if (fieldErrors["propertyType"] != null) {
+                Text(
+                    text = fieldErrors["propertyType"]!!,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+            }
         }
     }
 }
@@ -576,6 +674,7 @@ fun GenericStep1BasicInfo(
     val condition by viewModel.condition.collectAsState()
     val isSocietyOnly by viewModel.isSocietyOnly.collectAsState()
     val selectedPhotos by viewModel.selectedPhotos.collectAsState()
+    val fieldErrors by viewModel.fieldErrors.collectAsState()
 
     var showCategoryDropdown by remember { mutableStateOf(false) }
 
@@ -589,7 +688,8 @@ fun GenericStep1BasicInfo(
             "PROPERTY" -> listOf("1 BHK Rent", "2 BHK Rent", "3 BHK Rent", "PG / Shared Accommodation", "Commercial Space")
             "MEAL" -> listOf("Breakfast", "Lunch Veg", "Lunch Non-Veg", "Dinner Veg", "Dinner Non-Veg", "Home Bakery", "Desserts")
             "VEHICLE" -> listOf("Two Wheeler", "Hatchback", "Sedan", "SUV", "Luxury / Premium")
-            else -> listOf("General Discussion", "Alert / Safety", "Society Notice", "Complaints", "Lost & Found")
+            // Unreachable safety fallback as FEED is removed
+            else -> emptyList()
         }
     }
 
@@ -740,7 +840,16 @@ fun GenericStep1BasicInfo(
                 onValueChange = { viewModel.setTitle(it) },
                 placeholder = { Text("e.g. Designer Lounge Chair") },
                 singleLine = true,
-                isError = title.length > 60,
+                isError = fieldErrors["title"] != null || title.length > 60,
+                supportingText = {
+                    if (fieldErrors["title"] != null) {
+                        Text(
+                            text = fieldErrors["title"]!!,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 12.sp
+                        )
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("create_title"),
@@ -776,6 +885,16 @@ fun GenericStep1BasicInfo(
                     placeholder = { Text("0.00") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    isError = fieldErrors["price"] != null,
+                    supportingText = {
+                        if (fieldErrors["price"] != null) {
+                            Text(
+                                text = fieldErrors["price"]!!,
+                                color = MaterialTheme.colorScheme.error,
+                                fontSize = 12.sp
+                            )
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -807,6 +926,16 @@ fun GenericStep1BasicInfo(
                         trailingIcon = {
                             Icon(Icons.Default.ArrowDropDown, contentDescription = null)
                         },
+                        isError = fieldErrors["category"] != null,
+                        supportingText = {
+                            if (fieldErrors["category"] != null) {
+                                Text(
+                                    text = fieldErrors["category"]!!,
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { showCategoryDropdown = true }
@@ -816,7 +945,7 @@ fun GenericStep1BasicInfo(
                             focusedBorderColor = ConciergePrimary,
                             unfocusedContainerColor = Color.White,
                             focusedContainerColor = Color.White,
-                            disabledBorderColor = ConciergeOutlineVariant
+                            disabledBorderColor = if (fieldErrors["category"] != null) MaterialTheme.colorScheme.error else ConciergeOutlineVariant
                         ),
                         enabled = false // Disable direct text input so click handles dropdown
                     )
@@ -902,6 +1031,16 @@ fun GenericStep1BasicInfo(
                 onValueChange = { viewModel.setDescription(it) },
                 placeholder = { Text("Tell the society more about what you're listing...") },
                 minLines = 4,
+                isError = fieldErrors["description"] != null,
+                supportingText = {
+                    if (fieldErrors["description"] != null) {
+                        Text(
+                            text = fieldErrors["description"]!!,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 12.sp
+                        )
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("create_desc"),
@@ -1655,6 +1794,7 @@ fun PropertyStep2Details(viewModel: CreateListingViewModel) {
     val sqft by viewModel.sqft.collectAsState()
     val price by viewModel.price.collectAsState()
     val amenities by viewModel.amenities.collectAsState()
+    val fieldErrors by viewModel.fieldErrors.collectAsState()
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -1938,7 +2078,7 @@ fun PropertyStep2Details(viewModel: CreateListingViewModel) {
         Card(
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = BorderStroke(1.dp, ConciergeOutlineVariant),
+            border = BorderStroke(1.dp, if (fieldErrors["price"] != null) MaterialTheme.colorScheme.error else ConciergeOutlineVariant),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
@@ -1963,6 +2103,11 @@ fun PropertyStep2Details(viewModel: CreateListingViewModel) {
                         .height(52.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(ConciergeSurfaceContainerLow)
+                        .border(
+                            1.dp,
+                            if (fieldErrors["price"] != null) MaterialTheme.colorScheme.error else Color.Transparent,
+                            RoundedCornerShape(12.dp)
+                        )
                         .padding(horizontal = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -1984,6 +2129,14 @@ fun PropertyStep2Details(viewModel: CreateListingViewModel) {
                             innerTextField()
                         },
                         modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                if (fieldErrors["price"] != null) {
+                    Text(
+                        text = fieldErrors["price"]!!,
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(start = 4.dp)
                     )
                 }
             }

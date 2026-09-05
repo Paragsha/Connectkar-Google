@@ -496,6 +496,9 @@ class TownshipRepository(
 
     fun getListingsByType(type: String): Flow<List<ListingEntity>> = appDao.getListingsByType(type)
     
+    fun getListingsBySociety(society: String): Flow<List<ListingEntity>> =
+        appDao.getListingsBySociety(society)
+    
     fun getListingsByAuthor(uid: String): Flow<List<ListingEntity>> = appDao.getListingsByAuthor(uid)
 
     fun getBookmarkedListingsByType(type: String): Flow<List<ListingEntity>> = appDao.getBookmarkedListingsByType(type)
@@ -857,18 +860,6 @@ class TownshipRepository(
                     authorPhone = "9123456780",
                     category = "Electrical",
                     extra4 = "4.9"
-                ),
-                ListingEntity(
-                    type = "FEED",
-                    title = "Lost Car Keys near Central Playground",
-                    description = "Dropped a black leather key fob for a Hyundai Creta near the children's sandbox around 6:30 PM today. If found, please return it! Thanks.",
-                    price = 0.0,
-                    contact = "9988776655",
-                    society = "Sylvan County",
-                    authorName = "Aman Preet",
-                    authorFlat = "B-201",
-                    authorPhone = "9988776655",
-                    category = "General Alert"
                 ),
                 ListingEntity(
                     type = "PROPERTY",

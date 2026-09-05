@@ -11,11 +11,21 @@ import com.example.data.local.UserEntity
 import com.example.data.local.photoUrls
 import com.example.data.repository.TownshipRepository
 import com.squareup.moshi.JsonClass
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+data class UploadProgress(
+    val isUploading: Boolean = false,
+    val completed: Int = 0,
+    val total: Int = 0,
+    val failedCount: Int = 0
+)
 
 class CreateListingViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: TownshipRepository = (application as ConnectKarApplication).repository
@@ -27,6 +37,9 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
     // Form validation and errors
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    private val _fieldErrors = MutableStateFlow<Map<String, String>>(emptyMap())
+    val fieldErrors: StateFlow<Map<String, String>> = _fieldErrors.asStateFlow()
 
     // Step 1: Basic Info
     private val _title = MutableStateFlow("")
@@ -57,6 +70,9 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
 
     private val _isUploadingPhoto = MutableStateFlow(false)
     val isUploadingPhoto: StateFlow<Boolean> = _isUploadingPhoto.asStateFlow()
+
+    private val _uploadProgress = MutableStateFlow(UploadProgress())
+    val uploadProgress: StateFlow<UploadProgress> = _uploadProgress.asStateFlow()
 
     // Unique storage folder key for listing photos
     private var storageListingKey: String = "listing_${System.currentTimeMillis()}"
@@ -128,6 +144,7 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
         activeType = type
         _currentStep.value = 1
         _errorMessage.value = null
+        _fieldErrors.value = emptyMap()
         storageListingKey = "listing_${System.currentTimeMillis()}_${java.util.UUID.randomUUID().toString().take(6)}"
 
         viewModelScope.launch {
@@ -216,11 +233,29 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    fun clearFieldError(field: String) {
+        if (_fieldErrors.value.containsKey(field)) {
+            _fieldErrors.value = _fieldErrors.value - field
+        }
+    }
+
     // Setters
-    fun setTitle(value: String) { _title.value = value }
-    fun setDescription(value: String) { _description.value = value }
-    fun setPrice(value: String) { _price.value = value }
-    fun setCategory(value: String) { _category.value = value }
+    fun setTitle(value: String) {
+        _title.value = value
+        clearFieldError("title")
+    }
+    fun setDescription(value: String) {
+        _description.value = value
+        clearFieldError("description")
+    }
+    fun setPrice(value: String) {
+        _price.value = value
+        clearFieldError("price")
+    }
+    fun setCategory(value: String) {
+        _category.value = value
+        clearFieldError("category")
+    }
     fun setCondition(value: String) { _condition.value = value }
     fun setSocietyOnly(value: Boolean) { _isSocietyOnly.value = value }
     
@@ -229,28 +264,25 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
         if (!_selectedPhotos.value.contains(uri)) {
             _selectedPhotos.value = _selectedPhotos.value + uri
         }
-
-        // If it's already a remote HTTP/HTTPS URL, map directly
         if (uri.startsWith("http://", ignoreCase = true) || uri.startsWith("https://", ignoreCase = true)) {
             _uploadedPhotoUrls.value = _uploadedPhotoUrls.value + (uri to uri)
-            return
         }
+    }
 
-        // Upload picked URI's bytes to Firebase Storage
-        viewModelScope.launch {
-            _isUploadingPhoto.value = true
-            val photoIndex = _selectedPhotos.value.indexOf(uri) + 1
-            val downloadUrl = com.example.data.FirebaseManager.uploadListingImage(
-                context = getApplication(),
-                uriString = uri,
-                listingId = storageListingKey,
-                n = if (photoIndex > 0) photoIndex else (_uploadedPhotoUrls.value.size + 1)
-            )
-            if (downloadUrl != null) {
-                _uploadedPhotoUrls.value = _uploadedPhotoUrls.value + (uri to downloadUrl)
+    fun addPhotos(uris: List<String>) {
+        if (uris.isEmpty()) return
+        val current = _selectedPhotos.value.toMutableList()
+        val currentMap = _uploadedPhotoUrls.value.toMutableMap()
+        for (uri in uris) {
+            if (uri.isNotBlank() && !current.contains(uri)) {
+                current.add(uri)
+                if (uri.startsWith("http://", ignoreCase = true) || uri.startsWith("https://", ignoreCase = true)) {
+                    currentMap[uri] = uri
+                }
             }
-            _isUploadingPhoto.value = false
         }
+        _selectedPhotos.value = current
+        _uploadedPhotoUrls.value = currentMap
     }
 
     fun removePhoto(uri: String) {
@@ -276,10 +308,19 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
     }
 
     // Property Setters
-    fun setWingFlatNumber(value: String) { _wingFlatNumber.value = value }
-    fun setBhkType(value: String) { _bhkType.value = value }
+    fun setWingFlatNumber(value: String) {
+        _wingFlatNumber.value = value
+        clearFieldError("wingFlatNumber")
+    }
+    fun setBhkType(value: String) {
+        _bhkType.value = value
+        clearFieldError("bhkType")
+    }
     fun setFurnishedStatus(value: String) { _furnishedStatus.value = value }
-    fun setPropertyType(value: String) { _propertyType.value = value }
+    fun setPropertyType(value: String) {
+        _propertyType.value = value
+        clearFieldError("propertyType")
+    }
     fun setBeds(value: Int) { _beds.value = value }
     fun incrementBeds() { _beds.value = _beds.value + 1 }
     fun decrementBeds() { if (_beds.value > 0) _beds.value = _beds.value - 1 }
@@ -294,8 +335,81 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
     fun setAvailable(value: Boolean) { _isAvailable.value = value }
     fun setVerificationRequested(value: Boolean) { _verificationRequested.value = value }
 
+    fun validateAllFields(): Map<String, String> {
+        val errors = mutableMapOf<String, String>()
+        val isProperty = activeType.equals("PROPERTY", ignoreCase = true)
+
+        if (isProperty) {
+            if (_wingFlatNumber.value.trim().isBlank()) {
+                errors["wingFlatNumber"] = "Please enter wing / flat number."
+            }
+            if (_bhkType.value.trim().isBlank()) {
+                errors["bhkType"] = "Please select a BHK configuration."
+            }
+            if (_propertyType.value.trim().isBlank()) {
+                errors["propertyType"] = "Please select a property type."
+            }
+            if (!FormValidators.isPriceValid(_price.value)) {
+                errors["price"] = "Please enter a valid monthly rent greater than 0."
+            }
+        } else {
+            if (_title.value.trim().isBlank()) {
+                errors["title"] = "Please enter a listing title."
+            }
+            if (_category.value.trim().isBlank()) {
+                errors["category"] = "Please select a category."
+            }
+            if (!FormValidators.isPriceValid(_price.value)) {
+                errors["price"] = "Please enter a valid price greater than 0."
+            }
+            if (!FormValidators.isDescriptionValid(_description.value, 10)) {
+                errors["description"] = "Description must be at least 10 characters."
+            }
+        }
+        return errors
+    }
+
     fun validateCurrentStep(): String? {
-        return when (_currentStep.value) {
+        val errors = mutableMapOf<String, String>()
+        val step = _currentStep.value
+        val isProperty = activeType.equals("PROPERTY", ignoreCase = true)
+
+        if (step == 1) {
+            if (isProperty) {
+                if (_wingFlatNumber.value.trim().isBlank()) {
+                    errors["wingFlatNumber"] = "Please enter wing / flat number."
+                }
+                if (_bhkType.value.trim().isBlank()) {
+                    errors["bhkType"] = "Please select a BHK configuration."
+                }
+                if (_propertyType.value.trim().isBlank()) {
+                    errors["propertyType"] = "Please select a property type."
+                }
+            } else {
+                if (_title.value.trim().isBlank()) {
+                    errors["title"] = "Please enter a listing title."
+                }
+                if (_category.value.trim().isBlank()) {
+                    errors["category"] = "Please select a category."
+                }
+                if (!FormValidators.isPriceValid(_price.value)) {
+                    errors["price"] = "Please enter a valid price greater than 0."
+                }
+                if (!FormValidators.isDescriptionValid(_description.value, 10)) {
+                    errors["description"] = "Description must be at least 10 characters."
+                }
+            }
+        } else if (step == 2) {
+            if (isProperty) {
+                if (!FormValidators.isPriceValid(_price.value)) {
+                    errors["price"] = "Please enter a valid monthly rent greater than 0."
+                }
+            }
+        }
+
+        _fieldErrors.value = errors
+
+        val generalError = when (step) {
             1 -> FormValidators.getStep1ValidationError(
                 type = activeType,
                 title = _title.value,
@@ -315,6 +429,7 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
             )
             else -> null
         }
+        return generalError ?: errors.values.firstOrNull()
     }
 
     fun nextStep(): Boolean {
@@ -339,6 +454,7 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
 
     fun clearError() {
         _errorMessage.value = null
+        _fieldErrors.value = emptyMap()
     }
 
     fun setStep(step: Int) {
@@ -360,6 +476,9 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
 
     // Publish Listing (Writes to Room and syncs to Firestore)
     fun publishListing(currentUser: UserEntity, onComplete: () -> Unit) {
+        val errors = validateAllFields()
+        _fieldErrors.value = errors
+
         val validationError = FormValidators.getPublishValidationError(
             type = activeType,
             title = _title.value,
@@ -369,33 +488,94 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
             wingFlatNumber = _wingFlatNumber.value,
             bhkType = _bhkType.value,
             propertyType = _propertyType.value
-        )
+        ) ?: errors.values.firstOrNull()
+
         if (validationError != null) {
             _errorMessage.value = validationError
+            // Return to step where the error occurred so user can see inline error
+            val isProperty = activeType.equals("PROPERTY", ignoreCase = true)
+            if (isProperty) {
+                if (errors.containsKey("wingFlatNumber") || errors.containsKey("bhkType") || errors.containsKey("propertyType")) {
+                    _currentStep.value = 1
+                } else if (errors.containsKey("price")) {
+                    _currentStep.value = 2
+                }
+            } else {
+                if (errors.containsKey("title") || errors.containsKey("category") || errors.containsKey("price") || errors.containsKey("description")) {
+                    _currentStep.value = 1
+                }
+            }
             return
         }
         _errorMessage.value = null
 
         viewModelScope.launch {
-            // Ensure any picked URIs without completed upload finish uploading to Firebase Storage
-            val currentMap = _uploadedPhotoUrls.value.toMutableMap()
-            for ((index, uri) in _selectedPhotos.value.withIndex()) {
-                if (!currentMap.containsKey(uri) && !uri.startsWith("http://", ignoreCase = true) && !uri.startsWith("https://", ignoreCase = true)) {
+            _isUploadingPhoto.value = true
+            val photosToProcess = _selectedPhotos.value
+            val totalPhotos = photosToProcess.size
+            _uploadProgress.value = UploadProgress(isUploading = true, completed = 0, total = totalPhotos)
+
+            val societyId = currentUser.society.ifBlank { "general" }.trim().lowercase().replace(Regex("[^a-z0-9_]"), "_")
+            val listingId = storageListingKey
+
+            val completedAtomic = java.util.concurrent.atomic.AtomicInteger(0)
+            val failedPhotos = mutableListOf<String>()
+
+            // 1. Upload each selected content:// URI to Firebase Storage under path listings/{societyId}/{listingId}/{photoIndex}.jpg
+            // 2. Run in parallel, wait for all uploads to complete
+            // 6. Handle upload failure per-photo: if one photo fails, don't block the whole listing
+            val uploadDeferreds = photosToProcess.mapIndexed { index, uri ->
+                async(Dispatchers.IO) {
+                    if (uri.startsWith("http://", ignoreCase = true) || uri.startsWith("https://", ignoreCase = true)) {
+                        val current = completedAtomic.incrementAndGet()
+                        _uploadProgress.value = UploadProgress(isUploading = true, completed = current, total = totalPhotos, failedCount = failedPhotos.size)
+                        return@async uri
+                    }
+
+                    val cached = _uploadedPhotoUrls.value[uri]
+                    if (cached != null && (cached.startsWith("http://", ignoreCase = true) || cached.startsWith("https://", ignoreCase = true))) {
+                        val current = completedAtomic.incrementAndGet()
+                        _uploadProgress.value = UploadProgress(isUploading = true, completed = current, total = totalPhotos, failedCount = failedPhotos.size)
+                        return@async cached
+                    }
+
                     val downloadUrl = com.example.data.FirebaseManager.uploadListingImage(
                         context = getApplication(),
                         uriString = uri,
-                        listingId = storageListingKey,
-                        n = index + 1
+                        societyId = societyId,
+                        listingId = listingId,
+                        photoIndex = index
                     )
+
+                    val current = completedAtomic.incrementAndGet()
                     if (downloadUrl != null) {
-                        currentMap[uri] = downloadUrl
+                        _uploadedPhotoUrls.value = _uploadedPhotoUrls.value + (uri to downloadUrl)
+                        _uploadProgress.value = UploadProgress(isUploading = true, completed = current, total = totalPhotos, failedCount = failedPhotos.size)
+                        downloadUrl
+                    } else {
+                        synchronized(failedPhotos) {
+                            failedPhotos.add(uri)
+                        }
+                        android.util.Log.w("CreateListingViewModel", "Photo upload failed for URI at index $index: $uri")
+                        _uploadProgress.value = UploadProgress(isUploading = true, completed = current, total = totalPhotos, failedCount = failedPhotos.size)
+                        null
                     }
                 }
             }
-            _uploadedPhotoUrls.value = currentMap
 
-            // Build final published listing entity
-            val listing = buildListingEntity(currentUser, isDraft = false)
+            val resolvedUrls = uploadDeferreds.awaitAll().filterNotNull().filter { it.isNotBlank() }
+
+            if (failedPhotos.isNotEmpty()) {
+                val warning = "${failedPhotos.size} photo(s) failed to upload. Publishing listing with ${resolvedUrls.size} successful photo(s)."
+                android.util.Log.w("CreateListingViewModel", warning)
+                _errorMessage.value = warning
+            }
+
+            _uploadProgress.value = UploadProgress(isUploading = false, completed = totalPhotos, total = totalPhotos, failedCount = failedPhotos.size)
+            _isUploadingPhoto.value = false
+
+            // 3. Store List<String> properly using Moshi JSON pattern
+            val listing = buildListingEntity(currentUser, resolvedPhotos = resolvedUrls, isDraft = false)
             
             // Delete old local draft if existed
             if (activeDraftId != 0) {
@@ -408,7 +588,11 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    private fun buildListingEntity(currentUser: UserEntity, isDraft: Boolean): ListingEntity {
+    private fun buildListingEntity(
+        currentUser: UserEntity,
+        resolvedPhotos: List<String>? = null,
+        isDraft: Boolean
+    ): ListingEntity {
         val priceVal = _price.value.toDoubleOrNull() ?: 0.0
         val isProperty = activeType == "PROPERTY"
 
@@ -437,8 +621,8 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
         )
         val detailsJsonStr = MoshiHelper.toJson(extendedDetails)
 
-        // Store resolved Firebase Storage download URLs in extra1 as JSON array (with comma fallback compatibility)
-        val resolvedPhotos = _selectedPhotos.value.mapNotNull { uri ->
+        // Store resolved Firebase Storage download URLs in extra1 as Moshi JSON array
+        val photoListToSave = resolvedPhotos ?: _selectedPhotos.value.mapNotNull { uri ->
             val downloadUrl = _uploadedPhotoUrls.value[uri]
             if (downloadUrl != null) {
                 downloadUrl
@@ -450,7 +634,7 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
                 null
             }
         }
-        val photosStr = if (resolvedPhotos.isNotEmpty()) MoshiHelper.toJsonStringList(resolvedPhotos) else ""
+        val photosStr = MoshiHelper.serializePhotoUrls(photoListToSave)
 
         return ListingEntity(
             id = if (isDraft) activeDraftId else 0,

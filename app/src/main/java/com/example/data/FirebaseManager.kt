@@ -99,8 +99,9 @@ object FirebaseManager {
     suspend fun uploadListingImage(
         context: android.content.Context,
         uriString: String,
+        societyId: String = "general",
         listingId: String,
-        n: Int
+        photoIndex: Int
     ): String? {
         if (uriString.isBlank()) return null
         if (uriString.startsWith("http://", ignoreCase = true) || uriString.startsWith("https://", ignoreCase = true)) {
@@ -116,7 +117,8 @@ object FirebaseManager {
                 return null
             }
 
-            val storagePath = "listings/$listingId/$n.jpg"
+            val sanitizedSociety = if (societyId.isBlank()) "general" else societyId.trim().lowercase().replace(Regex("[^a-z0-9_]"), "_")
+            val storagePath = "listings/$sanitizedSociety/$listingId/$photoIndex.jpg"
             val storageRef = storageInstance.reference.child(storagePath)
             val metadata = StorageMetadata.Builder()
                 .setContentType("image/jpeg")
@@ -218,7 +220,21 @@ fun DocumentSnapshot.toListingEntity(): ListingEntity? {
         val isLikedByMe = getBoolean("isLikedByMe") ?: false
         val isBookmarked = getBoolean("isBookmarked") ?: false
         val category = getString("category") ?: ""
-        val extra1 = getString("extra1") ?: ""
+        val photosArray = (get("photos") as? List<*>) ?: (get("photoUrls") as? List<*>)
+        val rawExtra1 = getString("extra1") ?: ""
+        val extra1 = if (photosArray != null && photosArray.isNotEmpty()) {
+            val list = photosArray.mapNotNull { it?.toString() }.filter { it.isNotBlank() }
+            com.example.data.local.MoshiHelper.serializePhotoUrls(list)
+        } else if (rawExtra1.isNotEmpty()) {
+            if (type == "PROPERTY" || type == "MARKETPLACE") {
+                val list = com.example.data.local.MoshiHelper.deserializePhotoUrls(rawExtra1)
+                com.example.data.local.MoshiHelper.serializePhotoUrls(list)
+            } else {
+                rawExtra1
+            }
+        } else {
+            ""
+        }
         val extra2 = getString("extra2") ?: ""
         val extra3 = getString("extra3") ?: ""
         val extra4 = getString("extra4") ?: ""

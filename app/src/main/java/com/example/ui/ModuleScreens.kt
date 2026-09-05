@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -45,22 +46,22 @@ fun ModuleListScreen(
     
     val moduleTitles = mapOf(
         "MARKETPLACE" to "Marketplace",
-        "FEED" to "Community Feed",
         "CARPOOL" to "Carpooling Hub",
         "MEAL" to "Daily Meals",
         "SERVICE" to "Resident Services",
         "PROPERTY" to "Rentals & Properties",
-        "VEHICLE" to "Vehicles Log"
+        "VEHICLE" to "Vehicles Log",
+        "EXPLORE" to "Explore"
     )
 
     val moduleSubtitles = mapOf(
         "MARKETPLACE" to "Buy & Sell items with verified residents",
-        "FEED" to "Stay updated on neighborhood posts & events",
         "CARPOOL" to "Share rides & commute together sustainably",
         "MEAL" to "Order home-cooked food by local resident chefs",
         "SERVICE" to "Trustworthy plumbers, electricians & helpers",
         "PROPERTY" to "Discover rental properties & item rentals",
-        "VEHICLE" to "View vehicle entry logs & safety details"
+        "VEHICLE" to "View vehicle entry logs & safety details",
+        "EXPLORE" to "All updates across your township"
     )
 
     val activeTitle = moduleTitles[moduleType] ?: "Module"
@@ -72,6 +73,19 @@ fun ModuleListScreen(
         listing.description.contains(searchQuery, ignoreCase = true) ||
         listing.category.contains(searchQuery, ignoreCase = true) ||
         listing.authorName.contains(searchQuery, ignoreCase = true)
+    }
+
+    var selectedFilterOption by remember { mutableStateOf("All") }
+    val filterOptions = listOf("All", "Marketplace", "Property", "Service", "Meal", "Carpool", "Vehicle")
+
+    val displayedListings = remember(filteredListings, selectedFilterOption, moduleType) {
+        if (moduleType == "EXPLORE" && selectedFilterOption != "All") {
+            filteredListings.filter { listing ->
+                listing.type.equals(selectedFilterOption, ignoreCase = true)
+            }
+        } else {
+            filteredListings
+        }
     }
 
     Scaffold(
@@ -188,6 +202,31 @@ fun ModuleListScreen(
                     )
                 )
 
+                if (moduleType == "EXPLORE") {
+                    LazyRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp)
+                            .testTag("explore_filter_chips_row"),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(filterOptions) { option ->
+                            FilterChip(
+                                selected = selectedFilterOption == option,
+                                onClick = { selectedFilterOption = option },
+                                label = {
+                                    Text(
+                                        text = option,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = if (selectedFilterOption == option) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                },
+                                modifier = Modifier.testTag("filter_chip_${option.lowercase()}")
+                            )
+                        }
+                    }
+                }
+
                 if (syncState is SyncState.Syncing && listings.isEmpty()) {
                     LazyColumn(
                         modifier = Modifier
@@ -200,7 +239,7 @@ fun ModuleListScreen(
                             )
                         }
                     }
-                } else if (filteredListings.isEmpty()) {
+                } else if (displayedListings.isEmpty()) {
                     // Beautiful Empty State
                     Box(
                         modifier = Modifier
@@ -242,7 +281,7 @@ fun ModuleListScreen(
                             .fillMaxWidth()
                             .weight(1f)
                     ) {
-                        items(filteredListings, key = { it.id }) { listing ->
+                        items(displayedListings, key = { it.id }) { listing ->
                             ListingCard(
                                 listing = listing,
                                 onLike = { onLikeListing(listing.id) },

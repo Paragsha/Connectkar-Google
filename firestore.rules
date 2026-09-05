@@ -12,51 +12,72 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
+    // Helper function to check if request is from an admin
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.role == 'ADMIN' ||
+        (userExists() && getUserData().role == 'ADMIN')
+      );
+    }
+
+    // Helper to verify a field has not changed between existing resource and new write
+    function fieldUnchanged(field) {
+      return request.resource.data.get(field, null) == resource.data.get(field, null);
+    }
+
     match /users/{userId} {
       // Allow read: If the user reads their own profile, or is an admin, or resides in the same society
       allow read: if request.auth != null && (
         request.auth.uid == userId ||
-        request.auth.token.role == 'ADMIN' ||
+        isAdmin() ||
         (userExists() && getUserData().society == resource.data.society)
       );
       
+      // On create: Only ADMIN or new resident with unverified/pending status and default role
       allow create: if request.auth != null && (
-        request.auth.token.role == 'ADMIN' ||
+        isAdmin() ||
         (
           request.auth.uid == userId &&
           request.resource.data.role == 'RESIDENT' &&
           request.resource.data.isVerified == false &&
-          request.resource.data.isPending == true
+          request.resource.data.isPending == true &&
+          (!('verificationStatus' in request.resource.data) || request.resource.data.verificationStatus == 'PENDING') &&
+          (!('rating' in request.resource.data) || request.resource.data.rating == 0 || request.resource.data.rating == 0.0)
         )
       );
 
+      // On update: ADMIN or self-update where privilege/trust fields remain strictly unchanged
       allow update: if request.auth != null && (
-        request.auth.token.role == 'ADMIN' ||
+        isAdmin() ||
         (
           request.auth.uid == userId &&
-          request.resource.data.role == resource.data.role &&
-          request.resource.data.isVerified == resource.data.isVerified &&
-          request.resource.data.isPending == resource.data.isPending
+          fieldUnchanged('role') &&
+          fieldUnchanged('verificationStatus') &&
+          fieldUnchanged('isVerified') &&
+          fieldUnchanged('isPending') &&
+          fieldUnchanged('rating')
         )
       );
         
-      allow delete: if request.auth != null && request.auth.token.role == 'ADMIN';
+      allow delete: if isAdmin();
     }
 
     match /listings/{listingId} {
       // Read listings only if in the same society, public, or admin
       allow read: if request.auth != null && (
-        request.auth.token.role == 'ADMIN' ||
+        isAdmin() ||
         resource.data.isPublic == true ||
         (userExists() && getUserData().society == resource.data.society)
       );
       
-      // On create, enforce fields
+      // On create, enforce fields (rating and ratingCount cannot be initialized with arbitrary values)
       allow create: if request.auth != null && (
-        request.auth.token.role == 'ADMIN' ||
+        isAdmin() ||
         (
           request.resource.data.authorUid == request.auth.uid &&
           request.resource.data.likesCount == 0 &&
+          (!('rating' in request.resource.data) || request.resource.data.rating == 0 || request.resource.data.rating == 0.0) &&
+          (!('ratingCount' in request.resource.data) || request.resource.data.ratingCount == 0) &&
           userExists() &&
           request.resource.data.society == getUserData().society
         )
@@ -64,12 +85,15 @@ service cloud.firestore {
       
       // On update
       allow update: if request.auth != null && (
-        request.auth.token.role == 'ADMIN' ||
+        isAdmin() ||
         (
-          // If the author themselves is updating
+          // If the author themselves is updating, lock rating/ratingCount/likesCount
           resource.data.authorUid == request.auth.uid &&
           request.resource.data.authorUid == resource.data.authorUid &&
-          request.resource.data.society == resource.data.society
+          request.resource.data.society == resource.data.society &&
+          fieldUnchanged('rating') &&
+          fieldUnchanged('ratingCount') &&
+          fieldUnchanged('likesCount')
         ) ||
         (
           // If a neighbor is liking/bookmarking the listing
@@ -81,9 +105,24 @@ service cloud.firestore {
       
       // Only author or admin can delete
       allow delete: if request.auth != null && (
-        request.auth.token.role == 'ADMIN' ||
+        isAdmin() ||
         resource.data.authorUid == request.auth.uid
       );
+
+      // Reviews subcollection for aggregate ratings
+      match /reviews/{reviewId} {
+        allow read: if request.auth != null && (
+          isAdmin() ||
+          (userExists() && getUserData().society == get(/databases/$(database)/documents/listings/$(listingId)).data.society)
+        );
+        allow create: if request.auth != null &&
+          request.resource.data.authorUid == request.auth.uid &&
+          userExists();
+        allow update, delete: if request.auth != null && (
+          isAdmin() ||
+          resource.data.authorUid == request.auth.uid
+        );
+      }
     }
 
     match /chefProfiles/{chefUid} {

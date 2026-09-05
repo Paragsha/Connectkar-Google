@@ -20,6 +20,9 @@ class ConnectKarApplication : Application(), Configuration.Provider {
             AppDatabase::class.java,
             "connectkar_db"
         )
+        // CRITICAL: Any future schema version bump must include a corresponding MIGRATION_N_N+1
+        // before merging. Precedent: A missing MIGRATION_5_6 caused .fallbackToDestructiveMigration()
+        // to silently wipe all local UserEntity and ListingEntity tables during app upgrades from v5 to v6.
         .addMigrations(
             AppDatabase.MIGRATION_1_2,
             AppDatabase.MIGRATION_2_3,
