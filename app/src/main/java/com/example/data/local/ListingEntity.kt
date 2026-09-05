@@ -6,7 +6,13 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 
 object MoshiHelper {
-    val moshi: Moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
+    val moshi: Moshi by lazy {
+        try {
+            Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
+        } catch (t: Throwable) {
+            Moshi.Builder().build()
+        }
+    }
     
     inline fun <reified T> toJson(value: T): String {
         return try {

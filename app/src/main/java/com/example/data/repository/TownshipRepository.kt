@@ -70,9 +70,15 @@ class TownshipRepository(
         SyncWorker.enqueueSync(context)
     }
 
-    val syncWorkInfo: Flow<List<androidx.work.WorkInfo>> = 
-        androidx.work.WorkManager.getInstance(context)
-            .getWorkInfosForUniqueWorkFlow(SyncWorker.UNIQUE_WORK_NAME)
+    val syncWorkInfo: Flow<List<androidx.work.WorkInfo>> by lazy {
+        try {
+            androidx.work.WorkManager.getInstance(context)
+                .getWorkInfosForUniqueWorkFlow(SyncWorker.UNIQUE_WORK_NAME)
+        } catch (e: Exception) {
+            android.util.Log.e("TownshipRepository", "WorkManager unavailable: ${e.message}")
+            kotlinx.coroutines.flow.emptyFlow()
+        }
+    }
 
     fun triggerSync() {
         scheduleSyncJob()

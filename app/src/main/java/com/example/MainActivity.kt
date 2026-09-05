@@ -29,23 +29,20 @@ import com.example.ui.mealhub.MealDiscoverScreen
 import com.example.ui.mealhub.MyMealsScreen
 
 class MainActivity : ComponentActivity() {
-    private val createHubViewModel: CreateHubViewModel by viewModels {
-        val repository = (applicationContext as ConnectKarApplication).repository
-        CreateHubViewModel.Factory(repository, application)
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         // Get centralized repository from application context
-        val repository = (applicationContext as ConnectKarApplication).repository
+        val app = application as? ConnectKarApplication ?: (applicationContext as ConnectKarApplication)
+        val repository = app.repository
         
         setContent {
             MyApplicationTheme {
-                val viewModel: TownshipViewModel by viewModels {
-                    TownshipViewModel.Factory(repository)
-                }
+                val viewModel: TownshipViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                    factory = TownshipViewModel.Factory(repository)
+                )
 
                 val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
                 val allUsers by viewModel.allUsers.collectAsStateWithLifecycle()
@@ -67,16 +64,24 @@ class MainActivity : ComponentActivity() {
 
                 val navController = rememberNavController()
 
-                // Automatically navigate based on user session status
+                // Automatically navigate based on user session status safely
                 LaunchedEffect(currentUser) {
-                    if (currentUser != null) {
-                        navController.navigate("dashboard") {
-                            popUpTo("onboarding") { inclusive = true }
+                    try {
+                        if (currentUser != null) {
+                            if (navController.currentDestination?.route != "dashboard") {
+                                navController.navigate("dashboard") {
+                                    popUpTo("onboarding") { inclusive = true }
+                                }
+                            }
+                        } else {
+                            if (navController.currentDestination?.route != null && navController.currentDestination?.route != "onboarding") {
+                                navController.navigate("onboarding") {
+                                    popUpTo("dashboard") { inclusive = true }
+                                }
+                            }
                         }
-                    } else {
-                        navController.navigate("onboarding") {
-                            popUpTo(0) { inclusive = true }
-                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("MainActivity", "Navigation error: ${e.message}")
                     }
                 }
 
@@ -310,6 +315,9 @@ class MainActivity : ComponentActivity() {
                         composable("create_hub") {
                             val user = currentUser
                             if (user != null) {
+                                val createHubViewModel: CreateHubViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                                    factory = CreateHubViewModel.Factory(repository, application)
+                                )
                                 CreateHubScreen(
                                     currentUser = user,
                                     viewModel = createHubViewModel,

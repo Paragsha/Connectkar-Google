@@ -27,8 +27,8 @@ object FirebaseManager {
     }
 
     init {
-        if (isAvailable) {
-            try {
+        try {
+            if (isAvailable) {
                 val appCheckClass = Class.forName("com.google.firebase.appcheck.FirebaseAppCheck")
                 val getInstanceMethod = appCheckClass.getMethod("getInstance")
                 val appCheckInstance = getInstanceMethod.invoke(null)
@@ -36,16 +36,16 @@ object FirebaseManager {
                 val providerFactoryClass = if (com.example.BuildConfig.DEBUG) {
                     try {
                         Class.forName("com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory")
-                    } catch (e: Exception) {
+                    } catch (t: Throwable) {
                         null
                     }
                 } else {
                     try {
                         Class.forName("com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory")
-                    } catch (e1: Exception) {
+                    } catch (t1: Throwable) {
                         try {
                             Class.forName("com.google.firebase.appcheck.recaptcha.ReCaptchaEnterpriseAppCheckProviderFactory")
-                        } catch (e2: Exception) {
+                        } catch (t2: Throwable) {
                             null
                         }
                     }
@@ -62,30 +62,39 @@ object FirebaseManager {
                 } else {
                     android.util.Log.w("AppCheck", "No supported App Check provider factory class found on classpath.")
                 }
-            } catch (e: Exception) {
-                android.util.Log.e("FirebaseManager", "Failed to initialize App Check dynamically: ${e.message}")
             }
+        } catch (t: Throwable) {
+            android.util.Log.w("FirebaseManager", "Safe fallback, App Check init skipped: ${t.message}")
         }
     }
 
     val auth: FirebaseAuth?
-        get() = if (isAvailable) FirebaseAuth.getInstance() else null
+        get() = try {
+            if (isAvailable) FirebaseAuth.getInstance() else null
+        } catch (t: Throwable) {
+            null
+        }
 
     val firestore: FirebaseFirestore?
-        get() = if (isAvailable) FirebaseFirestore.getInstance() else null
+        get() = try {
+            if (isAvailable) FirebaseFirestore.getInstance() else null
+        } catch (t: Throwable) {
+            null
+        }
 
     val functions: FirebaseFunctions?
-        get() = if (isAvailable) FirebaseFunctions.getInstance() else null
+        get() = try {
+            if (isAvailable) FirebaseFunctions.getInstance() else null
+        } catch (t: Throwable) {
+            null
+        }
 
     val storage: FirebaseStorage?
-        get() = if (isAvailable) {
-            try {
-                FirebaseStorage.getInstance()
-            } catch (e: Exception) {
-                android.util.Log.e("FirebaseManager", "FirebaseStorage unavailable: ${e.message}")
-                null
-            }
-        } else null
+        get() = try {
+            if (isAvailable) FirebaseStorage.getInstance() else null
+        } catch (t: Throwable) {
+            null
+        }
 
     suspend fun uploadListingImage(
         context: android.content.Context,

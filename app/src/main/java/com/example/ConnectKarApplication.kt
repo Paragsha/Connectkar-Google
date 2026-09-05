@@ -2,10 +2,17 @@ package com.example
 
 import android.app.Application
 import androidx.room.Room
+import androidx.work.Configuration
+import androidx.work.WorkManager
 import com.example.data.local.AppDatabase
 import com.example.data.repository.TownshipRepository
 
-class ConnectKarApplication : Application() {
+class ConnectKarApplication : Application(), Configuration.Provider {
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setMinimumLoggingLevel(android.util.Log.INFO)
+            .build()
 
     val database: AppDatabase by lazy {
         Room.databaseBuilder(
@@ -23,7 +30,8 @@ class ConnectKarApplication : Application() {
             AppDatabase.MIGRATION_7_8,
             AppDatabase.MIGRATION_8_9
         )
-        .fallbackToDestructiveMigrationOnDowngrade()
+        .fallbackToDestructiveMigration(true)
+        .fallbackToDestructiveMigrationOnDowngrade(true)
         .build()
     }
 
@@ -34,6 +42,12 @@ class ConnectKarApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        try {
+            // Configuration.Provider initializes WorkManager on demand or via AndroidX Startup
+            WorkManager.getInstance(this)
+        } catch (t: Throwable) {
+            android.util.Log.w("ConnectKarApplication", "WorkManager startup check: ${t.message}")
+        }
     }
 
     companion object {
