@@ -55,7 +55,10 @@ service cloud.firestore {
           fieldUnchanged('verificationStatus') &&
           fieldUnchanged('isVerified') &&
           fieldUnchanged('isPending') &&
-          fieldUnchanged('rating')
+          fieldUnchanged('rating') &&
+          fieldUnchanged('society') &&
+          fieldUnchanged('blockTower') &&
+          fieldUnchanged('flatNumber')
         )
       );
         
@@ -195,8 +198,15 @@ service cloud.firestore {
 
       allow update: if request.auth != null && (
         request.auth.token.role == 'ADMIN' ||
-        resource.data.chefUid == request.auth.uid ||
-        resource.data.buyerUid == request.auth.uid
+        isAdmin() ||
+        (
+          resource.data.chefUid == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'eta', 'deliveryWindow', 'timestamp', 'serverTimestamp'])
+        ) ||
+        (
+          resource.data.buyerUid == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'timestamp', 'serverTimestamp'])
+        )
       );
 
       allow delete: if request.auth != null && (
@@ -224,8 +234,15 @@ service cloud.firestore {
 
       allow update: if request.auth != null && (
         request.auth.token.role == 'ADMIN' ||
-        resource.data.chefUid == request.auth.uid ||
-        resource.data.buyerUid == request.auth.uid
+        isAdmin() ||
+        (
+          resource.data.chefUid == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'timestamp', 'serverTimestamp'])
+        ) ||
+        (
+          resource.data.buyerUid == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'timestamp', 'serverTimestamp'])
+        )
       );
 
       allow delete: if request.auth != null && (
