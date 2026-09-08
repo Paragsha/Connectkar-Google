@@ -36,14 +36,14 @@
 # Room Database ProGuard Rules
 # =========================================================================
 -keep class * extends androidx.room.RoomDatabase
--keep class com.example.data.local.** { *; }
+-keep class com.connectkar.data.local.** { *; }
 -dontwarn androidx.room.paging.**
 
 # =========================================================================
 # WorkManager ProGuard Rules
 # =========================================================================
 -keep class * extends androidx.work.ListenableWorker
--keep class com.example.data.repository.SyncWorker { *; }
+-keep class com.connectkar.data.repository.SyncWorker { *; }
 
 # =========================================================================
 # Firebase and Firestore ProGuard Rules
@@ -63,7 +63,7 @@
 # Keep our local entity and model classes from obfuscation so Firestore
 # and Room mapping works seamlessly.
 # =========================================================================
--keepclassmembers class com.example.data.local.UserEntity { *; }
--keepclassmembers class com.example.data.local.ListingEntity { *; }
--keep class com.example.data.local.UserEntity { *; }
--keep class com.example.data.local.ListingEntity { *; }
+-keepclassmembers class com.connectkar.data.local.UserEntity { *; }
+-keepclassmembers class com.connectkar.data.local.ListingEntity { *; }
+-keep class com.connectkar.data.local.UserEntity { *; }
+-keep class com.connectkar.data.local.ListingEntity { *; }

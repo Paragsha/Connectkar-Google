@@ -1,0 +1,476 @@
+package com.connectkar.data
+
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.StorageMetadata
+import com.connectkar.data.local.UserEntity
+import com.connectkar.data.local.ListingEntity
+import com.connectkar.data.local.ChefProfileEntity
+import com.connectkar.data.local.MenuItemEntity
+import com.connectkar.data.local.MealOrderEntity
+import com.connectkar.data.local.MealSubscriptionEntity
+import com.connectkar.data.local.UserListingInteractionEntity
+import com.connectkar.data.local.withSerializedDetails
+import com.google.firebase.firestore.DocumentSnapshot
+
+object FirebaseManager {
+    val isAvailable: Boolean by lazy {
+        try {
+            FirebaseAuth.getInstance()
+            FirebaseFirestore.getInstance()
+            true
+        } catch (t: Throwable) {
+            android.util.Log.i("FirebaseManager", "Firebase is not available (using local simulation fallback): ${t.message}")
+            false
+        }
+    }
+
+    init {
+        try {
+            if (isAvailable) {
+                val appCheckClass = Class.forName("com.google.firebase.appcheck.FirebaseAppCheck")
+                val getInstanceMethod = appCheckClass.getMethod("getInstance")
+                val appCheckInstance = getInstanceMethod.invoke(null)
+                
+                val providerFactoryClass = if (com.connectkar.BuildConfig.DEBUG) {
+                    try {
+                        Class.forName("com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory")
+                    } catch (t: Throwable) {
+                        null
+                    }
+                } else {
+                    try {
+                        Class.forName("com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory")
+                    } catch (t1: Throwable) {
+                        try {
+                            Class.forName("com.google.firebase.appcheck.recaptcha.ReCaptchaEnterpriseAppCheckProviderFactory")
+                        } catch (t2: Throwable) {
+                            null
+                        }
+                    }
+                }
+
+                if (providerFactoryClass != null) {
+                    val getFactoryInstanceMethod = providerFactoryClass.getMethod("getInstance")
+                    val factoryInstance = getFactoryInstanceMethod.invoke(null)
+                    
+                    val appCheckProviderFactoryClass = Class.forName("com.google.firebase.appcheck.AppCheckProviderFactory")
+                    val installMethod = appCheckClass.getMethod("installAppCheckProviderFactory", appCheckProviderFactoryClass)
+                    installMethod.invoke(appCheckInstance, factoryInstance)
+                    android.util.Log.i("AppCheck", "Successfully installed App Check provider factory: ${providerFactoryClass.name}")
+                } else {
+                    android.util.Log.w("AppCheck", "No supported App Check provider factory class found on classpath.")
+                }
+            }
+        } catch (t: Throwable) {
+            android.util.Log.w("FirebaseManager", "Safe fallback, App Check init skipped: ${t.message}")
+        }
+    }
+
+    val auth: FirebaseAuth?
+        get() = try {
+            if (isAvailable) FirebaseAuth.getInstance() else null
+        } catch (t: Throwable) {
+            null
+        }
+
+    val firestore: FirebaseFirestore?
+        get() = try {
+            if (isAvailable) FirebaseFirestore.getInstance() else null
+        } catch (t: Throwable) {
+            null
+        }
+
+    val functions: FirebaseFunctions?
+        get() = try {
+            if (isAvailable) FirebaseFunctions.getInstance() else null
+        } catch (t: Throwable) {
+            null
+        }
+
+    val storage: FirebaseStorage?
+        get() = try {
+            if (isAvailable) FirebaseStorage.getInstance() else null
+        } catch (t: Throwable) {
+            null
+        }
+
+    suspend fun uploadListingImage(
+        context: android.content.Context,
+        uriString: String,
+        societyId: String = "general",
+        listingId: String,
+        photoIndex: Int
+    ): String? {
+        if (uriString.isBlank()) return null
+        if (uriString.startsWith("http://", ignoreCase = true) || uriString.startsWith("https://", ignoreCase = true)) {
+            return uriString
+        }
+
+        val storageInstance = storage ?: return null
+        return try {
+            val uri = android.net.Uri.parse(uriString)
+            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            if (bytes == null || bytes.isEmpty()) {
+                android.util.Log.w("FirebaseManager", "Unable to read bytes from URI: $uriString")
+                return null
+            }
+
+            val sanitizedSociety = if (societyId.isBlank()) "general" else societyId.trim().lowercase().replace(Regex("[^a-z0-9_]"), "_")
+            val storagePath = "listings/$sanitizedSociety/$listingId/$photoIndex.jpg"
+            val storageRef = storageInstance.reference.child(storagePath)
+            val metadata = StorageMetadata.Builder()
+                .setContentType("image/jpeg")
+                .build()
+
+            storageRef.putBytes(bytes, metadata).await()
+            val downloadUrl = storageRef.downloadUrl.await()
+            downloadUrl.toString()
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseManager", "Error uploading image to Firebase Storage for $uriString: ${e.message}")
+            null
+        }
+    }
+}
+
+fun DocumentSnapshot.extractServerTimestamp(vararg keys: String = arrayOf("serverTimestamp", "timestamp", "clientTimestamp")): Long {
+    for (key in keys) {
+        if (!contains(key)) continue
+        try {
+            val ts = getTimestamp(key, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
+            if (ts != null) return ts.toDate().time
+        } catch (_: Exception) {}
+        try {
+            val ts = getTimestamp(key)
+            if (ts != null) return ts.toDate().time
+        } catch (_: Exception) {}
+        try {
+            val num = getLong(key)
+            if (num != null) return num
+        } catch (_: Exception) {}
+        try {
+            val raw = try { get(key, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE) } catch (_: Exception) { get(key) }
+            if (raw is com.google.firebase.Timestamp) return raw.toDate().time
+            if (raw is java.util.Date) return raw.time
+            if (raw is Number) return raw.toLong()
+        } catch (_: Exception) {}
+    }
+    return System.currentTimeMillis()
+}
+
+fun DocumentSnapshot.toUserEntity(): UserEntity? {
+    return try {
+        val uid = getString("uid") ?: id
+        val fullName = getString("fullName") ?: return null
+        val phoneNumber = getString("phoneNumber") ?: ""
+        val society = getString("society") ?: ""
+        val blockTower = getString("blockTower") ?: ""
+        val flatNumber = getString("flatNumber") ?: ""
+        val avatarIndex = getLong("avatarIndex")?.toInt() ?: 0
+        val isVerified = getBoolean("isVerified") ?: false
+        val isPending = getBoolean("isPending") ?: true
+        val isCurrent = getBoolean("isCurrent") ?: false
+        val role = getString("role") ?: "RESIDENT"
+        val floor = getString("floor") ?: ""
+        val residentType = getString("residentType") ?: "OWNER"
+        val moveInDate = getString("moveInDate") ?: ""
+        val proofDocumentUri = getString("proofDocumentUri") ?: ""
+        val timestamp = extractServerTimestamp("serverTimestamp", "timestamp", "clientTimestamp")
+        
+        UserEntity(
+            uid = uid,
+            fullName = fullName,
+            phoneNumber = phoneNumber,
+            society = society,
+            blockTower = blockTower,
+            flatNumber = flatNumber,
+            avatarIndex = avatarIndex,
+            isVerified = isVerified,
+            isPending = isPending,
+            isCurrent = isCurrent,
+            role = role,
+            floor = floor,
+            residentType = residentType,
+            moveInDate = moveInDate,
+            proofDocumentUri = proofDocumentUri,
+            timestamp = timestamp
+        )
+    } catch (e: Exception) {
+        null
+    }
+}
+
+fun DocumentSnapshot.toListingEntity(): ListingEntity? {
+    return try {
+        val idVal = getLong("localId")?.toInt() ?: 0
+        val firestoreId = id
+        val type = getString("type") ?: ""
+        val title = getString("title") ?: ""
+        val description = getString("description") ?: ""
+        val price = getDouble("price") ?: 0.0
+        val contact = getString("contact") ?: ""
+        val society = getString("society") ?: ""
+        val authorName = getString("authorName") ?: ""
+        val authorFlat = getString("authorFlat") ?: ""
+        val authorPhone = getString("authorPhone") ?: ""
+        val authorUid = getString("authorUid") ?: ""
+        val timestamp = extractServerTimestamp("serverTimestamp", "timestamp", "clientTimestamp")
+        val likesCount = getLong("likesCount")?.toInt() ?: 0
+        val category = getString("category") ?: ""
+        val photosArray = (get("photos") as? List<*>) ?: (get("photoUrls") as? List<*>)
+        val rawExtra1 = getString("extra1") ?: ""
+        val extra1 = if (photosArray != null && photosArray.isNotEmpty()) {
+            val list = photosArray.mapNotNull { it?.toString() }.filter { it.isNotBlank() }
+            com.connectkar.data.local.MoshiHelper.serializePhotoUrls(list)
+        } else if (rawExtra1.isNotEmpty()) {
+            if (type == "PROPERTY" || type == "MARKETPLACE") {
+                val list = com.connectkar.data.local.MoshiHelper.deserializePhotoUrls(rawExtra1)
+                com.connectkar.data.local.MoshiHelper.serializePhotoUrls(list)
+            } else {
+                rawExtra1
+            }
+        } else {
+            ""
+        }
+        val extra2 = getString("extra2") ?: ""
+        val extra3 = getString("extra3") ?: ""
+        val extra4 = getString("extra4") ?: ""
+        val detailsJson = getString("detailsJson") ?: ""
+        val isDraft = getBoolean("isDraft") ?: false
+        val isPublic = getBoolean("isPublic") ?: false
+        
+        val entity = ListingEntity(
+            id = idVal,
+            firestoreId = firestoreId,
+            type = type,
+            title = title,
+            description = description,
+            price = price,
+            contact = contact,
+            society = society,
+            authorName = authorName,
+            authorFlat = authorFlat,
+            authorPhone = authorPhone,
+            authorUid = authorUid,
+            timestamp = timestamp,
+            likesCount = likesCount,
+            isLikedByMe = false,
+            isBookmarked = false,
+            category = category,
+            extra1 = extra1,
+            extra2 = extra2,
+            extra3 = extra3,
+            extra4 = extra4,
+            detailsJson = detailsJson,
+            isDraft = isDraft,
+            isPublic = isPublic
+        )
+        if (detailsJson.isEmpty()) {
+            entity.withSerializedDetails()
+        } else {
+            entity
+        }
+    } catch (e: Exception) {
+        null
+    }
+}
+
+fun DocumentSnapshot.toUserListingInteractionEntity(userId: String, listingId: Int): UserListingInteractionEntity {
+    val liked = getBoolean("liked") ?: false
+    val bookmarked = getBoolean("bookmarked") ?: false
+    return UserListingInteractionEntity(
+        userId = userId,
+        listingId = listingId,
+        isLiked = liked,
+        isBookmarked = bookmarked
+    )
+}
+
+fun UserListingInteractionEntity.toFirestoreMap(): Map<String, Any> {
+    return mapOf(
+        "liked" to isLiked,
+        "bookmarked" to isBookmarked,
+        "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+    )
+}
+
+fun DocumentSnapshot.toChefProfileEntity(): ChefProfileEntity? {
+    return try {
+        val uid = getString("uid") ?: id
+        val isChef = getBoolean("isChef") ?: true
+        val chefStory = getString("chefStory") ?: ""
+        val mealsServedCount = getLong("mealsServedCount")?.toInt() ?: 0
+        val regularsCount = getLong("regularsCount")?.toInt() ?: 0
+        val ratingAvg = getDouble("ratingAvg") ?: 5.0
+        val isSocietyVouched = getBoolean("isSocietyVouched") ?: true
+        val speciality = getString("speciality") ?: ""
+        val society = getString("society") ?: ""
+        val timestamp = extractServerTimestamp("serverTimestamp", "timestamp", "clientTimestamp")
+
+        ChefProfileEntity(
+            uid = uid,
+            isChef = isChef,
+            chefStory = chefStory,
+            mealsServedCount = mealsServedCount,
+            regularsCount = regularsCount,
+            ratingAvg = ratingAvg,
+            isSocietyVouched = isSocietyVouched,
+            speciality = speciality,
+            society = society,
+            timestamp = timestamp
+        )
+    } catch (e: Exception) {
+        null
+    }
+}
+
+fun DocumentSnapshot.toMenuItemEntity(): MenuItemEntity? {
+    return try {
+        val idVal = getLong("localId")?.toInt() ?: 0
+        val firestoreId = id
+        val chefUid = getString("chefUid") ?: ""
+        val chefName = getString("chefName") ?: ""
+        val chefFlat = getString("chefFlat") ?: ""
+        val dishName = getString("dishName") ?: ""
+        val description = getString("description") ?: ""
+        val price = getDouble("price") ?: 0.0
+        val portionsAvailable = getLong("portionsAvailable")?.toInt() ?: 10
+        val portionsBooked = getLong("portionsBooked")?.toInt() ?: 0
+        val isVeg = getBoolean("isVeg") ?: true
+        val photoUrl = getString("photoUrl") ?: ""
+        val cuisineTags = getString("cuisineTags") ?: "North Indian, Home Style"
+        val mealType = getString("mealType") ?: "LUNCH"
+        val deliveryWindow = getString("deliveryWindow") ?: "12:30 PM - 1:30 PM"
+        val society = getString("society") ?: ""
+        val isSoldOut = getBoolean("isSoldOut") ?: false
+        val timestamp = extractServerTimestamp("serverTimestamp", "timestamp", "clientTimestamp")
+
+        MenuItemEntity(
+            id = idVal,
+            firestoreId = firestoreId,
+            chefUid = chefUid,
+            chefName = chefName,
+            chefFlat = chefFlat,
+            dishName = dishName,
+            description = description,
+            price = price,
+            portionsAvailable = portionsAvailable,
+            portionsBooked = portionsBooked,
+            isVeg = isVeg,
+            photoUrl = photoUrl,
+            cuisineTags = cuisineTags,
+            mealType = mealType,
+            deliveryWindow = deliveryWindow,
+            society = society,
+            isSoldOut = isSoldOut,
+            timestamp = timestamp
+        )
+    } catch (e: Exception) {
+        null
+    }
+}
+
+fun DocumentSnapshot.toMealOrderEntity(): MealOrderEntity? {
+    return try {
+        val idVal = getLong("localId")?.toInt() ?: 0
+        val firestoreId = id
+        val buyerUid = getString("buyerUid") ?: ""
+        val buyerName = getString("buyerName") ?: ""
+        val buyerFlat = getString("buyerFlat") ?: ""
+        val chefUid = getString("chefUid") ?: ""
+        val chefName = getString("chefName") ?: ""
+        val menuItemId = getLong("menuItemId")?.toInt() ?: 0
+        val dishName = getString("dishName") ?: ""
+        val servingSize = getLong("servingSize")?.toInt() ?: 1
+        val deliveryWindow = getString("deliveryWindow") ?: "12:30 PM - 1:30 PM"
+        val dietaryNotes = getString("dietaryNotes") ?: ""
+        val deliveryMethod = getString("deliveryMethod") ?: "SOCIETY_RUNNER"
+        val addOns = getString("addOns") ?: "[]"
+        val itemTotal = getDouble("itemTotal") ?: 0.0
+        val addOnsTotal = getDouble("addOnsTotal") ?: 0.0
+        val deliveryFee = getDouble("deliveryFee") ?: 0.0
+        val grandTotal = getDouble("grandTotal") ?: 0.0
+        val status = getString("status") ?: "PENDING"
+        val society = getString("society") ?: ""
+        val timestamp = extractServerTimestamp("serverTimestamp", "timestamp", "clientTimestamp")
+
+        MealOrderEntity(
+            id = idVal,
+            firestoreId = firestoreId,
+            buyerUid = buyerUid,
+            buyerName = buyerName,
+            buyerFlat = buyerFlat,
+            chefUid = chefUid,
+            chefName = chefName,
+            menuItemId = menuItemId,
+            dishName = dishName,
+            servingSize = servingSize,
+            deliveryWindow = deliveryWindow,
+            dietaryNotes = dietaryNotes,
+            deliveryMethod = deliveryMethod,
+            addOns = addOns,
+            itemTotal = itemTotal,
+            addOnsTotal = addOnsTotal,
+            deliveryFee = deliveryFee,
+            grandTotal = grandTotal,
+            status = status,
+            society = society,
+            timestamp = timestamp
+        )
+    } catch (e: Exception) {
+        null
+    }
+}
+
+fun DocumentSnapshot.toMealSubscriptionEntity(): MealSubscriptionEntity? {
+    return try {
+        val idVal = getLong("localId")?.toInt() ?: 0
+        val firestoreId = id
+        val buyerUid = getString("buyerUid") ?: ""
+        val chefUid = getString("chefUid") ?: ""
+        val chefName = getString("chefName") ?: ""
+        val planType = getString("planType") ?: "WEEKLY"
+        val mealsPerCycle = getLong("mealsPerCycle")?.toInt() ?: 7
+        val discountPercent = getLong("discountPercent")?.toInt() ?: 15
+        val daysRemaining = getLong("daysRemaining")?.toInt() ?: 7
+        val renewalDate = getString("renewalDate") ?: "Next Monday"
+        val status = getString("status") ?: "ACTIVE"
+        val pricePerMeal = getDouble("pricePerMeal") ?: 120.0
+        val society = getString("society") ?: ""
+        val timestamp = extractServerTimestamp("serverTimestamp", "timestamp", "clientTimestamp")
+
+        MealSubscriptionEntity(
+            id = idVal,
+            firestoreId = firestoreId,
+            buyerUid = buyerUid,
+            chefUid = chefUid,
+            chefName = chefName,
+            planType = planType,
+            mealsPerCycle = mealsPerCycle,
+            discountPercent = discountPercent,
+            daysRemaining = daysRemaining,
+            renewalDate = renewalDate,
+            status = status,
+            pricePerMeal = pricePerMeal,
+            society = society,
+            timestamp = timestamp
+        )
+    } catch (e: Exception) {
+        null
+    }
+}
+
+
+// Suspend extension to await Google Task completion
+suspend fun <T> com.google.android.gms.tasks.Task<T>.await(): T = kotlinx.coroutines.suspendCancellableCoroutine { continuation ->
+    addOnCompleteListener { task ->
+        if (task.isSuccessful) {
+            continuation.resume(task.result, null)
+        } else {
+            continuation.resumeWith(Result.failure(task.exception ?: RuntimeException("Task failed")))
+        }
+    }
+}
+
