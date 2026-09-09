@@ -68,6 +68,10 @@ fun DashboardScreen(
     syncState: SyncState,
     isRefreshing: Boolean = false,
     mealListings: List<ListingEntity> = emptyList(),
+    isExploreMode: Boolean = false,
+    exploredSocieties: List<String> = emptyList(),
+    onEnterExploreMode: (String) -> Unit = {},
+    onExitExploreMode: () -> Unit = {},
     onSocietySelected: (String) -> Unit,
     onModuleClicked: (String) -> Unit,
     onSimulateApprove: () -> Unit,
@@ -85,6 +89,14 @@ fun DashboardScreen(
     var showProfileDetailsDialog by remember { mutableStateOf(false) }
     var selectedMealForOrder by remember { mutableStateOf<ChefMeal?>(null) }
     var selectedListingMealForOrder by remember { mutableStateOf<ListingEntity?>(null) }
+    var societyToConfirmExplore by remember { mutableStateOf<String?>(null) }
+    var isBannerDismissed by remember { mutableStateOf(false) }
+
+    LaunchedEffect(selectedSociety, isExploreMode) {
+        if (isExploreMode) {
+            isBannerDismissed = false
+        }
+    }
 
     val societies = listOf("All Societies") + TownshipSocieties
 
@@ -236,7 +248,16 @@ fun DashboardScreen(
                                     DropdownMenuItem(
                                         text = { Text(society, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium) },
                                         onClick = {
-                                            onSocietySelected(society)
+                                            if (society == "All Societies" || society == currentUser.society) {
+                                                if (isExploreMode) {
+                                                    onExitExploreMode()
+                                                }
+                                                onSocietySelected(society)
+                                            } else if (exploredSocieties.contains(society)) {
+                                                onEnterExploreMode(society)
+                                            } else {
+                                                societyToConfirmExplore = society
+                                            }
                                             showSocietyDropdown = false
                                         },
                                         leadingIcon = {
@@ -351,27 +372,29 @@ fun DashboardScreen(
                             .padding(bottom = 6.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(50.dp)
-                                .clip(CircleShape)
-                                .background(ConciergeBrandNavy)
-                                .clickable {
-                                    if (currentUser.isVerified) {
-                                        onModuleClicked("CREATE_HUB")
-                                    } else {
-                                        Toast.makeText(context, "Resident verification is required to create listings.", Toast.LENGTH_SHORT).show()
+                        if (!isExploreMode) {
+                            Box(
+                                modifier = Modifier
+                                    .size(50.dp)
+                                    .clip(CircleShape)
+                                    .background(ConciergeBrandNavy)
+                                    .clickable {
+                                        if (currentUser.isVerified) {
+                                            onModuleClicked("CREATE_HUB")
+                                        } else {
+                                            Toast.makeText(context, "Resident verification is required to create listings.", Toast.LENGTH_SHORT).show()
+                                        }
                                     }
-                                }
-                                .testTag("create_pillar_button"),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "Create Posting",
-                                tint = Color.White,
-                                modifier = Modifier.size(28.dp)
-                            )
+                                    .testTag("create_pillar_button"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Create Posting",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
                         }
                     }
 
@@ -547,6 +570,68 @@ fun DashboardScreen(
                 }
             }
 
+            // Explore Mode Banner (persistent, dismissible)
+            if (isExploreMode && !isBannerDismissed) {
+                Surface(
+                    color = Color(0xFFE8EAF6),
+                    shape = MaterialTheme.shapes.medium,
+                    border = BorderStroke(1.dp, Color(0xFFC5CAE9)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 6.dp)
+                        .testTag("explore_mode_banner")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Explore,
+                                contentDescription = "Exploring",
+                                tint = Color(0xFF1A237E),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "Exploring $selectedSociety — read only",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF1A237E)
+                            )
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(
+                                onClick = onExitExploreMode,
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "Exit",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = Color(0xFF1A237E)
+                                )
+                            }
+                            IconButton(
+                                onClick = { isBannerDismissed = true },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Dismiss",
+                                    tint = Color.Gray,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // 3. FRESH TODAY SECTION (Horizontal list of local resident chef menu items)
             Column(
                 modifier = Modifier
@@ -603,6 +688,7 @@ fun DashboardScreen(
                         items(mealListings) { mealListing ->
                             FreshTodayCard(
                                 listing = mealListing,
+                                isReadOnly = isExploreMode,
                                 onOrderClicked = { selectedListingMealForOrder = mealListing }
                             )
                         }
@@ -610,6 +696,7 @@ fun DashboardScreen(
                         items(chefMeals) { meal ->
                             ChefMealItem(
                                 meal = meal,
+                                isReadOnly = isExploreMode,
                                 onOrderClicked = { selectedMealForOrder = meal }
                             )
                         }
@@ -1063,6 +1150,40 @@ fun DashboardScreen(
             }
         )
     }
+
+    // 4. Explore Society Confirmation Dialog
+    societyToConfirmExplore?.let { society ->
+        AlertDialog(
+            onDismissRequest = { societyToConfirmExplore = null },
+            title = {
+                Text("Explore $society?", fontWeight = FontWeight.Bold, color = ConciergeBrandNavy)
+            },
+            text = {
+                Text(
+                    "You will enter read-only explore mode for $society. You can browse listings and community posts without contacting residents or creating posts.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.DarkGray
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val target = society
+                        societyToConfirmExplore = null
+                        onEnterExploreMode(target)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ConciergeBrandNavy)
+                ) {
+                    Text("Explore")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { societyToConfirmExplore = null }) {
+                    Text("Cancel", color = Color.Gray)
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -1143,6 +1264,7 @@ fun BentoCard(
 fun ChefMealItem(
     meal: ChefMeal,
     onOrderClicked: () -> Unit,
+    isReadOnly: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -1234,13 +1356,28 @@ fun ChefMealItem(
                         style = MaterialTheme.typography.titleMedium,
                         color = Color(0xFF1A237E)
                     )
-                    Button(
-                        onClick = onOrderClicked,
-                        shape = MaterialTheme.shapes.extraSmall,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A237E)),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                    ) {
-                        Text("Order Now", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    if (!isReadOnly) {
+                        Button(
+                            onClick = onOrderClicked,
+                            shape = MaterialTheme.shapes.extraSmall,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A237E)),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text("Order Now", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        Surface(
+                            color = Color(0xFFF1F5F9),
+                            shape = MaterialTheme.shapes.extraSmall
+                        ) {
+                            Text(
+                                text = "Read Only",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.Gray,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -1274,6 +1411,7 @@ fun CreateChoiceItem(
 fun FreshTodayCard(
     listing: ListingEntity,
     onOrderClicked: () -> Unit,
+    isReadOnly: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val obj = if (listing.detailsJson.isNotEmpty()) {
@@ -1405,13 +1543,28 @@ fun FreshTodayCard(
                         style = MaterialTheme.typography.titleMedium,
                         color = ConciergePrimaryContainer
                     )
-                    Button(
-                        onClick = onOrderClicked,
-                        shape = MaterialTheme.shapes.extraSmall,
-                        colors = ButtonDefaults.buttonColors(containerColor = ConciergePrimaryContainer),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                    ) {
-                        Text("Order Now", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    if (!isReadOnly) {
+                        Button(
+                            onClick = onOrderClicked,
+                            shape = MaterialTheme.shapes.extraSmall,
+                            colors = ButtonDefaults.buttonColors(containerColor = ConciergePrimaryContainer),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text("Order Now", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        Surface(
+                            color = Color(0xFFF1F5F9),
+                            shape = MaterialTheme.shapes.extraSmall
+                        ) {
+                            Text(
+                                text = "Read Only",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.Gray,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
                     }
                 }
             }

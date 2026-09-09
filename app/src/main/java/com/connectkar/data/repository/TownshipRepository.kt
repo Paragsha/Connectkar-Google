@@ -517,6 +517,94 @@ class TownshipRepository(
 
     suspend fun getCurrentUser(): UserEntity? = appDao.getCurrentUserDirect()
 
+    suspend fun addExploredSociety(society: String) {
+        val trimmed = society.trim()
+        if (trimmed.isEmpty()) return
+        val current = appDao.getCurrentUserDirect()
+        val uid = FirebaseManager.auth?.currentUser?.uid ?: current?.uid ?: return
+        val user = appDao.getUserByUidDirect(uid) ?: current ?: return
+
+        if (trimmed == user.society) return
+        if (user.exploredSocietyIds.contains(trimmed)) return
+        if (user.exploredSocietyIds.size >= 3) return
+
+        val updatedList = (user.exploredSocietyIds + trimmed).take(3)
+        val updatedUser = user.copy(exploredSocietyIds = updatedList)
+        appDao.updateUser(updatedUser)
+
+        val fs = firestore
+        if (fs != null && user.uid.isNotEmpty()) {
+            try {
+                fs.collection("users").document(user.uid)
+                    .update("exploredSocietyIds", updatedList)
+                    .await()
+            } catch (e: Exception) {
+                android.util.Log.e("TownshipRepository", "Failed to update exploredSocietyIds: ${e.message}", e)
+            }
+        }
+    }
+
+    suspend fun removeExploredSociety(society: String) {
+        val trimmed = society.trim()
+        val current = appDao.getCurrentUserDirect()
+        val uid = FirebaseManager.auth?.currentUser?.uid ?: current?.uid ?: return
+        val user = appDao.getUserByUidDirect(uid) ?: current ?: return
+
+        if (!user.exploredSocietyIds.contains(trimmed)) return
+
+        val updatedList = user.exploredSocietyIds.filter { it != trimmed }
+        val updatedUser = user.copy(exploredSocietyIds = updatedList)
+        appDao.updateUser(updatedUser)
+
+        val fs = firestore
+        if (fs != null && user.uid.isNotEmpty()) {
+            try {
+                fs.collection("users").document(user.uid)
+                    .update("exploredSocietyIds", updatedList)
+                    .await()
+            } catch (e: Exception) {
+                android.util.Log.e("TownshipRepository", "Failed to remove exploredSocietyIds: ${e.message}", e)
+            }
+        }
+    }
+
+    suspend fun fetchExploredSocietyListings(society: String): List<ListingEntity> {
+        val fs = firestore ?: return emptyList()
+        return try {
+            val snapshot = fs.collection("listings")
+                .whereEqualTo("society", society)
+                .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .limit(20)
+                .get()
+                .await()
+
+            val listings = mutableListOf<ListingEntity>()
+            for (doc in snapshot.documents) {
+                val listing = doc.toListingEntity()
+                if (listing != null) {
+                    val existing = appDao.getListingByFirestoreIdDirect(listing.firestoreId)
+                    val toInsert = if (existing != null) {
+                        val currentUser = appDao.getCurrentUserDirect()
+                        val interaction = currentUser?.let { appDao.getInteraction(it.uid, existing.id) }
+                        val isLiked = interaction?.isLiked ?: existing.isLikedByMe
+                        val isBookmarked = interaction?.isBookmarked ?: existing.isBookmarked
+                        listing.copy(id = existing.id, isLikedByMe = isLiked, isBookmarked = isBookmarked)
+                    } else {
+                        listing
+                    }
+                    listings.add(toInsert)
+                }
+            }
+            if (listings.isNotEmpty()) {
+                appDao.insertAll(listings)
+            }
+            listings
+        } catch (e: Exception) {
+            android.util.Log.e("TownshipRepository", "Error fetching explored society listings for $society: ${e.message}", e)
+            emptyList()
+        }
+    }
+
     // Modified registerUser to write to Firestore
     suspend fun registerUser(
         fullName: String,

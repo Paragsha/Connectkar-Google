@@ -2,6 +2,22 @@ package com.connectkar.data.local
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import androidx.room.TypeConverter
+import androidx.room.TypeConverters
+
+class UserConverters {
+    @TypeConverter
+    fun fromStringList(value: List<String>?): String {
+        if (value.isNullOrEmpty()) return "[]"
+        val json = MoshiHelper.toJsonStringList(value)
+        return if (json.isBlank()) "[]" else json
+    }
+
+    @TypeConverter
+    fun toStringList(value: String?): List<String> {
+        return MoshiHelper.deserializePhotoUrls(value ?: "")
+    }
+}
 
 @Entity(
     tableName = "users",
@@ -10,6 +26,7 @@ import androidx.room.PrimaryKey
         androidx.room.Index(value = ["society"])
     ]
 )
+@TypeConverters(UserConverters::class)
 data class UserEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val uid: String = "", // Firebase Auth User UID
@@ -28,7 +45,8 @@ data class UserEntity(
     val residentType: String = "OWNER",
     val moveInDate: String = "",
     val proofDocumentUri: String = "",
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val exploredSocietyIds: List<String> = emptyList()
 )
 
 fun UserEntity.toFirestoreMap(): HashMap<String, Any?> {
@@ -48,6 +66,7 @@ fun UserEntity.toFirestoreMap(): HashMap<String, Any?> {
         "residentType" to residentType,
         "moveInDate" to moveInDate,
         "proofDocumentUri" to proofDocumentUri,
+        "exploredSocietyIds" to exploredSocietyIds,
         "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
         "serverTimestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
         "clientTimestamp" to timestamp

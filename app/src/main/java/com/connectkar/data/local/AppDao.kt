@@ -73,6 +73,9 @@ interface AppDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertListing(listing: ListingEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(listings: List<ListingEntity>)
+
     @Update
     suspend fun updateListing(listing: ListingEntity)
 

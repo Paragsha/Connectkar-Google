@@ -156,4 +156,73 @@ class DatabaseMigrationTest {
         db.close()
         context.deleteDatabase(dbName)
     }
+
+    @Test
+    fun migration_10_to_11_addsExploredSocietyIdsColumnWithDefaultEmptyJson() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val dbName = "migration_test_db_10_11"
+        context.deleteDatabase(dbName)
+
+        val config = SupportSQLiteOpenHelper.Configuration.builder(context)
+            .name(dbName)
+            .callback(object : SupportSQLiteOpenHelper.Callback(10) {
+                override fun onCreate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS `users` (
+                            `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                            `uid` TEXT NOT NULL,
+                            `fullName` TEXT NOT NULL,
+                            `phoneNumber` TEXT NOT NULL,
+                            `society` TEXT NOT NULL,
+                            `blockTower` TEXT NOT NULL,
+                            `flatNumber` TEXT NOT NULL,
+                            `avatarIndex` INTEGER NOT NULL,
+                            `isVerified` INTEGER NOT NULL,
+                            `isPending` INTEGER NOT NULL,
+                            `isCurrent` INTEGER NOT NULL,
+                            `role` TEXT NOT NULL,
+                            `pendingSync` INTEGER NOT NULL,
+                            `floor` TEXT NOT NULL,
+                            `residentType` TEXT NOT NULL,
+                            `moveInDate` TEXT NOT NULL,
+                            `proofDocumentUri` TEXT NOT NULL,
+                            `timestamp` INTEGER NOT NULL
+                        )
+                        """.trimIndent()
+                    )
+                    db.execSQL(
+                        """
+                        INSERT INTO `users` (
+                            `uid`, `fullName`, `phoneNumber`, `society`, `blockTower`, `flatNumber`,
+                            `avatarIndex`, `isVerified`, `isPending`, `isCurrent`, `role`, `pendingSync`,
+                            `floor`, `residentType`, `moveInDate`, `proofDocumentUri`, `timestamp`
+                        ) VALUES (
+                            'user_10', 'Priya Patel', '9876543210', 'Sunrise Valley', 'B', '204',
+                            2, 1, 0, 1, 'RESIDENT', 0, '2', 'OWNER', '2023-01-01', '', 1700000000000
+                        )
+                        """.trimIndent()
+                    )
+                }
+
+                override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {}
+            })
+            .build()
+
+        val helper = FrameworkSQLiteOpenHelperFactory().create(config)
+        val db = helper.writableDatabase
+
+        AppDatabase.MIGRATION_10_11.migrate(db)
+
+        val cursor = db.query("SELECT * FROM users WHERE uid = 'user_10'")
+        assertTrue("User record should exist after migration 10 to 11", cursor.moveToFirst())
+        val colIndex = cursor.getColumnIndex("exploredSocietyIds")
+        assertTrue("exploredSocietyIds column must exist", colIndex != -1)
+        assertEquals("[]", cursor.getString(colIndex))
+        assertEquals("Priya Patel", cursor.getString(cursor.getColumnIndexOrThrow("fullName")))
+        cursor.close()
+
+        db.close()
+        context.deleteDatabase(dbName)
+    }
 }

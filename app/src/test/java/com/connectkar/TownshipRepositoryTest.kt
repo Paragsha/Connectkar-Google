@@ -442,4 +442,50 @@ class TownshipRepositoryTest {
         assertTrue(bookmarkedA.contains(20))
         assertFalse(bookmarkedB.contains(20))
     }
+
+    @Test
+    fun testExploredSocieties_addRemoveAndLimitToThree() = runBlocking {
+        val repo = TownshipRepository(dao, context, firestore = null)
+
+        val user = UserEntity(
+            id = 1,
+            uid = "user_explore_test",
+            fullName = "Ananya Roy",
+            phoneNumber = "9811111111",
+            society = "Palm Grove",
+            blockTower = "A",
+            flatNumber = "101",
+            isCurrent = true,
+            exploredSocietyIds = emptyList()
+        )
+        dao.insertUser(user)
+
+        // 1. Trying to add own home society must be rejected
+        repo.addExploredSociety("Palm Grove")
+        var current = dao.getUserByUidDirect("user_explore_test")
+        assertEquals(emptyList<String>(), current?.exploredSocietyIds)
+
+        // 2. Adding other societies up to 3
+        repo.addExploredSociety("Sylvan County")
+        repo.addExploredSociety("Silver Oak")
+        repo.addExploredSociety("Green Meadows")
+
+        current = dao.getUserByUidDirect("user_explore_test")
+        assertEquals(listOf("Sylvan County", "Silver Oak", "Green Meadows"), current?.exploredSocietyIds)
+
+        // 3. Adding 4th society must be rejected (max 3)
+        repo.addExploredSociety("Horizon Heights")
+        current = dao.getUserByUidDirect("user_explore_test")
+        assertEquals(listOf("Sylvan County", "Silver Oak", "Green Meadows"), current?.exploredSocietyIds)
+
+        // 4. Removing a society
+        repo.removeExploredSociety("Silver Oak")
+        current = dao.getUserByUidDirect("user_explore_test")
+        assertEquals(listOf("Sylvan County", "Green Meadows"), current?.exploredSocietyIds)
+
+        // 5. Adding again now succeeds
+        repo.addExploredSociety("Horizon Heights")
+        current = dao.getUserByUidDirect("user_explore_test")
+        assertEquals(listOf("Sylvan County", "Green Meadows", "Horizon Heights"), current?.exploredSocietyIds)
+    }
 }

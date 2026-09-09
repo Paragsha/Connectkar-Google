@@ -178,6 +178,7 @@ fun DocumentSnapshot.toUserEntity(): UserEntity? {
         val moveInDate = getString("moveInDate") ?: ""
         val proofDocumentUri = getString("proofDocumentUri") ?: ""
         val timestamp = extractServerTimestamp("serverTimestamp", "timestamp", "clientTimestamp")
+        val exploredSocietyIds = (get("exploredSocietyIds") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
         
         UserEntity(
             uid = uid,
@@ -195,7 +196,8 @@ fun DocumentSnapshot.toUserEntity(): UserEntity? {
             residentType = residentType,
             moveInDate = moveInDate,
             proofDocumentUri = proofDocumentUri,
-            timestamp = timestamp
+            timestamp = timestamp,
+            exploredSocietyIds = exploredSocietyIds
         )
     } catch (e: Exception) {
         null

@@ -76,6 +76,14 @@ class TownshipViewModel(private val repository: TownshipRepository) : ViewModel(
     private val _selectedSociety = MutableStateFlow("All Societies")
     val selectedSociety: StateFlow<String> = _selectedSociety.asStateFlow()
 
+    val exploredSocieties: StateFlow<List<String>> = currentUser
+        .map { it?.exploredSocietyIds ?: emptyList() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val isExploreMode: StateFlow<Boolean> = combine(selectedSociety, currentUser) { selected, user ->
+        user != null && selected != user.society && selected != "All Societies"
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     private val _activeModule = MutableStateFlow("MARKETPLACE")
     val activeModule: StateFlow<String> = _activeModule.asStateFlow()
 
@@ -185,6 +193,37 @@ class TownshipViewModel(private val repository: TownshipRepository) : ViewModel(
     // --- Actions ---
     fun selectSociety(society: String) {
         _selectedSociety.value = society
+    }
+
+    fun enterExploreMode(society: String) {
+        viewModelScope.launch {
+            _operationsState.value = OperationsUiState.Loading
+            try {
+                repository.addExploredSociety(society)
+                repository.fetchExploredSocietyListings(society)
+                _selectedSociety.value = society
+                _operationsState.value = OperationsUiState.Success
+            } catch (e: Exception) {
+                _operationsState.value = OperationsUiState.Error(e.message ?: "Failed to explore $society")
+            }
+        }
+    }
+
+    fun exitExploreMode() {
+        _selectedSociety.value = currentUser.value?.society ?: "All Societies"
+    }
+
+    fun leaveExploredSociety(society: String) {
+        viewModelScope.launch {
+            try {
+                repository.removeExploredSociety(society)
+                if (_selectedSociety.value == society) {
+                    exitExploreMode()
+                }
+            } catch (e: Exception) {
+                _operationsState.value = OperationsUiState.Error(e.message ?: "Failed to leave explored society")
+            }
+        }
     }
 
     fun setActiveModule(module: String) {

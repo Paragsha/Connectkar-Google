@@ -54,7 +54,7 @@ class TownshipViewModelTest {
             .allowMainThreadQueries()
             .build()
         dao = db.appDao()
-        repository = TownshipRepository(dao, context)
+        repository = TownshipRepository(dao, context, firestore = null)
         
         Dispatchers.setMain(testDispatcher)
         viewModel = TownshipViewModel(repository)
@@ -289,5 +289,85 @@ class TownshipViewModelTest {
 
         myJob.cancel()
         savedJob.cancel()
+    }
+
+    @Test
+    fun testExploredSocieties_capsAtThree() = runTest {
+        val user = UserEntity(
+            id = 1,
+            uid = "user_explore",
+            fullName = "Explorer",
+            phoneNumber = "1234567890",
+            society = "Home Society",
+            blockTower = "Block A",
+            flatNumber = "101",
+            isCurrent = true,
+            isVerified = true,
+            exploredSocietyIds = emptyList()
+        )
+        dao.insertUser(user)
+
+        val collectJob = launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.exploredSocieties.collect {}
+        }
+        val userJob = launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.currentUser.collect {}
+        }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.enterExploreMode("Society 1")
+        viewModel.exploredSocieties.first { it.contains("Society 1") }
+
+        viewModel.enterExploreMode("Society 2")
+        viewModel.exploredSocieties.first { it.contains("Society 2") }
+
+        viewModel.enterExploreMode("Society 3")
+        viewModel.exploredSocieties.first { it.size == 3 }
+
+        viewModel.enterExploreMode("Society 4")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val explored = viewModel.exploredSocieties.first { it.size == 3 }
+        assertEquals(3, explored.size)
+        assertEquals(listOf("Society 1", "Society 2", "Society 3"), explored)
+
+        collectJob.cancel()
+        userJob.cancel()
+    }
+
+    @Test
+    fun testExitExploreMode_restoresHomeSociety() = runTest {
+        val user = UserEntity(
+            id = 1,
+            uid = "user_home",
+            fullName = "Home Resident",
+            phoneNumber = "9876543210",
+            society = "Greenwood",
+            blockTower = "Tower 1",
+            flatNumber = "501",
+            isCurrent = true,
+            isVerified = true
+        )
+        dao.insertUser(user)
+
+        val collectJob = launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.currentUser.collect {}
+        }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Wait for currentUser to be populated in StateFlow
+        viewModel.currentUser.first { it != null }
+
+        // Enter explore mode
+        viewModel.enterExploreMode("Silver Oak")
+        val selected = viewModel.selectedSociety.first { it == "Silver Oak" }
+        assertEquals("Silver Oak", selected)
+
+        // Exit explore mode
+        viewModel.exitExploreMode()
+        val restored = viewModel.selectedSociety.first { it == "Greenwood" }
+        assertEquals("Greenwood", restored)
+
+        collectJob.cancel()
     }
 }

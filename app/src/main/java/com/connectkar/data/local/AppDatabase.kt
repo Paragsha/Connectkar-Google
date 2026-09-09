@@ -13,9 +13,10 @@ import androidx.room.RoomDatabase
         MealSubscriptionEntity::class,
         UserListingInteractionEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
+@androidx.room.TypeConverters(UserConverters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun appDao(): AppDao
 
@@ -120,6 +121,12 @@ abstract class AppDatabase : RoomDatabase() {
                     FROM listings l, users u
                     WHERE u.isCurrent = 1 AND (l.isLikedByMe = 1 OR l.isBookmarked = 1)
                 """.trimIndent())
+            }
+        }
+
+        val MIGRATION_10_11 = object : androidx.room.migration.Migration(10, 11) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE users ADD COLUMN exploredSocietyIds TEXT NOT NULL DEFAULT '[]'")
             }
         }
     }

@@ -66,11 +66,12 @@ service cloud.firestore {
     }
 
     match /listings/{listingId} {
-      // Read listings only if in the same society, public, or admin
+      // Read listings only if in the same society, public, explored, or admin
       allow read: if request.auth != null && (
         isAdmin() ||
         resource.data.isPublic == true ||
-        (userExists() && getUserData().society == resource.data.society)
+        (userExists() && getUserData().society == resource.data.society) ||
+        (userExists() && getUserData().exploredSocietyIds.hasAny([resource.data.society]))
       );
       
       // On create, enforce fields (rating and ratingCount cannot be initialized with arbitrary values)

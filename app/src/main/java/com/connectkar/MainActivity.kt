@@ -49,6 +49,8 @@ class MainActivity : ComponentActivity() {
                 val filteredListings by viewModel.filteredListings.collectAsStateWithLifecycle()
                 val exploreListings by viewModel.exploreListings.collectAsStateWithLifecycle()
                 val selectedSociety by viewModel.selectedSociety.collectAsStateWithLifecycle()
+                val isExploreMode by viewModel.isExploreMode.collectAsStateWithLifecycle()
+                val exploredSocieties by viewModel.exploredSocieties.collectAsStateWithLifecycle()
                 val syncState by viewModel.syncState.collectAsStateWithLifecycle()
                 val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
                 val mealListings by viewModel.mealListingsForSociety.collectAsStateWithLifecycle()
@@ -111,6 +113,10 @@ class MainActivity : ComponentActivity() {
                                     syncState = syncState,
                                     isRefreshing = isRefreshing,
                                     mealListings = mealListings,
+                                    isExploreMode = isExploreMode,
+                                    exploredSocieties = exploredSocieties,
+                                    onEnterExploreMode = { viewModel.enterExploreMode(it) },
+                                    onExitExploreMode = { viewModel.exitExploreMode() },
                                     onSocietySelected = { viewModel.selectSociety(it) },
                                     onModuleClicked = { moduleId ->
                                         if (moduleId == "ADMIN") {
