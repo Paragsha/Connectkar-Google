@@ -118,32 +118,32 @@ fun DashboardScreen(
         ),
         BentoPillar(
             id = "PROPERTY",
-            title = "Rent Flats &\nProperties",
-            subtitle = "Rent Flats & Properties",
-            icon = Icons.Default.LocationCity,
-            bgBrush = Brush.linearGradient(listOf(Color(0xFFE8EAF6), Color(0xFFC5CAE9))),
-            iconColor = ConciergeBrandNavy,
-            textColor = ConciergeBrandNavy,
+            title = "Rentals",
+            subtitle = "Flats, PGs & Parking",
+            icon = Icons.Default.VpnKey,
+            bgBrush = Brush.linearGradient(listOf(Color(0xFF1976D2), Color(0xFF0D47A1))),
+            iconColor = Color.White,
+            textColor = Color.White,
             ghostIcon = Icons.Default.Apartment
         ),
         BentoPillar(
-            id = "SERVICE",
-            title = "Rent Household\nItems",
-            subtitle = "Rent Household Items",
-            icon = Icons.Default.Category,
+            id = "CARPOOL",
+            title = "Carpool",
+            subtitle = "Offer · Find a Ride",
+            icon = Icons.Default.DirectionsCar,
             bgBrush = Brush.linearGradient(listOf(Color(0xFFE0F2F1), Color(0xFFB2DFDB))),
-            iconColor = brandGreen,
-            textColor = Color(0xFF004D40),
-            ghostIcon = Icons.Default.Build
+            iconColor = Color.White,
+            textColor = Color.White,
+            ghostIcon = Icons.Default.AltRoute
         ),
         BentoPillar(
             id = "MEAL",
             title = "Share Daily\nMeals",
             subtitle = "Share Daily Meals",
             icon = Icons.Default.Restaurant,
-            bgBrush = Brush.linearGradient(listOf(Color(0xFFFFF3E0), Color(0xFFFFE0B2))),
-            iconColor = Color(0xFFE65100),
-            textColor = Color(0xFF5D4037),
+            bgBrush = Brush.linearGradient(listOf(Color(0xFFD84315), Color(0xFFBF360C))),
+            iconColor = Color.White,
+            textColor = Color.White,
             ghostIcon = Icons.Default.DinnerDining
         )
     )
