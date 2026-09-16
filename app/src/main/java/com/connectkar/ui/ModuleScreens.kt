@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.connectkar.data.local.ListingEntity
 import com.connectkar.data.local.UserEntity
+import com.connectkar.ui.components.ConnectKarBottomBar
 import com.connectkar.ui.components.PropertyListingSkeletonCard
 import com.connectkar.ui.theme.*
 
@@ -40,6 +41,8 @@ fun ModuleListScreen(
     onCreateListingClicked: () -> Unit,
     onRetrySync: () -> Unit,
     onRefresh: () -> Unit = {},
+    activeTab: String = "home",
+    onBottomNavClick: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -138,6 +141,18 @@ fun ModuleListScreen(
                     }
                 }
             }
+        },
+        bottomBar = {
+            ConnectKarBottomBar(
+                activeTab = activeTab,
+                onTabSelected = { target ->
+                    if (target == "create") {
+                        onCreateListingClicked()
+                    } else {
+                        onBottomNavClick(target)
+                    }
+                }
+            )
         },
         containerColor = BrandBackground,
         modifier = modifier

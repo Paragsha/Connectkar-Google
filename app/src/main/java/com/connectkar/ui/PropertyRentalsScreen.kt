@@ -56,6 +56,8 @@ fun PropertyRentalsScreen(
     onRefresh: () -> Unit = {},
     onNavigateToSaved: () -> Unit = {},
     onNavigateToMyListings: () -> Unit = {},
+    activeTab: String = "home",
+    onBottomNavClick: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -189,22 +191,16 @@ fun PropertyRentalsScreen(
         },
         bottomBar = {
             ConnectKarBottomBar(
-                activeTab = "explore",
+                activeTab = activeTab,
                 onTabSelected = { target ->
-                    when (target) {
-                        "home" -> onBack()
-                        "explore" -> { /* Already here */ }
-                        "create" -> {
-                            if (currentUser.isVerified) {
-                                onCreateListingClicked()
-                            } else {
-                                Toast.makeText(context, "Resident verification is required to create listings.", Toast.LENGTH_SHORT).show()
-                            }
+                    if (target == "create") {
+                        if (currentUser.isVerified) {
+                            onCreateListingClicked()
+                        } else {
+                            Toast.makeText(context, "Resident verification is required to create listings.", Toast.LENGTH_SHORT).show()
                         }
-                        "society" -> {
-                            Toast.makeText(context, "Navigating to Society Board", Toast.LENGTH_SHORT).show()
-                        }
-                        "profile" -> onNavigateToMyListings()
+                    } else {
+                        onBottomNavClick(target)
                     }
                 }
             )

@@ -460,6 +460,7 @@ fun ListingCard(
                             "VEHICLE" -> Icons.Default.DirectionsCar to "Vehicle"
                             "HOUSEHOLD_ITEM" -> Icons.Default.Handyman to "Household Item"
                             "EVENT" -> Icons.Default.Event to "Event"
+                            "COMMUNITY_POST" -> Icons.Default.Article to "Community Post"
                             else -> Icons.Default.Tag to listing.type
                         }
                         Icon(

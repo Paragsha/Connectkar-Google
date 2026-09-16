@@ -688,6 +688,7 @@ fun GenericStep1BasicInfo(
             "PROPERTY" -> listOf("1 BHK Rent", "2 BHK Rent", "3 BHK Rent", "PG / Shared Accommodation", "Commercial Space")
             "MEAL" -> listOf("Breakfast", "Lunch Veg", "Lunch Non-Veg", "Dinner Veg", "Dinner Non-Veg", "Home Bakery", "Desserts")
             "VEHICLE" -> listOf("Two Wheeler", "Hatchback", "Sedan", "SUV", "Luxury / Premium")
+            "COMMUNITY_POST" -> listOf("General Update", "Notice & Alert", "Society Welfare", "Lost & Found", "Discussion")
             // Unreachable safety fallback as FEED is removed
             else -> emptyList()
         }

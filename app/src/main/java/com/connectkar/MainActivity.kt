@@ -337,6 +337,20 @@ class MainActivity : ComponentActivity() {
                                             // Pop up to dashboard so that when they finish creating and pop, they return to dashboard instead of create_hub
                                             popUpTo("dashboard") { inclusive = false }
                                         }
+                                    },
+                                    activeTab = "create",
+                                    onBottomNavClick = { target ->
+                                        when (target) {
+                                            "home" -> navController.navigate("dashboard") {
+                                                popUpTo("dashboard") { inclusive = true }
+                                            }
+                                            "explore" -> {
+                                                viewModel.setActiveModule("EXPLORE")
+                                                navController.navigate("module_list/EXPLORE")
+                                            }
+                                            "society" -> navController.navigate("admin")
+                                            "profile" -> navController.navigate("my_listings")
+                                        }
                                     }
                                 )
                             }
@@ -411,6 +425,20 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onNavigateToMyListings = {
                                             navController.navigate("my_listings")
+                                        },
+                                        activeTab = "home",
+                                        onBottomNavClick = { target ->
+                                            when (target) {
+                                                "home" -> navController.navigate("dashboard") {
+                                                    popUpTo("dashboard") { inclusive = true }
+                                                }
+                                                "explore" -> {
+                                                    viewModel.setActiveModule("EXPLORE")
+                                                    navController.navigate("module_list/EXPLORE")
+                                                }
+                                                "society" -> navController.navigate("admin")
+                                                "profile" -> navController.navigate("my_listings")
+                                            }
                                         }
                                     )
                                 } else {
@@ -436,6 +464,22 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onRefresh = {
                                             viewModel.refresh()
+                                        },
+                                        activeTab = if (moduleType == "EXPLORE") "explore" else "home",
+                                        onBottomNavClick = { target ->
+                                            when (target) {
+                                                "home" -> navController.navigate("dashboard") {
+                                                    popUpTo("dashboard") { inclusive = true }
+                                                }
+                                                "explore" -> {
+                                                    if (moduleType != "EXPLORE") {
+                                                        viewModel.setActiveModule("EXPLORE")
+                                                        navController.navigate("module_list/EXPLORE")
+                                                    }
+                                                }
+                                                "society" -> navController.navigate("admin")
+                                                "profile" -> navController.navigate("my_listings")
+                                            }
                                         }
                                     )
                                 }
