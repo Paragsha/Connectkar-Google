@@ -117,7 +117,7 @@ fun DashboardScreen(
             ghostIcon = Icons.Default.ShoppingBag
         ),
         BentoPillar(
-            id = "PROPERTY",
+            id = "RENTALS_HUB",
             title = "Rentals",
             subtitle = "Flats, PGs & Parking",
             icon = Icons.Default.VpnKey,

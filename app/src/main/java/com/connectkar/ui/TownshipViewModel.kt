@@ -171,6 +171,24 @@ class TownshipViewModel(private val repository: TownshipRepository) : ViewModel(
         .map { it.filter { listing -> !listing.isDraft } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val rentalsCategoryCounts: StateFlow<Map<String, Int>> = exploreListings
+        .map { list ->
+            mapOf(
+                "PROPERTY" to list.count { it.type == "PROPERTY" },
+                "VEHICLE" to list.count { it.type == "VEHICLE" },
+                "HOUSEHOLD_ITEM" to list.count { it.type == "HOUSEHOLD_ITEM" }
+            )
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    val rentalsRecentListings: StateFlow<List<ListingEntity>> = exploreListings
+        .map { list ->
+            list.filter { it.type == "PROPERTY" || it.type == "VEHICLE" || it.type == "HOUSEHOLD_ITEM" }
+                .sortedByDescending { it.timestamp }
+                .take(10)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val myPropertyListings: StateFlow<List<ListingEntity>> = currentUser
         .flatMapLatest { user ->
             if (user != null && user.uid.isNotEmpty()) {

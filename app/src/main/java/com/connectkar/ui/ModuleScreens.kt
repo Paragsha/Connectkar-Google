@@ -50,7 +50,8 @@ fun ModuleListScreen(
         "MEAL" to "Daily Meals",
         "SERVICE" to "Resident Services",
         "PROPERTY" to "Rentals & Properties",
-        "VEHICLE" to "Vehicles Log",
+        "VEHICLE" to "Vehicles for Rent",
+        "HOUSEHOLD_ITEM" to "Household Items",
         "EXPLORE" to "Explore"
     )
 
@@ -60,7 +61,8 @@ fun ModuleListScreen(
         "MEAL" to "Order home-cooked food by local resident chefs",
         "SERVICE" to "Trustworthy plumbers, electricians & helpers",
         "PROPERTY" to "Discover rental properties & item rentals",
-        "VEHICLE" to "View vehicle entry logs & safety details",
+        "VEHICLE" to "Rent bikes, cars & more from neighbours",
+        "HOUSEHOLD_ITEM" to "Furniture, appliances, tools & more",
         "EXPLORE" to "All updates across your township"
     )
 
@@ -116,7 +118,7 @@ fun ModuleListScreen(
             )
         },
         floatingActionButton = {
-            if (currentUser.isVerified && moduleType != "VEHICLE") {
+            if (currentUser.isVerified && moduleType != "HOUSEHOLD_ITEM") {
                 FloatingActionButton(
                     onClick = onCreateListingClicked,
                     containerColor = ConciergeBrandNavy,

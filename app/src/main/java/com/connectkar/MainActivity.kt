@@ -125,6 +125,8 @@ class MainActivity : ComponentActivity() {
                                             navController.navigate("create_hub")
                                         } else if (moduleId == "MEAL") {
                                             navController.navigate("meal_discover")
+                                        } else if (moduleId == "RENTALS_HUB") {
+                                            navController.navigate("rentals_hub")
                                         } else {
                                             viewModel.setActiveModule(moduleId)
                                             navController.navigate("module_list/$moduleId")
@@ -334,6 +336,44 @@ class MainActivity : ComponentActivity() {
                                         navController.navigate("create_listing/$categoryId") {
                                             // Pop up to dashboard so that when they finish creating and pop, they return to dashboard instead of create_hub
                                             popUpTo("dashboard") { inclusive = false }
+                                        }
+                                    }
+                                )
+                            }
+                        }
+
+                        composable("rentals_hub") {
+                            val user = currentUser
+                            val categoryCounts by viewModel.rentalsCategoryCounts.collectAsStateWithLifecycle()
+                            val recentListings by viewModel.rentalsRecentListings.collectAsStateWithLifecycle()
+                            if (user != null) {
+                                RentalsHubScreen(
+                                    selectedSociety = selectedSociety,
+                                    categoryCounts = categoryCounts,
+                                    recentListings = recentListings,
+                                    onBack = { navController.popBackStack() },
+                                    onCategoryClick = { type ->
+                                        viewModel.setActiveModule(type)
+                                        navController.navigate("module_list/$type")
+                                    },
+                                    onListingClick = { listing ->
+                                        viewModel.setActiveModule(listing.type)
+                                        navController.navigate("module_list/${listing.type}")
+                                    },
+                                    onSeeAllRecent = { /* TODO: dedicated recents screen */ },
+                                    onCreateClicked = { navController.navigate("create_hub") },
+                                    onBottomNavClick = { target ->
+                                        when (target) {
+                                            "home" -> navController.navigate("dashboard") {
+                                                popUpTo("dashboard") { inclusive = true }
+                                            }
+                                            "explore" -> {
+                                                viewModel.setActiveModule("EXPLORE")
+                                                navController.navigate("module_list/EXPLORE")
+                                            }
+                                            "create" -> navController.navigate("create_hub")
+                                            "society" -> navController.navigate("admin")
+                                            "profile" -> navController.navigate("my_listings")
                                         }
                                     }
                                 )
