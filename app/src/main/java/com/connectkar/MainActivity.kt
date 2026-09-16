@@ -374,7 +374,9 @@ class MainActivity : ComponentActivity() {
                                         viewModel.setActiveModule(listing.type)
                                         navController.navigate("module_list/${listing.type}")
                                     },
-                                    onSeeAllRecent = { /* TODO: dedicated recents screen */ },
+                                    onSeeAllRecent = {
+                                        navController.navigate("recent_rentals")
+                                    },
                                     onCreateClicked = { navController.navigate("create_hub") },
                                     onBottomNavClick = { target ->
                                         when (target) {
@@ -390,6 +392,36 @@ class MainActivity : ComponentActivity() {
                                             "profile" -> navController.navigate("my_listings")
                                         }
                                     }
+                                )
+                            }
+                        }
+
+                        composable("recent_rentals") {
+                            val user = currentUser
+                            if (user != null) {
+                                RecentRentalsScreen(
+                                    recentListings = recentListings,
+                                    selectedSociety = selectedSociety,
+                                    onBack = { navController.popBackStack() },
+                                    onListingClick = { listing ->
+                                        viewModel.setActiveModule(listing.type)
+                                        navController.navigate("module_list/${listing.type}")
+                                    },
+                                    onBottomNavClick = { target ->
+                                        when (target) {
+                                            "home" -> navController.navigate("dashboard") {
+                                                popUpTo("dashboard") { inclusive = true }
+                                            }
+                                            "explore" -> {
+                                                viewModel.setActiveModule("EXPLORE")
+                                                navController.navigate("module_list/EXPLORE")
+                                            }
+                                            "create" -> navController.navigate("create_hub")
+                                            "society" -> navController.navigate("admin")
+                                            "profile" -> navController.navigate("my_listings")
+                                        }
+                                    },
+                                    activeTab = "home"
                                 )
                             }
                         }

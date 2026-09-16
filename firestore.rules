@@ -15,8 +15,8 @@ service cloud.firestore {
     // Helper function to check if request is from an admin
     function isAdmin() {
       return request.auth != null && (
-        request.auth.token.role == 'ADMIN' ||
-        (userExists() && getUserData().role == 'ADMIN')
+        request.auth.token.get('role', '') == 'ADMIN' ||
+        (userExists() && getUserData().get('role', '') == 'ADMIN')
       );
     }
 
@@ -186,25 +186,68 @@ service cloud.firestore {
       );
     }
 
+    function getMenuItemDocId(data) {
+      return ('menuItemFirestoreId' in data && data.menuItemFirestoreId is string && data.menuItemFirestoreId.size() > 0)
+        ? data.menuItemFirestoreId
+        : (('menuItemDocId' in data && data.menuItemDocId is string && data.menuItemDocId.size() > 0)
+          ? data.menuItemDocId
+          : string(data.menuItemId));
+    }
+
+    function isValidMealOrderPricing(data) {
+      let docId = getMenuItemDocId(data);
+      let menuItemPath = /databases/$(database)/documents/menuItems/$(docId);
+      let hasMenuItem = exists(menuItemPath);
+      let menuItem = get(menuItemPath).data;
+      let expectedItemTotal = menuItem.price * data.servingSize;
+      let expectedDeliveryFee = (data.deliveryMethod == 'DOORSTEP' || data.deliveryMethod == 'Doorstep Delivery' || data.deliveryMethod == 'SOCIETY_RUNNER') ? 20.0 : 0.0;
+
+      return hasMenuItem &&
+        data.servingSize is int && data.servingSize > 0 &&
+        data.itemTotal is number &&
+        data.addOnsTotal is number && data.addOnsTotal >= 0.0 &&
+        data.deliveryFee is number && data.deliveryFee >= 0.0 &&
+        data.grandTotal is number &&
+        (
+          ((data.deliveryMethod == 'DOORSTEP' || data.deliveryMethod == 'Doorstep Delivery' || data.deliveryMethod == 'SOCIETY_RUNNER') && 
+           (data.deliveryFee == 20.0 || data.deliveryFee == 20)) ||
+          ((data.deliveryMethod == 'PICKUP' || data.deliveryMethod == 'Self-Pickup' || data.deliveryMethod == 'SELF_PICKUP') && 
+           (data.deliveryFee == 0.0 || data.deliveryFee == 0))
+        ) &&
+        (data.itemTotal == expectedItemTotal) &&
+        (data.grandTotal == data.itemTotal + data.addOnsTotal + data.deliveryFee) &&
+        (data.grandTotal == expectedItemTotal + data.addOnsTotal + expectedDeliveryFee);
+    }
+
+    function isValidMealSubscriptionPricing(data) {
+      return data.pricePerMeal is number && data.pricePerMeal > 0.0 &&
+        data.mealsPerCycle is int && data.mealsPerCycle > 0 &&
+        data.discountPercent is int && data.discountPercent >= 0 && data.discountPercent <= 100;
+    }
+
     match /mealOrders/{orderId} {
       allow read: if request.auth != null && (
-        request.auth.token.role == 'ADMIN' ||
+        isAdmin() ||
         resource.data.buyerUid == request.auth.uid ||
         resource.data.chefUid == request.auth.uid ||
         (userExists() && getUserData().society == resource.data.society)
       );
 
       allow create: if request.auth != null && (
-        request.auth.token.role == 'ADMIN' ||
+        isAdmin() ||
         (
           request.resource.data.buyerUid == request.auth.uid &&
           userExists() &&
-          request.resource.data.society == getUserData().society
+          request.resource.data.society == getUserData().society &&
+          (
+            request.auth.token.get('source', '') == 'server' ||
+            request.auth.token.get('server', false) == true ||
+            isValidMealOrderPricing(request.resource.data)
+          )
         )
       );
 
       allow update: if request.auth != null && (
-        request.auth.token.role == 'ADMIN' ||
         isAdmin() ||
         (
           resource.data.chefUid == request.auth.uid &&
@@ -217,30 +260,34 @@ service cloud.firestore {
       );
 
       allow delete: if request.auth != null && (
-        request.auth.token.role == 'ADMIN' ||
+        isAdmin() ||
         resource.data.buyerUid == request.auth.uid
       );
     }
 
     match /mealSubscriptions/{subscriptionId} {
       allow read: if request.auth != null && (
-        request.auth.token.role == 'ADMIN' ||
+        isAdmin() ||
         resource.data.buyerUid == request.auth.uid ||
         resource.data.chefUid == request.auth.uid ||
         (userExists() && getUserData().society == resource.data.society)
       );
 
       allow create: if request.auth != null && (
-        request.auth.token.role == 'ADMIN' ||
+        isAdmin() ||
         (
           request.resource.data.buyerUid == request.auth.uid &&
           userExists() &&
-          request.resource.data.society == getUserData().society
+          request.resource.data.society == getUserData().society &&
+          (
+            request.auth.token.get('source', '') == 'server' ||
+            request.auth.token.get('server', false) == true ||
+            isValidMealSubscriptionPricing(request.resource.data)
+          )
         )
       );
 
       allow update: if request.auth != null && (
-        request.auth.token.role == 'ADMIN' ||
         isAdmin() ||
         (
           resource.data.chefUid == request.auth.uid &&
@@ -253,7 +300,7 @@ service cloud.firestore {
       );
 
       allow delete: if request.auth != null && (
-        request.auth.token.role == 'ADMIN' ||
+        isAdmin() ||
         resource.data.buyerUid == request.auth.uid
       );
     }

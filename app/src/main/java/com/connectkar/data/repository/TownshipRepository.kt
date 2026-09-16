@@ -1315,11 +1315,13 @@ class TownshipRepository(
         val insertedId = appDao.insertMealOrder(order)
         var finalOrder = order.copy(id = insertedId.toInt())
         val fs = firestore
+        val menuItem = if (order.menuItemId > 0) appDao.getMenuItemByIdDirect(order.menuItemId) else null
+        val menuItemDocId = if (menuItem != null && menuItem.firestoreId.isNotEmpty()) menuItem.firestoreId else order.menuItemId.toString()
         if (fs != null) {
             val docRef = fs.collection("mealOrders").document()
             finalOrder = finalOrder.copy(firestoreId = docRef.id)
             try {
-                docRef.set(finalOrder.toFirestoreMap()).await()
+                docRef.set(finalOrder.toFirestoreMap(menuItemDocId)).await()
                 appDao.updateMealOrder(finalOrder)
             } catch (e: Exception) {
                 finalOrder = finalOrder.copy(pendingSync = true)

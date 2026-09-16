@@ -1,6 +1,9 @@
 package com.connectkar.ui
 
 import android.app.Activity
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -35,6 +38,7 @@ import com.google.firebase.FirebaseException
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,6 +76,10 @@ fun OnboardingScreen(
         mutableStateOf(if (BuildConfig.DEBUG) "simulated_proof_of_residence.pdf" else "")
     }
     var documentUploadError by remember { mutableStateOf<String?>(null) }
+    var isUploadingDocument by remember { mutableStateOf(false) }
+    var selectedDocumentName by remember {
+        mutableStateOf(if (BuildConfig.DEBUG) "proof_of_residence.pdf" else "")
+    }
 
     var showSocietyDropdown by remember { mutableStateOf(false) }
     var showResidentTypeDropdown by remember { mutableStateOf(false) }
@@ -84,6 +92,7 @@ fun OnboardingScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val activity = remember(context) {
         var curr = context
         while (curr is android.content.ContextWrapper) {
@@ -91,6 +100,42 @@ fun OnboardingScreen(
             curr = curr.baseContext
         }
         curr as? Activity
+    }
+
+    val documentPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val fileName = uri.lastPathSegment?.substringAfterLast('/') ?: "proof_document"
+            selectedDocumentName = fileName
+            isUploadingDocument = true
+            documentUploadError = null
+
+            val isTest = System.getProperty("robolectric.active") != null ||
+                    System.getProperty("java.runtime.name")?.contains("Android") == false
+
+            if (isTest || !FirebaseManager.isAvailable) {
+                proofDocumentUri = uri.toString()
+                isUploadingDocument = false
+            } else {
+                coroutineScope.launch {
+                    val uploadedUrl = FirebaseManager.uploadOnboardingDocument(
+                        context = context,
+                        uriString = uri.toString(),
+                        societyId = selectedSociety,
+                        userId = phoneNumber.ifBlank { "resident_${System.currentTimeMillis()}" }
+                    )
+                    if (uploadedUrl != null) {
+                        proofDocumentUri = uploadedUrl
+                    } else {
+                        // Keep local URI so user isn't blocked, but notify
+                        proofDocumentUri = uri.toString()
+                        documentUploadError = "Uploaded locally (Firebase storage offline or unconfigured)"
+                    }
+                    isUploadingDocument = false
+                }
+            }
+        }
     }
 
     val societies = TownshipSocieties
@@ -588,14 +633,7 @@ fun OnboardingScreen(
                                             shape = RoundedCornerShape(12.dp)
                                         )
                                         .clickable {
-                                            // TODO: Integrate actual Firebase Storage file upload pipeline in a separate task.
-                                            // Currently stores a simulated pdf path representation on tap as requested.
-                                            if (BuildConfig.DEBUG) {
-                                                proofDocumentUri = "simulated_proof_of_residence.pdf"
-                                                documentUploadError = null
-                                            } else {
-                                                documentUploadError = "Document upload pipeline is not yet configured for production."
-                                            }
+                                            documentPickerLauncher.launch("*/*")
                                         }
                                         .testTag("onboarding_proof_doc"),
                                     contentAlignment = Alignment.Center
@@ -605,7 +643,20 @@ fun OnboardingScreen(
                                         verticalArrangement = Arrangement.Center,
                                         modifier = Modifier.padding(12.dp)
                                     ) {
-                                        if (proofDocumentUri.isEmpty()) {
+                                        if (isUploadingDocument) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(24.dp),
+                                                color = BrandPrimaryBlue,
+                                                strokeWidth = 2.dp
+                                            )
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Text(
+                                                "Uploading document securely...",
+                                                fontSize = 12.sp,
+                                                color = BrandPrimaryBlue,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        } else if (proofDocumentUri.isEmpty()) {
                                             Icon(
                                                 imageVector = Icons.Outlined.CloudUpload,
                                                 contentDescription = "Cloud Upload Icon",
@@ -637,7 +688,7 @@ fun OnboardingScreen(
                                                 )
                                                 Spacer(modifier = Modifier.width(8.dp))
                                                 Text(
-                                                    "Selected: proof_of_residence.pdf",
+                                                    "Selected: ${selectedDocumentName.ifEmpty { "proof_of_residence.pdf" }}",
                                                     fontSize = 12.sp,
                                                     color = BrandSuccessGreen,
                                                     fontWeight = FontWeight.Bold

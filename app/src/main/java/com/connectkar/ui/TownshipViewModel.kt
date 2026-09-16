@@ -561,6 +561,12 @@ class TownshipViewModel(private val repository: TownshipRepository) : ViewModel(
             _operationsState.value = OperationsUiState.Loading
             try {
                 val user = currentUser.value ?: return@launch
+                // Re-derive price from authentic MenuItem to guarantee data integrity
+                val authenticItemTotal = menuItem.price * servingSize
+                val authenticDeliveryFee = if (deliveryMethod.contains("DOORSTEP", ignoreCase = true) || deliveryMethod.contains("Doorstep", ignoreCase = true) || deliveryMethod.contains("RUNNER", ignoreCase = true)) 20.0 else 0.0
+                val safeAddOnsTotal = maxOf(0.0, addOnsTotal)
+                val authenticGrandTotal = authenticItemTotal + safeAddOnsTotal + authenticDeliveryFee
+
                 val order = MealOrderEntity(
                     buyerUid = user.uid,
                     buyerName = user.fullName,
@@ -574,10 +580,10 @@ class TownshipViewModel(private val repository: TownshipRepository) : ViewModel(
                     dietaryNotes = dietaryNotes,
                     deliveryMethod = deliveryMethod,
                     addOns = addOns,
-                    itemTotal = itemTotal,
-                    addOnsTotal = addOnsTotal,
-                    deliveryFee = deliveryFee,
-                    grandTotal = grandTotal,
+                    itemTotal = authenticItemTotal,
+                    addOnsTotal = safeAddOnsTotal,
+                    deliveryFee = authenticDeliveryFee,
+                    grandTotal = authenticGrandTotal,
                     status = "PENDING",
                     society = user.society
                 )

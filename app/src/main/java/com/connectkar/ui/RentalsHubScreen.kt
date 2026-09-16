@@ -13,7 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,6 +47,22 @@ fun RentalsHubScreen(
     activeTab: String = "home",
     modifier: Modifier = Modifier
 ) {
+    var isSearchActive by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    val searchedRecentListings = remember(recentListings, searchQuery) {
+        if (searchQuery.isBlank()) {
+            recentListings
+        } else {
+            recentListings.filter { listing ->
+                listing.title.contains(searchQuery, ignoreCase = true) ||
+                listing.description.contains(searchQuery, ignoreCase = true) ||
+                listing.category.contains(searchQuery, ignoreCase = true) ||
+                listing.type.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -73,13 +89,14 @@ fun RentalsHubScreen(
                 actions = {
                     IconButton(
                         onClick = {
-                            // TODO: wire to search
+                            isSearchActive = !isSearchActive
+                            if (!isSearchActive) searchQuery = ""
                         },
                         modifier = Modifier.testTag("rentals_hub_search_button")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Search",
+                            imageVector = if (isSearchActive) Icons.Default.Close else Icons.Default.Search,
+                            contentDescription = if (isSearchActive) "Close Search" else "Search",
                             tint = BrandSlate
                         )
                     }
@@ -109,6 +126,40 @@ fun RentalsHubScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 8.dp)
         ) {
+            if (isSearchActive) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Search rentals by keyword, flat, brand...") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = Color.Gray
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Clear")
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                        .testTag("rentals_hub_search_input"),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ConciergeBrandNavy,
+                        unfocusedBorderColor = Color(0xFFCBD5E1),
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White
+                    )
+                )
+            }
+
             // Eyebrow label + Society pill
             Row(
                 modifier = Modifier
@@ -224,7 +275,6 @@ fun RentalsHubScreen(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
                         .clickable {
-                            // TODO: dedicated recents screen
                             onSeeAllRecent()
                         }
                         .padding(horizontal = 8.dp, vertical = 4.dp)
@@ -247,7 +297,7 @@ fun RentalsHubScreen(
             }
 
             // Horizontal strip of compact listing cards
-            if (recentListings.isEmpty()) {
+            if (searchedRecentListings.isEmpty()) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -263,7 +313,7 @@ fun RentalsHubScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No recent rentals in this society yet.",
+                            text = if (searchQuery.isNotBlank()) "No rentals match \"$searchQuery\"" else "No recent rentals in this society yet.",
                             color = Color.Gray,
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -274,7 +324,7 @@ fun RentalsHubScreen(
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                     contentPadding = PaddingValues(vertical = 4.dp)
                 ) {
-                    items(recentListings, key = { it.id }) { listing ->
+                    items(searchedRecentListings, key = { it.id }) { listing ->
                         RentalsCompactListingCard(
                             listing = listing,
                             onClick = { onListingClick(listing) }

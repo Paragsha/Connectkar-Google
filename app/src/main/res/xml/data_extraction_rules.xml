@@ -1,19 +1,26 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
--->
+<?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <!-- Explicitly exclude Room database files containing resident PII (name, phone, address, proof documents) -->
+        <exclude domain="database" path="connectkar_db" />
+        <exclude domain="database" path="connectkar_db-wal" />
+        <exclude domain="database" path="connectkar_db-shm" />
+        <exclude domain="database" path="." />
+        <!-- Exclude shared preferences and internal files with user credentials or cached personal data -->
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="root" path="." />
+        <exclude domain="external" path="." />
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <!-- Explicitly exclude Room database and PII files during device-to-device transfers -->
+        <exclude domain="database" path="connectkar_db" />
+        <exclude domain="database" path="connectkar_db-wal" />
+        <exclude domain="database" path="connectkar_db-shm" />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="root" path="." />
+        <exclude domain="external" path="." />
     </device-transfer>
-    -->
 </data-extraction-rules>

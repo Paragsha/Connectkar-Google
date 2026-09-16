@@ -179,7 +179,9 @@ class SyncWorker(
                         firestore.collection("mealOrders").document()
                     }
                     val finalOrder = order.copy(firestoreId = docRef.id, pendingSync = false)
-                    docRef.set(finalOrder.toFirestoreMap()).await()
+                    val menuItem = if (order.menuItemId > 0) appDao.getMenuItemByIdDirect(order.menuItemId) else null
+                    val menuItemDocId = if (menuItem != null && menuItem.firestoreId.isNotEmpty()) menuItem.firestoreId else order.menuItemId.toString()
+                    docRef.set(finalOrder.toFirestoreMap(menuItemDocId)).await()
                     // Persist the newly-assigned firestoreId and cleared pendingSync to Room immediately
                     appDao.updateMealOrder(finalOrder)
                 } catch (e: Exception) {

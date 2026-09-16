@@ -133,6 +133,54 @@ object FirebaseManager {
             null
         }
     }
+
+    suspend fun uploadOnboardingDocument(
+        context: android.content.Context,
+        uriString: String,
+        societyId: String = "general",
+        userId: String
+    ): String? {
+        if (uriString.isBlank()) return null
+        if (uriString.startsWith("http://", ignoreCase = true) || uriString.startsWith("https://", ignoreCase = true)) {
+            return uriString
+        }
+
+        val storageInstance = storage ?: return null
+        return try {
+            val uri = android.net.Uri.parse(uriString)
+            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            if (bytes == null || bytes.isEmpty()) {
+                android.util.Log.w("FirebaseManager", "Unable to read document bytes from URI: $uriString")
+                return null
+            }
+
+            val mimeType = context.contentResolver.getType(uri) ?: when {
+                uriString.endsWith(".pdf", ignoreCase = true) -> "application/pdf"
+                uriString.endsWith(".png", ignoreCase = true) -> "image/png"
+                else -> "image/jpeg"
+            }
+            val ext = when (mimeType) {
+                "application/pdf" -> "pdf"
+                "image/png" -> "png"
+                else -> "jpg"
+            }
+
+            val sanitizedSociety = if (societyId.isBlank()) "general" else societyId.trim().lowercase().replace(Regex("[^a-z0-9_]"), "_")
+            val sanitizedUserId = if (userId.isBlank()) "user_${System.currentTimeMillis()}" else userId.trim().lowercase().replace(Regex("[^a-z0-9_]"), "_")
+            val storagePath = "verification_docs/$sanitizedSociety/$sanitizedUserId/proof_of_residence.$ext"
+            val storageRef = storageInstance.reference.child(storagePath)
+            val metadata = StorageMetadata.Builder()
+                .setContentType(mimeType)
+                .build()
+
+            storageRef.putBytes(bytes, metadata).await()
+            val downloadUrl = storageRef.downloadUrl.await()
+            downloadUrl.toString()
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseManager", "Error uploading onboarding document to Firebase Storage for $uriString: ${e.message}")
+            null
+        }
+    }
 }
 
 fun DocumentSnapshot.extractServerTimestamp(vararg keys: String = arrayOf("serverTimestamp", "timestamp", "clientTimestamp")): Long {

@@ -41,7 +41,12 @@ data class MealOrderEntity(
     val timestamp: Long = System.currentTimeMillis()
 )
 
-fun MealOrderEntity.toFirestoreMap(): HashMap<String, Any?> {
+fun MealOrderEntity.toFirestoreMap(menuItemFirestoreDocId: String? = null): HashMap<String, Any?> {
+    val effectiveDocId = when {
+        !menuItemFirestoreDocId.isNullOrEmpty() -> menuItemFirestoreDocId
+        menuItemId > 0 -> menuItemId.toString()
+        else -> ""
+    }
     return hashMapOf(
         "buyerUid" to buyerUid,
         "buyerName" to buyerName,
@@ -49,6 +54,8 @@ fun MealOrderEntity.toFirestoreMap(): HashMap<String, Any?> {
         "chefUid" to chefUid,
         "chefName" to chefName,
         "menuItemId" to menuItemId,
+        "menuItemFirestoreId" to effectiveDocId,
+        "menuItemDocId" to effectiveDocId,
         "dishName" to dishName,
         "servingSize" to servingSize,
         "deliveryWindow" to deliveryWindow,
