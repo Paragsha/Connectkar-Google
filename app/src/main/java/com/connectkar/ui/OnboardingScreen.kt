@@ -128,9 +128,8 @@ fun OnboardingScreen(
                     if (uploadedUrl != null) {
                         proofDocumentUri = uploadedUrl
                     } else {
-                        // Keep local URI so user isn't blocked, but notify
-                        proofDocumentUri = uri.toString()
-                        documentUploadError = "Uploaded locally (Firebase storage offline or unconfigured)"
+                        proofDocumentUri = ""
+                        documentUploadError = "Upload failed — check connection and try again"
                     }
                     isUploadingDocument = false
                 }
@@ -754,7 +753,14 @@ fun OnboardingScreen(
                                 Spacer(modifier = Modifier.height(24.dp))
 
                                 // Validation Check
-                                val isStep2Valid = FormValidators.isStep2Valid(blockTower, flatNumber, floor, moveInDate, proofDocumentUri)
+                                val isStep2Valid = FormValidators.isStep2Valid(
+                                    blockTower = blockTower,
+                                    flatNumber = flatNumber,
+                                    floor = floor,
+                                    moveInDate = moveInDate,
+                                    proofDocumentUri = proofDocumentUri,
+                                    isDebugBuild = BuildConfig.DEBUG
+                                )
 
                                 Button(
                                     onClick = {

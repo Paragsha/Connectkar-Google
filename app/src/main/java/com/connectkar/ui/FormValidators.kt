@@ -10,13 +10,18 @@ object FormValidators {
         flatNumber: String,
         floor: String,
         moveInDate: String,
-        proofDocumentUri: String
+        proofDocumentUri: String,
+        isDebugBuild: Boolean = false
     ): Boolean {
+        val trimmedUri = proofDocumentUri.trim()
+        val isProofValid = trimmedUri.startsWith("https://", ignoreCase = true) ||
+                (isDebugBuild && (trimmedUri == "simulated_proof_of_residence.pdf" || trimmedUri == "proof_of_residence.pdf"))
+
         return blockTower.trim().isNotBlank() &&
                 flatNumber.trim().isNotBlank() &&
                 floor.trim().isNotBlank() &&
                 moveInDate.trim().isNotBlank() &&
-                proofDocumentUri.trim().isNotBlank()
+                isProofValid
     }
 
     fun isPriceValid(price: String): Boolean {

@@ -180,4 +180,95 @@ class FormValidatorsTest {
             )
         )
     }
+
+    @Test
+    fun testIsStep2ValidProofDocumentUri() {
+        // Valid remote HTTPS doc
+        assertTrue(
+            FormValidators.isStep2Valid(
+                blockTower = "Block A",
+                flatNumber = "101",
+                floor = "1",
+                moveInDate = "2026-09-17",
+                proofDocumentUri = "https://firebasestorage.googleapis.com/v0/b/app/o/proof.pdf?alt=media",
+                isDebugBuild = false
+            )
+        )
+
+        // Local content:// URI must be rejected on release and debug
+        assertFalse(
+            FormValidators.isStep2Valid(
+                blockTower = "Block A",
+                flatNumber = "101",
+                floor = "1",
+                moveInDate = "2026-09-17",
+                proofDocumentUri = "content://media/external/images/media/12345",
+                isDebugBuild = false
+            )
+        )
+        assertFalse(
+            FormValidators.isStep2Valid(
+                blockTower = "Block A",
+                flatNumber = "101",
+                floor = "1",
+                moveInDate = "2026-09-17",
+                proofDocumentUri = "content://media/external/images/media/12345",
+                isDebugBuild = true
+            )
+        )
+
+        // Empty / blank URI must be rejected
+        assertFalse(
+            FormValidators.isStep2Valid(
+                blockTower = "Block A",
+                flatNumber = "101",
+                floor = "1",
+                moveInDate = "2026-09-17",
+                proofDocumentUri = "",
+                isDebugBuild = false
+            )
+        )
+
+        // Debug placeholder allowed only when isDebugBuild = true
+        assertTrue(
+            FormValidators.isStep2Valid(
+                blockTower = "Block A",
+                flatNumber = "101",
+                floor = "1",
+                moveInDate = "2026-09-17",
+                proofDocumentUri = "simulated_proof_of_residence.pdf",
+                isDebugBuild = true
+            )
+        )
+        assertTrue(
+            FormValidators.isStep2Valid(
+                blockTower = "Block A",
+                flatNumber = "101",
+                floor = "1",
+                moveInDate = "2026-09-17",
+                proofDocumentUri = "proof_of_residence.pdf",
+                isDebugBuild = true
+            )
+        )
+        assertFalse(
+            FormValidators.isStep2Valid(
+                blockTower = "Block A",
+                flatNumber = "101",
+                floor = "1",
+                moveInDate = "2026-09-17",
+                proofDocumentUri = "simulated_proof_of_residence.pdf",
+                isDebugBuild = false
+            )
+        )
+        assertFalse(
+            FormValidators.isStep2Valid(
+                blockTower = "Block A",
+                flatNumber = "101",
+                floor = "1",
+                moveInDate = "2026-09-17",
+                proofDocumentUri = "proof_of_residence.pdf",
+                isDebugBuild = false
+            )
+        )
+    }
 }
