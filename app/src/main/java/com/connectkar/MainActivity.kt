@@ -398,6 +398,7 @@ class MainActivity : ComponentActivity() {
 
                         composable("recent_rentals") {
                             val user = currentUser
+                            val recentListings by viewModel.rentalsRecentListings.collectAsStateWithLifecycle()
                             if (user != null) {
                                 RecentRentalsScreen(
                                     recentListings = recentListings,

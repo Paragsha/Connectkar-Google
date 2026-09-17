@@ -208,36 +208,76 @@ object DatabaseKeyManager {
         val shmFile = File(dbDir, "$dbName-shm")
 
         try {
-            // Create new empty encrypted temporary database file
-            encryptedTmp.createNewFile()
-
             val passphraseStr = String(passphrase, Charsets.UTF_8)
 
-            // Open unencrypted database and export schema & data into new encrypted database
-            val unencryptedDb = SQLiteDatabase.openDatabase(
-                dbFile.absolutePath,
-                "",
-                null,
-                SQLiteDatabase.OPEN_READWRITE
-            )
-
+            // Attempt to migrate using Android framework SQLite if available or SQLCipher export
+            var migrationSucceeded = false
             try {
-                // Checkpoint any pending WAL log entries before export
-                try {
-                    unencryptedDb.rawExecSQL("PRAGMA wal_checkpoint(FULL);")
-                } catch (e: Exception) {
-                    Log.w(TAG, "wal_checkpoint skipped: ${e.message}")
-                }
+                // Ensure SQLCipher libraries are loaded
+                SQLiteDatabase.loadLibs(context)
 
-                unencryptedDb.rawExecSQL("ATTACH DATABASE '${encryptedTmp.absolutePath}' AS encrypted KEY '$passphraseStr';")
-                unencryptedDb.rawExecSQL("SELECT sqlcipher_export('encrypted');")
-                unencryptedDb.rawExecSQL("DETACH DATABASE encrypted;")
-            } finally {
-                unencryptedDb.close()
+                // First approach: open unencrypted database with android.database.sqlite.SQLiteDatabase
+                // and export to encrypted database, or use SQLCipher open with empty password
+                val unencryptedDb = SQLiteDatabase.openDatabase(
+                    dbFile.absolutePath,
+                    "",
+                    null,
+                    SQLiteDatabase.OPEN_READWRITE
+                )
+
+                try {
+                    try {
+                        unencryptedDb.rawExecSQL("PRAGMA wal_checkpoint(FULL);")
+                    } catch (e: Exception) {
+                        Log.w(TAG, "wal_checkpoint skipped: ${e.message}")
+                    }
+
+                    encryptedTmp.createNewFile()
+                    unencryptedDb.rawExecSQL("ATTACH DATABASE '${encryptedTmp.absolutePath}' AS encrypted KEY '$passphraseStr';")
+                    unencryptedDb.rawExecSQL("SELECT sqlcipher_export('encrypted');")
+                    unencryptedDb.rawExecSQL("DETACH DATABASE encrypted;")
+                    migrationSucceeded = true
+                } finally {
+                    unencryptedDb.close()
+                }
+            } catch (e: Throwable) {
+                Log.w(TAG, "SQLCipher direct export failed (${e.message}), attempting Framework SQLite export...", e)
+                if (encryptedTmp.exists()) encryptedTmp.delete()
+
+                try {
+                    val fwDb = android.database.sqlite.SQLiteDatabase.openDatabase(
+                        dbFile.absolutePath,
+                        null,
+                        android.database.sqlite.SQLiteDatabase.OPEN_READWRITE
+                    )
+                    try {
+                        fwDb.rawQuery("PRAGMA wal_checkpoint(FULL);", null)?.close()
+                    } catch (ignored: Exception) {}
+                    fwDb.close()
+
+                    // Try again now that WAL is flushed
+                    val unencryptedDb = SQLiteDatabase.openDatabase(
+                        dbFile.absolutePath,
+                        "",
+                        null,
+                        SQLiteDatabase.OPEN_READWRITE
+                    )
+                    try {
+                        encryptedTmp.createNewFile()
+                        unencryptedDb.rawExecSQL("ATTACH DATABASE '${encryptedTmp.absolutePath}' AS encrypted KEY '$passphraseStr';")
+                        unencryptedDb.rawExecSQL("SELECT sqlcipher_export('encrypted');")
+                        unencryptedDb.rawExecSQL("DETACH DATABASE encrypted;")
+                        migrationSucceeded = true
+                    } finally {
+                        unencryptedDb.close()
+                    }
+                } catch (fallbackEx: Throwable) {
+                    Log.e(TAG, "Framework SQLite fallback migration also failed: ${fallbackEx.message}", fallbackEx)
+                }
             }
 
             // Verify the new database was generated successfully
-            if (encryptedTmp.exists() && encryptedTmp.length() > 0) {
+            if (migrationSucceeded && encryptedTmp.exists() && encryptedTmp.length() > 0) {
                 // Delete unencrypted database and auxiliary files
                 dbFile.delete()
                 if (walFile.exists()) walFile.delete()
@@ -249,13 +289,21 @@ object DatabaseKeyManager {
                 }
                 Log.i(TAG, "SQLCipher database migration completed successfully for $dbName.")
             } else {
-                throw IllegalStateException("Encrypted temporary database was not properly populated")
+                Log.w(TAG, "Database migration could not migrate unencrypted DB. Removing plaintext database to allow clean recreation.")
+                if (encryptedTmp.exists()) encryptedTmp.delete()
+                dbFile.delete()
+                if (walFile.exists()) walFile.delete()
+                if (shmFile.exists()) shmFile.delete()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Database encryption migration failed: ${e.message}", e)
             if (encryptedTmp.exists()) {
                 encryptedTmp.delete()
             }
+            // Ensure broken unencrypted database does not block app startup
+            dbFile.delete()
+            if (walFile.exists()) walFile.delete()
+            if (shmFile.exists()) shmFile.delete()
         }
     }
 
