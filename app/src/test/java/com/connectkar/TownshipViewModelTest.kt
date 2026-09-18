@@ -282,6 +282,7 @@ class TownshipViewModelTest {
         val myList = viewModel.myPropertyListings.first { it.isNotEmpty() }
         assertEquals(1, myList.size)
         assertEquals("user_me", myList[0].authorUid)
+        assertTrue(viewModel.hasPostedListings.first { it })
 
         val savedList = viewModel.savedPropertyListings.first { it.size >= 2 }
         assertEquals(2, savedList.size)

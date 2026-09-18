@@ -1,6 +1,7 @@
 package com.connectkar.ui
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -35,6 +37,7 @@ fun ModuleListScreen(
     selectedSociety: String,
     syncState: SyncState,
     isRefreshing: Boolean = false,
+    hasPostedListings: Boolean = listings.any { it.authorUid == currentUser.uid && !it.isDraft },
     onBack: () -> Unit,
     onLikeListing: (Int) -> Unit,
     onBookmarkListing: (Int) -> Unit,
@@ -46,6 +49,37 @@ fun ModuleListScreen(
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
+    
+    val shouldPulse = currentUser.isVerified && !hasPostedListings
+    val infiniteTransition = rememberInfiniteTransition(label = "create_listing_fab_pulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.08f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "fab_scale"
+    )
+    val haloScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.35f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "fab_halo_scale"
+    )
+    val haloAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "fab_halo_alpha"
+    )
+    val currentFabScale = if (shouldPulse) pulseScale else 1f
     
     val moduleTitles = mapOf(
         "MARKETPLACE" to "Marketplace",
@@ -122,22 +156,46 @@ fun ModuleListScreen(
         },
         floatingActionButton = {
             if (currentUser.isVerified && moduleType != "HOUSEHOLD_ITEM") {
-                FloatingActionButton(
-                    onClick = onCreateListingClicked,
-                    containerColor = ConciergeBrandNavy,
-                    contentColor = Color.White,
-                    modifier = Modifier
-                        .padding(bottom = 16.dp)
-                        .testTag("add_listing_fab"),
-                    shape = MaterialTheme.shapes.medium
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.padding(bottom = 16.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    if (shouldPulse) {
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .graphicsLayer {
+                                    scaleX = haloScale
+                                    scaleY = haloScale
+                                    alpha = haloAlpha
+                                }
+                                .background(
+                                    color = ConciergeBrandNavy,
+                                    shape = MaterialTheme.shapes.medium
+                                )
+                                .testTag("create_listing_pulse_halo")
+                        )
+                    }
+                    FloatingActionButton(
+                        onClick = onCreateListingClicked,
+                        containerColor = ConciergeBrandNavy,
+                        contentColor = Color.White,
+                        modifier = Modifier
+                            .graphicsLayer {
+                                scaleX = currentFabScale
+                                scaleY = currentFabScale
+                            }
+                            .testTag("add_listing_fab"),
+                        shape = MaterialTheme.shapes.medium
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Create Listing")
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Create", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "Create Listing")
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Create", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                        }
                     }
                 }
             }

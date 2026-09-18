@@ -199,6 +199,10 @@ class TownshipViewModel(private val repository: TownshipRepository) : ViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val hasPostedListings: StateFlow<Boolean> = myPropertyListings
+        .map { list -> list.any { !it.isDraft } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     val savedPropertyListings: StateFlow<List<ListingEntity>> = repository.getBookmarkedListingsByType("PROPERTY")
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 

@@ -25,6 +25,11 @@ service cloud.firestore {
       return request.resource.data.get(field, null) == resource.data.get(field, null);
     }
 
+    // Helper to check if resident is verified by an admin
+    function verifiedResident() {
+      return userExists() && getUserData().get('isVerified', false) == true;
+    }
+
     match /users/{userId} {
       // Allow read: If the user reads their own profile, or is an admin, or resides in the same society
       allow read: if request.auth != null && (
@@ -83,7 +88,8 @@ service cloud.firestore {
           (!('rating' in request.resource.data) || request.resource.data.rating == 0 || request.resource.data.rating == 0.0) &&
           (!('ratingCount' in request.resource.data) || request.resource.data.ratingCount == 0) &&
           userExists() &&
-          request.resource.data.society == getUserData().society
+          request.resource.data.society == getUserData().society &&
+          verifiedResident()
         )
       );
       

@@ -92,4 +92,76 @@ class PropertyRentalsScreenTest {
         composeTestRule.onNodeWithTag("apply_filters_button").assertExists()
         composeTestRule.onNodeWithTag("reset_filters_button").assertExists()
     }
+
+    @Test
+    fun testCreatePropertyFab_pulsesWhenUserVerifiedAndHasNoListings() {
+        composeTestRule.setContent {
+            MyApplicationTheme {
+                PropertyRentalsScreen(
+                    currentUser = testUser.copy(isVerified = true),
+                    listings = testListings,
+                    hasPostedListings = false,
+                    selectedSociety = "Sylvan County",
+                    syncState = SyncState.Idle,
+                    onBack = {},
+                    onLikeListing = {},
+                    onBookmarkListing = {},
+                    onCreateListingClicked = {},
+                    onRetrySync = {}
+                )
+            }
+        }
+
+        // FAB and pulse halo must both exist
+        composeTestRule.onNodeWithTag("create_property_fab").assertExists()
+        composeTestRule.onNodeWithTag("create_property_pulse_halo").assertExists()
+    }
+
+    @Test
+    fun testCreatePropertyFab_doesNotPulseWhenUserHasPostedListings() {
+        composeTestRule.setContent {
+            MyApplicationTheme {
+                PropertyRentalsScreen(
+                    currentUser = testUser.copy(isVerified = true),
+                    listings = testListings,
+                    hasPostedListings = true,
+                    selectedSociety = "Sylvan County",
+                    syncState = SyncState.Idle,
+                    onBack = {},
+                    onLikeListing = {},
+                    onBookmarkListing = {},
+                    onCreateListingClicked = {},
+                    onRetrySync = {}
+                )
+            }
+        }
+
+        // FAB exists, but pulse halo must NOT exist
+        composeTestRule.onNodeWithTag("create_property_fab").assertExists()
+        composeTestRule.onNodeWithTag("create_property_pulse_halo").assertDoesNotExist()
+    }
+
+    @Test
+    fun testCreatePropertyFab_hiddenWhenUserNotVerified() {
+        composeTestRule.setContent {
+            MyApplicationTheme {
+                PropertyRentalsScreen(
+                    currentUser = testUser.copy(isVerified = false),
+                    listings = testListings,
+                    hasPostedListings = false,
+                    selectedSociety = "Sylvan County",
+                    syncState = SyncState.Idle,
+                    onBack = {},
+                    onLikeListing = {},
+                    onBookmarkListing = {},
+                    onCreateListingClicked = {},
+                    onRetrySync = {}
+                )
+            }
+        }
+
+        // FAB must not be shown when unverified
+        composeTestRule.onNodeWithTag("create_property_fab").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("create_property_pulse_halo").assertDoesNotExist()
+    }
 }

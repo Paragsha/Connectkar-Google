@@ -1,0 +1,68 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper function to check if the user document exists in Firestore
+    function userExists() {
+      return firestore.exists(/databases/(default)/documents/users/$(request.auth.uid));
+    }
+
+    // Helper function to get the requesting user's data from Firestore safely
+    function getUserData() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Helper function to check if the request is made by an admin.
+    // Mirrors the admin authorization logic from firestore.rules.
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.get('role', '') == 'ADMIN' ||
+        (userExists() && getUserData().get('role', '') == 'ADMIN')
+      );
+    }
+
+    // Helper function to verify user identity against the path's userId.
+    // Supports matching direct Firebase Auth UID as well as the phone number format
+    // passed as userId during resident onboarding.
+    function isOwner(userId) {
+      return request.auth != null && (
+        request.auth.uid == userId ||
+        (request.auth.token.get('phone_number', '') != '' && (
+          request.auth.token.phone_number == userId ||
+          request.auth.token.phone_number.replace('\\+', '_') == userId ||
+          request.auth.token.phone_number.replace('\\+', '') == userId
+        ))
+      );
+    }
+
+    // Helper function to ensure documents can only be written during onboarding or while unverified.
+    // During onboarding step 2 (prior to user profile creation in Firestore), userExists() is false.
+    // After registration, isVerified is false until approved by an administrator.
+    // Once isVerified == true, overwrites are blocked.
+    function isUnverifiedResident() {
+      return !userExists() || getUserData().get('isVerified', false) != true;
+    }
+
+    // Primary path pattern from FirebaseManager.uploadOnboardingDocument:
+    // "verification_docs/$sanitizedSociety/$sanitizedUserId/proof_of_residence.$ext"
+    match /verification_docs/{societyId}/{userId}/{fileName} {
+      // Read: only own document (resident) or administrator reviewing verification
+      allow read: if isOwner(userId) || isAdmin();
+
+      // Write: only resident during onboarding/pending verification (no overwrite once verified)
+      allow write: if isOwner(userId) && isUnverifiedResident();
+    }
+
+    // Fallback 3-segment path pattern: verification_docs/{userId}/{fileName}
+    match /verification_docs/{userId}/{fileName} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId) && isUnverifiedResident();
+    }
+
+    // Deny all other paths by default
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

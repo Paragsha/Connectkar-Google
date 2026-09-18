@@ -2,6 +2,7 @@ package com.connectkar.ui
 
 import android.widget.Toast
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -48,6 +50,7 @@ fun PropertyRentalsScreen(
     selectedSociety: String,
     syncState: SyncState,
     isRefreshing: Boolean = false,
+    hasPostedListings: Boolean = listings.any { it.authorUid == currentUser.uid && !it.isDraft },
     onBack: () -> Unit,
     onLikeListing: (Int) -> Unit,
     onBookmarkListing: (Int) -> Unit,
@@ -62,6 +65,37 @@ fun PropertyRentalsScreen(
 ) {
     val context = LocalContext.current
     var searchQuery by remember { mutableStateOf("") }
+    
+    val shouldPulse = currentUser.isVerified && !hasPostedListings
+    val infiniteTransition = rememberInfiniteTransition(label = "create_property_fab_pulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.08f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "property_fab_scale"
+    )
+    val haloScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.35f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "property_fab_halo_scale"
+    )
+    val haloAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "property_fab_halo_alpha"
+    )
+    val currentFabScale = if (shouldPulse) pulseScale else 1f
     var selectedFilter by remember { mutableStateOf("All") }
     var selectedListingForDetails by remember { mutableStateOf<ListingEntity?>(null) }
     var showFiltersSheet by remember { mutableStateOf(false) }
@@ -172,20 +206,44 @@ fun PropertyRentalsScreen(
     Scaffold(
         floatingActionButton = {
             if (currentUser.isVerified) {
-                FloatingActionButton(
-                    onClick = onCreateListingClicked,
-                    containerColor = ConciergeBrandNavy,
-                    contentColor = Color.White,
-                    modifier = Modifier
-                        .padding(bottom = 80.dp)
-                        .testTag("create_property_fab"),
-                    shape = RoundedCornerShape(9999.dp)
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.padding(bottom = 80.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Create Property Listing",
-                        modifier = Modifier.size(28.dp)
-                    )
+                    if (shouldPulse) {
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .graphicsLayer {
+                                    scaleX = haloScale
+                                    scaleY = haloScale
+                                    alpha = haloAlpha
+                                }
+                                .background(
+                                    color = ConciergeBrandNavy,
+                                    shape = CircleShape
+                                )
+                                .testTag("create_property_pulse_halo")
+                        )
+                    }
+                    FloatingActionButton(
+                        onClick = onCreateListingClicked,
+                        containerColor = ConciergeBrandNavy,
+                        contentColor = Color.White,
+                        modifier = Modifier
+                            .graphicsLayer {
+                                scaleX = currentFabScale
+                                scaleY = currentFabScale
+                            }
+                            .testTag("create_property_fab"),
+                        shape = RoundedCornerShape(9999.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Create Property Listing",
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
                 }
             }
         },

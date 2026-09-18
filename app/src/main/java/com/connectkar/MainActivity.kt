@@ -53,6 +53,7 @@ class MainActivity : ComponentActivity() {
                 val exploredSocieties by viewModel.exploredSocieties.collectAsStateWithLifecycle()
                 val syncState by viewModel.syncState.collectAsStateWithLifecycle()
                 val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
+                val hasPostedListings by viewModel.hasPostedListings.collectAsStateWithLifecycle()
                 val mealListings by viewModel.mealListingsForSociety.collectAsStateWithLifecycle()
                 val operationsState by viewModel.operationsState.collectAsStateWithLifecycle()
 
@@ -438,6 +439,7 @@ class MainActivity : ComponentActivity() {
                                     PropertyRentalsScreen(
                                         currentUser = user,
                                         listings = filteredListings,
+                                        hasPostedListings = hasPostedListings,
                                         selectedSociety = selectedSociety,
                                         syncState = syncState,
                                         isRefreshing = isRefreshing,
@@ -479,6 +481,7 @@ class MainActivity : ComponentActivity() {
                                         moduleType = moduleType,
                                         listings = if (moduleType == "EXPLORE") exploreListings else filteredListings,
                                         currentUser = user,
+                                        hasPostedListings = hasPostedListings,
                                         selectedSociety = selectedSociety,
                                         syncState = syncState,
                                         isRefreshing = isRefreshing,

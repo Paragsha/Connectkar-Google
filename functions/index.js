@@ -235,3 +235,57 @@ exports.validateMealSubscriptionOnCreate = functions.firestore
       serverVerifiedAt: admin.firestore.FieldValue.serverTimestamp()
     });
   });
+
+/**
+ * Triggered on create, update, or delete of an interaction doc under a listing.
+ * Maintains server-side aggregate likesCount on parent listing document.
+ */
+exports.updateListingLikesCountOnInteraction = functions.firestore
+  .document("listings/{listingId}/interactions/{userId}")
+  .onWrite(async (change, context) => {
+    const listingId = context.params.listingId;
+    const userId = context.params.userId;
+
+    const beforeData = change.before.exists ? change.before.data() : null;
+    const afterData = change.after.exists ? change.after.data() : null;
+
+    const wasLiked = beforeData ? beforeData.liked === true : false;
+    const isLiked = afterData ? afterData.liked === true : false;
+
+    // If like status didn't change (e.g. only bookmark or timestamp updated), skip
+    if (wasLiked === isLiked) {
+      return null;
+    }
+
+    const delta = (isLiked ? 1 : 0) - (wasLiked ? 1 : 0);
+    if (delta === 0) {
+      return null;
+    }
+
+    const listingRef = admin.firestore().collection("listings").doc(listingId);
+
+    try {
+      await admin.firestore().runTransaction(async (transaction) => {
+        const listingDoc = await transaction.get(listingRef);
+        if (!listingDoc.exists) {
+          console.warn(`Listing ${listingId} not found when updating likesCount for user ${userId}`);
+          return;
+        }
+
+        const currentLikes = Number(listingDoc.data().likesCount) || 0;
+        const newLikesCount = Math.max(0, currentLikes + delta);
+
+        transaction.update(listingRef, {
+          likesCount: newLikesCount,
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          serverTimestamp: admin.firestore.FieldValue.serverTimestamp()
+        });
+      });
+
+      console.log(`Updated likesCount for listing ${listingId} by delta ${delta} (user: ${userId})`);
+      return null;
+    } catch (err) {
+      console.error(`Error updating likesCount on listing ${listingId} for user ${userId}:`, err);
+      return null;
+    }
+  });
