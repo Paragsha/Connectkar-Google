@@ -45,6 +45,27 @@ object DatabaseKeyManager {
     @Volatile
     private var nativeSqlCipherAvailable: Boolean? = null
 
+    @Volatile
+    private var allowInsecureFallbackForTesting: Boolean? = null
+
+    /**
+     * Controls whether insecure fallback key derivation is allowed.
+     * Restricted to test/Robolectric environments only.
+     */
+    fun setAllowInsecureFallbackForTesting(allow: Boolean?) {
+        allowInsecureFallbackForTesting = allow
+    }
+
+    /**
+     * Insecure fallback key derivation is strictly restricted to test/Robolectric environments
+     * where native SQLCipher and AndroidKeyStore hardware providers are unavailable.
+     * On physical devices and production environments, Keystore failures fail loudly.
+     */
+    fun isFallbackAllowed(context: Context): Boolean {
+        allowInsecureFallbackForTesting?.let { return it }
+        return !isNativeSqlCipherAvailable(context)
+    }
+
     /**
      * Checks if native SQLCipher binaries are available in this runtime environment.
      * On Android devices/emulators this returns true; on desktop JVM (Robolectric) it returns false.
@@ -86,7 +107,12 @@ object DatabaseKeyManager {
                 } else {
                     Log.w(TAG, "Legacy non-hex passphrase detected in storage. Generating clean 64-char hex passphrase.")
                 }
+            } catch (e: SecurityException) {
+                throw e
             } catch (e: Exception) {
+                if (!isFallbackAllowed(context)) {
+                    throw SecurityException("Failed to decrypt database passphrase with Android Keystore on device: ${e.message}", e)
+                }
                 Log.e(TAG, "Failed to decrypt existing passphrase with Android Keystore: ${e.message}. Re-generating key.", e)
             }
         }
@@ -103,7 +129,12 @@ object DatabaseKeyManager {
                 .putString(PREF_ENCRYPTED_PASSPHRASE, Base64.encodeToString(encrypted, Base64.NO_WRAP))
                 .putString(PREF_IV, Base64.encodeToString(iv, Base64.NO_WRAP))
                 .apply()
+        } catch (e: SecurityException) {
+            throw e
         } catch (e: Exception) {
+            if (!isFallbackAllowed(context)) {
+                throw SecurityException("Failed to encrypt database passphrase with Keystore on device: ${e.message}", e)
+            }
             Log.e(TAG, "Failed to encrypt passphrase with Keystore: ${e.message}", e)
         }
 
@@ -400,8 +431,13 @@ object DatabaseKeyManager {
             val encrypted = cipher.doFinal(data)
             Pair(encrypted, iv)
         } catch (e: Exception) {
-            Log.w(TAG, "AndroidKeyStore unavailable, using fallback hardware-derived key: ${e.message}")
-            fallbackEncrypt(data, context)
+            if (isFallbackAllowed(context)) {
+                Log.w(TAG, "AndroidKeyStore unavailable in test/Robolectric environment, using fallback key: ${e.message}")
+                fallbackEncrypt(data, context)
+            } else {
+                Log.e(TAG, "AndroidKeyStore encryption failed on device: ${e.message}", e)
+                throw SecurityException("AndroidKeyStore encryption failed: hardware-backed key is mandatory on production devices", e)
+            }
         }
     }
 
@@ -413,8 +449,13 @@ object DatabaseKeyManager {
             cipher.init(Cipher.DECRYPT_MODE, masterKey, spec)
             cipher.doFinal(encrypted)
         } catch (e: Exception) {
-            Log.w(TAG, "AndroidKeyStore decrypt failed, trying fallback: ${e.message}")
-            fallbackDecrypt(encrypted, iv, context)
+            if (isFallbackAllowed(context)) {
+                Log.w(TAG, "AndroidKeyStore decrypt failed in test/Robolectric environment, trying fallback: ${e.message}")
+                fallbackDecrypt(encrypted, iv, context)
+            } else {
+                Log.e(TAG, "AndroidKeyStore decryption failed on device: ${e.message}", e)
+                throw SecurityException("AndroidKeyStore decryption failed: hardware-backed key is mandatory on production devices", e)
+            }
         }
     }
 
@@ -446,10 +487,11 @@ object DatabaseKeyManager {
     }
 
     /**
-     * Resets in-memory cached passphrase (useful for testing).
+     * Resets in-memory cached passphrase and test flags (useful for testing).
      */
     fun resetForTesting() {
         cachedPassphrase = null
         nativeSqlCipherAvailable = null
+        allowInsecureFallbackForTesting = null
     }
 }

@@ -51,12 +51,10 @@ android {
       isMinifyEnabled = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       
-      // Automatically branch signing configuration using secrets, falling back to debug key safely
+      // Use release signing configuration if secrets are provided; do not fall back to debug key
       val hasReleaseConfig = signingConfigs.findByName("release") != null
-      signingConfig = if (hasReleaseConfig) {
-        signingConfigs.getByName("release")
-      } else {
-        signingConfigs.getByName("debugConfig")
+      if (hasReleaseConfig) {
+        signingConfig = signingConfigs.getByName("release")
       }
     }
     debug {
@@ -81,6 +79,21 @@ android {
       }
     }
   }
+}
+
+// Fail release assemble/bundle tasks immediately if release signing secrets are missing,
+// preventing accidental fallback to debug keystore for release artifacts.
+val isReleaseTaskRequested = gradle.startParameter.taskNames.any {
+  it.contains("assembleRelease", ignoreCase = true) ||
+  it.contains("bundleRelease", ignoreCase = true)
+}
+val hasReleaseSigningConfig = android.signingConfigs.findByName("release") != null
+if (isReleaseTaskRequested && !hasReleaseSigningConfig) {
+  throw GradleException(
+    "Release build failed: Missing release signing configuration. " +
+    "Release signing secrets (KEYSTORE_PATH, STORE_PASSWORD) are not set. " +
+    "Release builds cannot fall back to debug signing."
+  )
 }
 
 // Configure the Secrets Gradle Plugin to use .env and .env.example files

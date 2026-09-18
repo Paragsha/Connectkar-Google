@@ -143,12 +143,12 @@ service cloud.firestore {
 
     match /chefProfiles/{chefUid} {
       allow read: if request.auth != null && (
-        request.auth.token.role == 'ADMIN' ||
+        isAdmin() ||
         (userExists() && getUserData().society == resource.data.society)
       );
 
       allow create, update: if request.auth != null && (
-        request.auth.token.role == 'ADMIN' ||
+        isAdmin() ||
         (
           request.auth.uid == chefUid &&
           userExists() &&
@@ -157,19 +157,19 @@ service cloud.firestore {
       );
 
       allow delete: if request.auth != null && (
-        request.auth.token.role == 'ADMIN' ||
+        isAdmin() ||
         request.auth.uid == chefUid
       );
     }
 
     match /menuItems/{menuItemId} {
       allow read: if request.auth != null && (
-        request.auth.token.role == 'ADMIN' ||
+        isAdmin() ||
         (userExists() && getUserData().society == resource.data.society)
       );
 
       allow create: if request.auth != null && (
-        request.auth.token.role == 'ADMIN' ||
+        isAdmin() ||
         (
           request.resource.data.chefUid == request.auth.uid &&
           userExists() &&
@@ -178,7 +178,7 @@ service cloud.firestore {
       );
 
       allow update: if request.auth != null && (
-        request.auth.token.role == 'ADMIN' ||
+        isAdmin() ||
         (
           resource.data.chefUid == request.auth.uid &&
           request.resource.data.chefUid == resource.data.chefUid &&
@@ -187,7 +187,7 @@ service cloud.firestore {
       );
 
       allow delete: if request.auth != null && (
-        request.auth.token.role == 'ADMIN' ||
+        isAdmin() ||
         resource.data.chefUid == request.auth.uid
       );
     }

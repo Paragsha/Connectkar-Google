@@ -59,6 +59,24 @@ describe('Firestore Security Rules: Price-Tampering Protection', function () {
         society: 'Palm Grove',
         isSoldOut: false
       });
+
+      // Seed admin user whose role is stored in Firestore user document
+      await db.collection('users').doc('admin_user').set({
+        uid: 'admin_user',
+        fullName: 'Admin User',
+        society: 'Palm Grove',
+        isVerified: true,
+        role: 'ADMIN'
+      });
+
+      // Seed an outsider resident from another society
+      await db.collection('users').doc('outsider_user').set({
+        uid: 'outsider_user',
+        fullName: 'Outsider User',
+        society: 'Different Society',
+        isVerified: true,
+        role: 'RESIDENT'
+      });
     });
   });
 
@@ -198,5 +216,59 @@ describe('Firestore Security Rules: Price-Tampering Protection', function () {
     };
 
     await assertSucceeds(buyerDb.collection('mealOrders').doc('order_legit_002').set(legitimatePickupOrder));
+  });
+
+  it('ALLOWS ADMIN ACCESS TO chefProfiles AND menuItems VIA isAdmin() FIRESTORE USER DOC ROLE', async () => {
+    // Authenticated as admin_user (role is stored in Firestore users/admin_user, without token claim)
+    const adminDb = testEnv.authenticatedContext('admin_user').firestore();
+
+    // Admin can create a chef profile for another user
+    await assertSucceeds(adminDb.collection('chefProfiles').doc('chef_456').set({
+      chefUid: 'chef_456',
+      chefName: 'Sunita Sharma',
+      society: 'Palm Grove',
+      bio: 'Authentic Gujarati and North Indian cuisine',
+      specialties: 'Kadhi Khichdi, Dhokla'
+    }));
+
+    // Admin can read any chef profile
+    await assertSucceeds(adminDb.collection('chefProfiles').doc('chef_456').get());
+
+    // Admin can create a menu item for any chef
+    await assertSucceeds(adminDb.collection('menuItems').doc('admin_created_item_001').set({
+      chefUid: 'chef_456',
+      chefName: 'Sunita Sharma',
+      dishName: 'Methi Thepla Combo',
+      price: 120.0,
+      portionsAvailable: 15,
+      portionsBooked: 0,
+      society: 'Palm Grove',
+      isSoldOut: false
+    }));
+
+    // Admin can update a menu item
+    await assertSucceeds(adminDb.collection('menuItems').doc('admin_created_item_001').update({
+      portionsAvailable: 20
+    }));
+
+    // Admin can delete a menu item
+    await assertSucceeds(adminDb.collection('menuItems').doc('admin_created_item_001').delete());
+
+    // Admin can delete a chef profile
+    await assertSucceeds(adminDb.collection('chefProfiles').doc('chef_456').delete());
+  });
+
+  it('REJECTS NON-ADMIN NON-AUTHOR FROM MODIFYING OR DELETING chefProfiles AND menuItems', async () => {
+    const outsiderDb = testEnv.authenticatedContext('outsider_user').firestore();
+
+    // Outsider cannot create a chef profile for another chef
+    await assertFails(outsiderDb.collection('chefProfiles').doc('chef_456').set({
+      chefUid: 'chef_456',
+      chefName: 'Sunita Sharma',
+      society: 'Palm Grove'
+    }));
+
+    // Outsider cannot delete authentic menu item of another chef
+    await assertFails(outsiderDb.collection('menuItems').doc('kadhi_khichdi_001').delete());
   });
 });

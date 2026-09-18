@@ -134,4 +134,34 @@ class DatabaseEncryptionTest {
         DatabaseKeyManager.migrateUnencryptedDatabaseIfNeeded(context, nonExistentDb, passphrase)
         assertFalse(DatabaseKeyManager.isDatabaseUnencrypted(context, nonExistentDb))
     }
+
+    @Test
+    fun testFallback_isRestrictedInProductionAndThrowsSecurityExceptionOnKeystoreFailure() {
+        DatabaseKeyManager.resetForTesting()
+        // Simulate production device environment where insecure fallback is strictly disallowed
+        DatabaseKeyManager.setAllowInsecureFallbackForTesting(false)
+        assertFalse(DatabaseKeyManager.isFallbackAllowed(context))
+
+        try {
+            DatabaseKeyManager.getOrCreatePassphrase(context)
+            org.junit.Assert.fail("Expected SecurityException when Keystore is unavailable and fallback is disallowed")
+        } catch (e: SecurityException) {
+            assertTrue(
+                "Exception message must mention hardware/device Keystore requirement",
+                e.message?.contains("hardware") == true || e.message?.contains("AndroidKeyStore") == true
+            )
+        } finally {
+            DatabaseKeyManager.resetForTesting()
+        }
+    }
+
+    @Test
+    fun testFallback_isAllowedInDefaultRobolectricTestEnvironment() {
+        DatabaseKeyManager.resetForTesting()
+        // In Robolectric, native SQLCipher is absent so fallback is allowed for unit testing
+        assertTrue("Fallback must be permitted in test/Robolectric environment", DatabaseKeyManager.isFallbackAllowed(context))
+        val key = DatabaseKeyManager.getOrCreatePassphrase(context)
+        assertNotNull(key)
+        assertEquals(64, key.size)
+    }
 }
