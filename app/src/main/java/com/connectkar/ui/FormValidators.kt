@@ -114,7 +114,14 @@ object FormValidators {
         propertyType: String = "",
         minDescriptionLength: Int = 10
     ): String? {
-        if (type.equals("PROPERTY", ignoreCase = true)) {
+        if (type.equals("HOME_BUSINESS", ignoreCase = true)) {
+            val hbResult = validateHomeBusiness(
+                title = title,
+                category = category,
+                description = description
+            )
+            return hbResult.titleError ?: hbResult.categoryError ?: hbResult.descriptionError
+        } else if (type.equals("PROPERTY", ignoreCase = true)) {
             if (wingFlatNumber.trim().isBlank()) return "Please enter wing / flat number."
             if (bhkType.trim().isBlank()) return "Please select a BHK configuration."
             if (propertyType.trim().isBlank()) return "Please select a property type."
@@ -133,5 +140,67 @@ object FormValidators {
 
     fun isListingValid(title: String, description: String, category: String): Boolean {
         return title.isNotBlank() && description.isNotBlank() && category.isNotBlank()
+    }
+
+    // HOME_BUSINESS Validation
+    data class HomeBusinessValidationResult(
+        val isValid: Boolean,
+        val titleError: String? = null,
+        val categoryError: String? = null,
+        val descriptionError: String? = null,
+        val whatsappError: String? = null,
+        val instagramError: String? = null
+    )
+
+    private val instagramRegex = Regex("^[A-Za-z0-9._]{1,30}$")
+
+    fun validateHomeBusiness(
+        title: String,
+        category: String,
+        description: String,
+        whatsappNumber: String = "",
+        isSameAsContact: Boolean = true,
+        instagramHandle: String = ""
+    ): HomeBusinessValidationResult {
+        val trimmedTitle = title.trim()
+        val titleError = when {
+            trimmedTitle.isEmpty() -> "Please enter a business title."
+            trimmedTitle.length > 80 -> "Business title must be 80 characters or fewer."
+            else -> null
+        }
+
+        val categoryError = if (category.trim().isEmpty()) "Please select a category." else null
+
+        val trimmedDesc = description.trim()
+        val descriptionError = when {
+            trimmedDesc.isEmpty() -> "Please enter a description."
+            trimmedDesc.length > 500 -> "Description must be 500 characters or fewer."
+            else -> null
+        }
+
+        val whatsappError = if (!isSameAsContact) {
+            val cleanedPhone = whatsappNumber.trim().filter { it.isDigit() }
+            if (cleanedPhone.length < 10) "Please enter a valid WhatsApp phone number (at least 10 digits)." else null
+        } else null
+
+        val trimmedInsta = instagramHandle.trim().removePrefix("@")
+        val instagramError = if (trimmedInsta.isNotEmpty() && !instagramRegex.matches(trimmedInsta)) {
+            "Instagram handle must be 1-30 characters (letters, numbers, periods, underscores)."
+        } else null
+
+        val isValid = titleError == null &&
+                categoryError == null &&
+                descriptionError == null &&
+                whatsappError == null &&
+                instagramError == null
+
+        return HomeBusinessValidationResult(
+            isValid = isValid,
+            titleError = titleError,
+            categoryError = categoryError,
+            descriptionError = descriptionError,
+            whatsappError = whatsappError,
+            instagramError = instagramError
+        )
     }
 }

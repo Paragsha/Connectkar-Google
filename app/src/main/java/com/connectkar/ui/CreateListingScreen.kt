@@ -57,6 +57,11 @@ fun CreateListingScreen(
     val errorMessage by viewModel.errorMessage.collectAsState()
     val uploadProgress by viewModel.uploadProgress.collectAsState()
 
+    // Ensure activeType is set synchronously
+    SideEffect {
+        viewModel.setActiveType(initialType)
+    }
+
     // Initialize state once for this flow
     LaunchedEffect(initialType) {
         viewModel.initForFlow(initialType, currentUser)
@@ -79,7 +84,7 @@ fun CreateListingScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "ConnectKar",
+                            text = if (initialType == "HOME_BUSINESS") "List Your Business" else "ConnectKar",
                             fontWeight = FontWeight.Bold,
                             color = ConciergePrimary,
                             fontSize = 20.sp
@@ -89,8 +94,8 @@ fun CreateListingScreen(
                 navigationIcon = {
                     IconButton(onClick = handleBackAndSave) {
                         Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Close",
+                            if (initialType == "HOME_BUSINESS") Icons.AutoMirrored.Filled.ArrowBack else Icons.Default.Close,
+                            contentDescription = if (initialType == "HOME_BUSINESS") "Back" else "Close",
                             tint = ConciergeOnSurfaceVariant
                         )
                     }
@@ -111,115 +116,117 @@ fun CreateListingScreen(
         },
         containerColor = ConciergeSurface,
         bottomBar = {
-            Surface(
-                tonalElevation = 8.dp,
-                shadowElevation = 16.dp,
-                color = Color.White,
-                modifier = Modifier.navigationBarsPadding()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            if (initialType != "HOME_BUSINESS") {
+                Surface(
+                    tonalElevation = 8.dp,
+                    shadowElevation = 16.dp,
+                    color = Color.White,
+                    modifier = Modifier.navigationBarsPadding()
                 ) {
-                    if (currentStep > 1) {
-                        OutlinedButton(
-                            onClick = { viewModel.prevStep() },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(56.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            border = BorderStroke(1.dp, ConciergeOutlineVariant)
-                        ) {
-                            Icon(Icons.Default.ChevronLeft, contentDescription = null)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Back", fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    Button(
-                        onClick = {
-                            when (currentStep) {
-                                1 -> {
-                                    val ok = viewModel.nextStep()
-                                    if (!ok) {
-                                        viewModel.errorMessage.value?.let { msg ->
-                                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                }
-                                2 -> {
-                                    val ok = viewModel.nextStep()
-                                    if (!ok) {
-                                        viewModel.errorMessage.value?.let { msg ->
-                                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                }
-                                3 -> {
-                                    viewModel.publishListing(currentUser) {
-                                        Toast.makeText(context, "Listing published successfully!", Toast.LENGTH_LONG).show()
-                                        onBack()
-                                    }
-                                    viewModel.errorMessage.value?.let { msg ->
-                                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            }
-                        },
-                        enabled = if (currentStep == 3) !uploadProgress.isUploading else true,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = ConciergePrimary,
-                            contentColor = Color.White,
-                            disabledContainerColor = ConciergePrimary.copy(alpha = 0.5f),
-                            disabledContentColor = Color.White.copy(alpha = 0.8f)
-                        ),
+                    Row(
                         modifier = Modifier
-                            .weight(1.5f)
-                            .height(56.dp)
-                            .testTag(if (currentStep == 3) "create_listing_submit_button" else "next_step_button"),
-                        shape = RoundedCornerShape(16.dp)
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (currentStep == 3 && uploadProgress.isUploading) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        if (currentStep > 1) {
+                            OutlinedButton(
+                                onClick = { viewModel.prevStep() },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(56.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                border = BorderStroke(1.dp, ConciergeOutlineVariant)
                             ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    color = Color.White,
-                                    strokeWidth = 2.dp
-                                )
-                                Text(
-                                    text = if (uploadProgress.total > 0)
-                                        "Uploading (${uploadProgress.completed}/${uploadProgress.total})..."
-                                    else
-                                        "Publishing...",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
+                                Icon(Icons.Default.ChevronLeft, contentDescription = null)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Back", fontWeight = FontWeight.Bold)
                             }
-                        } else {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = when (currentStep) {
-                                        1 -> "Continue"
-                                        2 -> "Review"
-                                        else -> "Publish Listing"
-                                    },
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp
-                                )
-                                Icon(
-                                    imageVector = if (currentStep == 3) Icons.Default.Send else Icons.Default.ChevronRight,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
+                        }
+
+                        Button(
+                            onClick = {
+                                when (currentStep) {
+                                    1 -> {
+                                        val ok = viewModel.nextStep()
+                                        if (!ok) {
+                                            viewModel.errorMessage.value?.let { msg ->
+                                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    }
+                                    2 -> {
+                                        val ok = viewModel.nextStep()
+                                        if (!ok) {
+                                            viewModel.errorMessage.value?.let { msg ->
+                                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    }
+                                    3 -> {
+                                        viewModel.publishListing(currentUser) {
+                                            Toast.makeText(context, "Listing published successfully!", Toast.LENGTH_LONG).show()
+                                            onBack()
+                                        }
+                                        viewModel.errorMessage.value?.let { msg ->
+                                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
+                            },
+                            enabled = if (currentStep == 3) !uploadProgress.isUploading else true,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = ConciergePrimary,
+                                contentColor = Color.White,
+                                disabledContainerColor = ConciergePrimary.copy(alpha = 0.5f),
+                                disabledContentColor = Color.White.copy(alpha = 0.8f)
+                            ),
+                            modifier = Modifier
+                                .weight(1.5f)
+                                .height(56.dp)
+                                .testTag(if (currentStep == 3) "create_listing_submit_button" else "next_step_button"),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            if (currentStep == 3 && uploadProgress.isUploading) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        color = Color.White,
+                                        strokeWidth = 2.dp
+                                    )
+                                    Text(
+                                        text = if (uploadProgress.total > 0)
+                                            "Uploading (${uploadProgress.completed}/${uploadProgress.total})..."
+                                        else
+                                            "Publishing...",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    )
+                                }
+                            } else {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = when (currentStep) {
+                                            1 -> "Continue"
+                                            2 -> "Review"
+                                            else -> "Publish Listing"
+                                        },
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp
+                                    )
+                                    Icon(
+                                        imageVector = if (currentStep == 3) Icons.Default.Send else Icons.Default.ChevronRight,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -228,112 +235,130 @@ fun CreateListingScreen(
         },
         modifier = modifier
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .background(ConciergeSurface)
-        ) {
-            // STEP PROGRESS BAR
-            StepProgressBar(currentStep = currentStep, moduleType = initialType)
-
-            // ERROR BANNER IF ANY
-            if (errorMessage != null) {
-                Surface(
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 6.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.ErrorOutline,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            text = errorMessage!!,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.weight(1f)
-                        )
-                        IconButton(
-                            onClick = { viewModel.clearError() },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = "Dismiss error",
-                                tint = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
+        if (initialType == "HOME_BUSINESS") {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .background(ConciergeSurface)
+            ) {
+                HomeBusinessCreateForm(
+                    viewModel = viewModel,
+                    currentUser = currentUser,
+                    onSuccess = {
+                        Toast.makeText(context, "Business listed successfully!", Toast.LENGTH_LONG).show()
+                        onBack()
                     }
-                }
+                )
             }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .background(ConciergeSurface)
+            ) {
+                // STEP PROGRESS BAR
+                StepProgressBar(currentStep = currentStep, moduleType = initialType)
 
-            // UPLOAD PROGRESS BANNER
-            if (uploadProgress.isUploading) {
-                Surface(
-                    color = ConciergePrimary.copy(alpha = 0.08f),
-                    border = BorderStroke(1.dp, ConciergePrimary.copy(alpha = 0.25f)),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
+                // ERROR BANNER IF ANY
+                if (errorMessage != null) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 6.dp)
+                    ) {
                         Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp,
-                                color = ConciergePrimary
+                            Icon(
+                                Icons.Default.ErrorOutline,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(20.dp)
                             )
                             Text(
-                                text = if (uploadProgress.total > 0)
-                                    "Uploading photo ${uploadProgress.completed} of ${uploadProgress.total} to Firebase Storage..."
-                                else
-                                    "Uploading photo...",
-                                color = ConciergePrimary,
+                                text = errorMessage!!,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
                                 fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.weight(1f)
                             )
-                        }
-                        if (uploadProgress.total > 0) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            LinearProgressIndicator(
-                                progress = { uploadProgress.completed.toFloat() / uploadProgress.total.toFloat() },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(4.dp)
-                                    .clip(RoundedCornerShape(2.dp)),
-                                color = ConciergePrimary,
-                                trackColor = ConciergePrimary.copy(alpha = 0.2f)
-                            )
+                            IconButton(
+                                onClick = { viewModel.clearError() },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Dismiss error",
+                                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-            ) {
-                when (currentStep) {
-                    1 -> Step1BasicInfo(viewModel = viewModel, moduleType = initialType)
-                    2 -> Step2Details(viewModel = viewModel, moduleType = initialType)
-                    3 -> Step3Review(viewModel = viewModel, currentUser = currentUser, moduleType = initialType)
+                // UPLOAD PROGRESS BANNER
+                if (uploadProgress.isUploading) {
+                    Surface(
+                        color = ConciergePrimary.copy(alpha = 0.08f),
+                        border = BorderStroke(1.dp, ConciergePrimary.copy(alpha = 0.25f)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = ConciergePrimary
+                                )
+                                Text(
+                                    text = if (uploadProgress.total > 0)
+                                        "Uploading photo ${uploadProgress.completed} of ${uploadProgress.total} to Firebase Storage..."
+                                    else
+                                        "Uploading photo...",
+                                    color = ConciergePrimary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            if (uploadProgress.total > 0) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                LinearProgressIndicator(
+                                    progress = { uploadProgress.completed.toFloat() / uploadProgress.total.toFloat() },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(4.dp)
+                                        .clip(RoundedCornerShape(2.dp)),
+                                    color = ConciergePrimary,
+                                    trackColor = ConciergePrimary.copy(alpha = 0.2f)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    when (currentStep) {
+                        1 -> Step1BasicInfo(viewModel = viewModel, moduleType = initialType)
+                        2 -> Step2Details(viewModel = viewModel, moduleType = initialType)
+                        3 -> Step3Review(viewModel = viewModel, currentUser = currentUser, moduleType = initialType)
+                    }
                 }
             }
         }
@@ -689,6 +714,15 @@ fun GenericStep1BasicInfo(
             "MEAL" -> listOf("Breakfast", "Lunch Veg", "Lunch Non-Veg", "Dinner Veg", "Dinner Non-Veg", "Home Bakery", "Desserts")
             "VEHICLE" -> listOf("Two Wheeler", "Hatchback", "Sedan", "SUV", "Luxury / Premium")
             "COMMUNITY_POST" -> listOf("General Update", "Notice & Alert", "Society Welfare", "Lost & Found", "Discussion")
+            "HOME_BUSINESS" -> listOf(
+                "Baking & Food",
+                "Tutoring",
+                "Mehndi",
+                "Handmade & Crafts",
+                "3D Printing",
+                "Tailoring",
+                "Other"
+            )
             // Unreachable safety fallback as FEED is removed
             else -> emptyList()
         }
@@ -2854,6 +2888,868 @@ fun GenericStep3Review(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
+            lineHeight = 15.sp
+        )
+    }
+}
+
+@Composable
+fun HomeBusinessCreateForm(
+    viewModel: CreateListingViewModel,
+    currentUser: UserEntity,
+    onSuccess: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val title by viewModel.title.collectAsState()
+    val category by viewModel.category.collectAsState()
+    val description by viewModel.description.collectAsState()
+    val priceRange by viewModel.priceRange.collectAsState()
+    val contactPhone by viewModel.contactPhone.collectAsState()
+    val whatsappNumber by viewModel.whatsappNumber.collectAsState()
+    val isSameAsContact by viewModel.isSameAsContact.collectAsState()
+    val instagramHandle by viewModel.instagramHandle.collectAsState()
+    val isRecurring by viewModel.isRecurring.collectAsState()
+    val selectedPhotos by viewModel.selectedPhotos.collectAsState()
+    val fieldErrors by viewModel.fieldErrors.collectAsState()
+    val uploadProgress by viewModel.uploadProgress.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
+
+    var showEditContactDialog by remember { mutableStateOf(false) }
+    var tempContactPhone by remember { mutableStateOf("") }
+
+    val categories = remember {
+        listOf(
+            "Baking & Food",
+            "Tutoring",
+            "Mehndi",
+            "Handmade & Crafts",
+            "3D Printing",
+            "Tailoring",
+            "Other"
+        )
+    }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            if (selectedPhotos.size < 6) {
+                viewModel.addPhoto(it.toString())
+            } else {
+                Toast.makeText(context, "Maximum 6 photos allowed", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    if (showEditContactDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditContactDialog = false },
+            title = {
+                Text(
+                    text = "Edit Contact Number",
+                    fontWeight = FontWeight.Bold,
+                    color = ConciergePrimary
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Enter a 10-digit mobile number for business inquiries:",
+                        fontSize = 13.sp,
+                        color = ConciergeOnSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = tempContactPhone,
+                        onValueChange = { tempContactPhone = it.filter { ch -> ch.isDigit() }.take(10) },
+                        label = { Text("Phone Number") },
+                        placeholder = { Text("e.g. 9876543210") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        modifier = Modifier.fillMaxWidth().testTag("edit_contact_phone_input"),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (tempContactPhone.length == 10) {
+                            viewModel.setContactPhone(tempContactPhone)
+                            showEditContactDialog = false
+                        } else {
+                            Toast.makeText(context, "Enter a valid 10-digit number", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ConciergePrimary)
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditContactDialog = false }) {
+                    Text("Cancel", color = ConciergeOnSurfaceVariant)
+                }
+            }
+        )
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 16.dp)
+            .padding(bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        // ERROR BANNER IF ANY
+        if (errorMessage != null) {
+            Surface(
+                color = MaterialTheme.colorScheme.errorContainer,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        Icons.Default.ErrorOutline,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = errorMessage!!,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = { viewModel.clearError() },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Dismiss error",
+                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // 1. INFO BANNER
+        Surface(
+            color = ConciergeSurfaceContainerLow,
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, ConciergeOutlineVariant.copy(alpha = 0.5f)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(ConciergePrimary.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Storefront,
+                        contentDescription = null,
+                        tint = ConciergePrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "Grow inside your community",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = ConciergePrimary
+                    )
+                    Text(
+                        text = "Listings are visible only to verified residents of ${currentUser.society.ifBlank { "your society" }}. Keep transactions direct, transparent, and trusted.",
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp,
+                        color = ConciergeOnSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        // 2. BUSINESS NAME (TITLE)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "BUSINESS NAME *",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ConciergeOnSurfaceVariant,
+                    letterSpacing = 1.sp
+                )
+                Text(
+                    text = "${title.length}/80",
+                    fontSize = 11.sp,
+                    color = if (title.length > 80) MaterialTheme.colorScheme.error else ConciergeOnSurfaceVariant,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            OutlinedTextField(
+                value = title,
+                onValueChange = { viewModel.setTitle(it) },
+                placeholder = { Text("e.g. Grandma's Sourdough Bakery") },
+                singleLine = true,
+                isError = fieldErrors["title"] != null || title.length > 80,
+                supportingText = {
+                    if (fieldErrors["title"] != null) {
+                        Text(
+                            text = fieldErrors["title"]!!,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 12.sp
+                        )
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("home_business_title_input"),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = ConciergePrimary,
+                    unfocusedBorderColor = ConciergeOutlineVariant
+                )
+            )
+        }
+
+        // 3. CATEGORY CHIPS
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = "CATEGORY *",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = ConciergeOnSurfaceVariant,
+                letterSpacing = 1.sp
+            )
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(categories) { cat ->
+                    val isSelected = category.equals(cat, ignoreCase = true)
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { viewModel.setCategory(cat) },
+                        label = {
+                            Text(
+                                text = cat,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                fontSize = 13.sp
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = ConciergePrimary,
+                            selectedLabelColor = Color.White,
+                            containerColor = ConciergeSurfaceContainerLow,
+                            labelColor = ConciergeOnSurface
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            borderColor = if (isSelected) ConciergePrimary else ConciergeOutlineVariant,
+                            selectedBorderColor = ConciergePrimary,
+                            enabled = true,
+                            selected = isSelected
+                        ),
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.testTag("home_business_category_$cat")
+                    )
+                }
+            }
+            if (fieldErrors["category"] != null) {
+                Text(
+                    text = fieldErrors["category"]!!,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+            }
+        }
+
+        // 4. OWNER INFO (READ ONLY) + VERIFIED RESIDENT CHIP
+        Surface(
+            color = ConciergeSurfaceContainerLow,
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(1.dp, ConciergeOutlineVariant.copy(alpha = 0.6f)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(ConciergePrimaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = currentUser.fullName.take(1).uppercase(),
+                            color = ConciergeOnPrimaryContainer,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = currentUser.fullName.ifBlank { "Resident" },
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = ConciergeOnSurface
+                        )
+                        Text(
+                            text = "${currentUser.blockTower.ifBlank { "Tower" }} - ${currentUser.flatNumber.ifBlank { "Flat" }}",
+                            fontSize = 12.sp,
+                            color = ConciergeOnSurfaceVariant
+                        )
+                    }
+                }
+                Surface(
+                    color = ConciergeVegGreenLight,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, ConciergeVegGreenBorder)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = ConciergeVegGreen,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "Verified Resident",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = ConciergeVegGreenDark
+                        )
+                    }
+                }
+            }
+        }
+
+        // 5. CONTACT PHONE + EDIT BUTTON
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = "PRIMARY CONTACT NUMBER",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = ConciergeOnSurfaceVariant,
+                letterSpacing = 1.sp
+            )
+            Surface(
+                color = Color.White,
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, ConciergeOutlineVariant),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Phone,
+                            contentDescription = null,
+                            tint = ConciergePrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        val displayPhone = contactPhone.ifBlank { currentUser.phoneNumber }
+                        Text(
+                            text = displayPhone.ifBlank { "No number set" },
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = ConciergeOnSurface
+                        )
+                    }
+                    TextButton(
+                        onClick = {
+                            tempContactPhone = contactPhone.ifBlank { currentUser.phoneNumber }
+                            showEditContactDialog = true
+                        },
+                        modifier = Modifier.testTag("home_business_edit_contact_button")
+                    ) {
+                        Text(
+                            text = "EDIT",
+                            color = ConciergePrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        // 6. WHATSAPP NUMBER + "SAME AS CONTACT" SWITCH
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "WHATSAPP NUMBER",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ConciergeOnSurfaceVariant,
+                    letterSpacing = 1.sp
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "Same as contact",
+                        fontSize = 12.sp,
+                        color = ConciergeOnSurfaceVariant
+                    )
+                    Switch(
+                        checked = isSameAsContact,
+                        onCheckedChange = { viewModel.setSameAsContact(it) },
+                        modifier = Modifier.testTag("home_business_same_as_contact_switch"),
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = ConciergePrimary
+                        )
+                    )
+                }
+            }
+
+            if (!isSameAsContact) {
+                OutlinedTextField(
+                    value = whatsappNumber,
+                    onValueChange = { viewModel.setWhatsappNumber(it.filter { ch -> ch.isDigit() }.take(10)) },
+                    placeholder = { Text("10-digit WhatsApp number") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    isError = fieldErrors["whatsappNumber"] != null,
+                    supportingText = {
+                        if (fieldErrors["whatsappNumber"] != null) {
+                            Text(
+                                text = fieldErrors["whatsappNumber"]!!,
+                                color = MaterialTheme.colorScheme.error,
+                                fontSize = 12.sp
+                            )
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("home_business_whatsapp_input"),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ConciergePrimary,
+                        unfocusedBorderColor = ConciergeOutlineVariant
+                    )
+                )
+            }
+        }
+
+        // 7. DESCRIPTION (0/500)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "ABOUT YOUR BUSINESS *",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ConciergeOnSurfaceVariant,
+                    letterSpacing = 1.sp
+                )
+                Text(
+                    text = "${description.length}/500",
+                    fontSize = 11.sp,
+                    color = if (description.length > 500) MaterialTheme.colorScheme.error else ConciergeOnSurfaceVariant,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            OutlinedTextField(
+                value = description,
+                onValueChange = { viewModel.setDescription(it) },
+                placeholder = { Text("Describe what you offer, menu or services, ordering lead times, specialities...") },
+                minLines = 4,
+                maxLines = 8,
+                isError = fieldErrors["description"] != null || description.length > 500,
+                supportingText = {
+                    if (fieldErrors["description"] != null) {
+                        Text(
+                            text = fieldErrors["description"]!!,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 12.sp
+                        )
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("home_business_description_input"),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = ConciergePrimary,
+                    unfocusedBorderColor = ConciergeOutlineVariant
+                )
+            )
+        }
+
+        // 8. PRICE RANGE (FREE TEXT / OPTIONAL)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                text = "PRICE RANGE (OPTIONAL)",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = ConciergeOnSurfaceVariant,
+                letterSpacing = 1.sp
+            )
+            OutlinedTextField(
+                value = priceRange,
+                onValueChange = { viewModel.setPriceRange(it) },
+                placeholder = { Text("e.g. ₹200 - ₹1,500 or ₹500/hr") },
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("home_business_price_range_input"),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = ConciergePrimary,
+                    unfocusedBorderColor = ConciergeOutlineVariant
+                )
+            )
+        }
+
+        // 9. PHOTOS (UP TO 6)
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "PHOTOS",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ConciergeOnSurfaceVariant,
+                    letterSpacing = 1.sp
+                )
+                Text(
+                    text = "${selectedPhotos.size}/6",
+                    fontSize = 11.sp,
+                    color = ConciergeOnSurfaceVariant,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            if (selectedPhotos.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(ConciergeSurfaceContainerLow)
+                        .border(1.dp, ConciergeOutlineVariant, RoundedCornerShape(14.dp))
+                        .clickable { photoPickerLauncher.launch("image/*") }
+                        .testTag("home_business_photo_picker_empty"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.AddPhotoAlternate,
+                            contentDescription = null,
+                            tint = ConciergePrimary,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Text(
+                            text = "Add photos of your products or work",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp,
+                            color = ConciergeOnSurface
+                        )
+                        Text(
+                            text = "Up to 6 images (JPG, PNG)",
+                            fontSize = 11.sp,
+                            color = ConciergeOnSurfaceVariant
+                        )
+                    }
+                }
+            } else {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    items(selectedPhotos) { photoUri ->
+                        Box(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .border(1.dp, ConciergeOutlineVariant, RoundedCornerShape(12.dp))
+                        ) {
+                            AsyncImage(
+                                model = photoUri,
+                                contentDescription = "Business Photo",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .padding(4.dp)
+                                    .size(22.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.Black.copy(alpha = 0.65f))
+                                    .clickable { viewModel.removePhoto(photoUri) }
+                                    .align(Alignment.TopEnd),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Remove photo",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                            }
+                        }
+                    }
+                    if (selectedPhotos.size < 6) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .size(96.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(ConciergeSurfaceContainerLow)
+                                    .border(1.dp, ConciergeOutlineVariant, RoundedCornerShape(12.dp))
+                                    .clickable { photoPickerLauncher.launch("image/*") }
+                                    .testTag("home_business_add_more_photos"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Add,
+                                    contentDescription = "Add More",
+                                    tint = ConciergePrimary,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 10. INSTAGRAM (OPTIONAL)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                text = "INSTAGRAM (OPTIONAL)",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = ConciergeOnSurfaceVariant,
+                letterSpacing = 1.sp
+            )
+            OutlinedTextField(
+                value = instagramHandle,
+                onValueChange = { viewModel.setInstagramHandle(it) },
+                placeholder = { Text("@yourhandle") },
+                singleLine = true,
+                isError = fieldErrors["instagramHandle"] != null,
+                supportingText = {
+                    if (fieldErrors["instagramHandle"] != null) {
+                        Text(
+                            text = fieldErrors["instagramHandle"]!!,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 12.sp
+                        )
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("home_business_instagram_input"),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = ConciergePrimary,
+                    unfocusedBorderColor = ConciergeOutlineVariant
+                )
+            )
+        }
+
+        // 11. RECURRING SWITCH (DEFAULT ON)
+        Surface(
+            color = Color.White,
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(1.dp, ConciergeOutlineVariant),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "Ongoing / Recurring Business",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                        color = ConciergeOnSurface
+                    )
+                    Text(
+                        text = "Keeps listing active indefinitely. Turn off for limited-time or pop-up offers.",
+                        fontSize = 12.sp,
+                        color = ConciergeOnSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = isRecurring,
+                    onCheckedChange = { viewModel.setRecurring(it) },
+                    modifier = Modifier.testTag("home_business_recurring_switch"),
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = ConciergePrimary
+                    )
+                )
+            }
+        }
+
+        // UPLOAD PROGRESS BANNER
+        if (uploadProgress.isUploading) {
+            Surface(
+                color = ConciergePrimary.copy(alpha = 0.08f),
+                border = BorderStroke(1.dp, ConciergePrimary.copy(alpha = 0.25f)),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = ConciergePrimary
+                        )
+                        Text(
+                            text = if (uploadProgress.total > 0)
+                                "Uploading photo ${uploadProgress.completed} of ${uploadProgress.total} to Firebase Storage..."
+                            else
+                                "Publishing business...",
+                            color = ConciergePrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    if (uploadProgress.total > 0) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LinearProgressIndicator(
+                            progress = { uploadProgress.completed.toFloat() / uploadProgress.total.toFloat() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp)),
+                            color = ConciergePrimary,
+                            trackColor = ConciergePrimary.copy(alpha = 0.2f)
+                        )
+                    }
+                }
+            }
+        }
+
+        // 12. POST BUSINESS BUTTON
+        Button(
+            onClick = {
+                if (!currentUser.isVerified) {
+                    Toast.makeText(context, "Resident verification is required to create listings.", Toast.LENGTH_SHORT).show()
+                    return@Button
+                }
+                val errors = viewModel.validateAllFields()
+                if (errors.isNotEmpty()) {
+                    viewModel.errorMessage.value?.let { msg ->
+                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                    }
+                    return@Button
+                }
+                viewModel.publishListing(currentUser) {
+                    onSuccess()
+                }
+            },
+            enabled = !uploadProgress.isUploading,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = ConciergePrimary,
+                contentColor = Color.White,
+                disabledContainerColor = ConciergePrimary.copy(alpha = 0.5f),
+                disabledContentColor = Color.White.copy(alpha = 0.8f)
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(54.dp)
+                .testTag("home_business_submit_button"),
+            shape = RoundedCornerShape(14.dp)
+        ) {
+            if (uploadProgress.isUploading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = Color.White,
+                    strokeWidth = 2.dp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (uploadProgress.total > 0)
+                        "Uploading (${uploadProgress.completed}/${uploadProgress.total})..."
+                    else
+                        "Posting...",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+            } else {
+                Text(
+                    text = "Post Business",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            }
+        }
+
+        // 13. BYLAW NOTICE
+        Text(
+            text = "By listing, you agree to comply with society commercial bylaws, noise hours, and delivery protocols. ConnectKar does not mediate commercial disputes.",
+            fontSize = 11.sp,
+            color = ConciergeOnSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp),
             lineHeight = 15.sp
         )
     }

@@ -92,10 +92,13 @@ data class EventDetailsJson(val eventLocation: String, val timing: String)
 
 @com.squareup.moshi.JsonClass(generateAdapter = true)
 data class HomeBusinessDetailsJson(
-    val category: String = "All",
+    val category: String = "",
     val operatesFromFlat: String = "",
     val businessHours: String = "",
-    val priceRange: String = ""
+    val priceRange: String = "",
+    val whatsappNumber: String? = null,
+    val instagramHandle: String? = null,
+    val isRecurring: Boolean = true
 )
 
 @com.squareup.moshi.JsonClass(generateAdapter = true)
@@ -125,6 +128,11 @@ data class ExtendedMarketplaceDetails(
 fun ListingEntity.propertyDetails(): ExtendedMarketplaceDetails {
     if (detailsJson.isBlank()) return ExtendedMarketplaceDetails()
     return MoshiHelper.fromJson<ExtendedMarketplaceDetails>(detailsJson) ?: ExtendedMarketplaceDetails()
+}
+
+fun ListingEntity.homeBusinessDetails(): HomeBusinessDetailsJson {
+    if (detailsJson.isBlank()) return HomeBusinessDetailsJson()
+    return MoshiHelper.fromJson<HomeBusinessDetailsJson>(detailsJson) ?: HomeBusinessDetailsJson()
 }
 
 fun ListingEntity.photoUrls(): List<String> {
@@ -225,8 +233,15 @@ data class ListingEntity(
                     }
                     "HOME_BUSINESS" -> {
                         val obj = MoshiHelper.fromJson<HomeBusinessDetailsJson>(detailsJson)
-                        if (obj != null) ListingDetails.HomeBusiness(obj.category, obj.operatesFromFlat, obj.businessHours, obj.priceRange)
-                        else ListingDetails.HomeBusiness(category, extra1, extra2, extra3)
+                        if (obj != null) ListingDetails.HomeBusiness(
+                            category = obj.category,
+                            operatesFromFlat = obj.operatesFromFlat,
+                            businessHours = obj.businessHours,
+                            priceRange = obj.priceRange,
+                            whatsappNumber = obj.whatsappNumber,
+                            instagramHandle = obj.instagramHandle,
+                            isRecurring = obj.isRecurring
+                        ) else ListingDetails.HomeBusiness(category, extra1, extra2, extra3)
                     }
                     else -> ListingDetails.GeneralFeed
                 }
@@ -249,6 +264,7 @@ data class ListingEntity(
 }
 
 fun ListingEntity.withSerializedDetails(): ListingEntity {
+    if (!detailsJson.isNullOrBlank()) return this
     val jsonStr = when (type) {
         "MARKETPLACE" -> MoshiHelper.toJson(MarketplaceDetailsJson(category))
         "SERVICE" -> MoshiHelper.toJson(ServiceDetailsJson(extra4.ifEmpty { "4.5" }, price))
@@ -303,6 +319,14 @@ sealed class ListingDetails {
     data class Meal(val deliveryInfo: String, val mealPrice: Double) : ListingDetails()
     data class Vehicle(val plateNumber: String, val vehicleModel: String, val locationSpot: String, val securityTag: String) : ListingDetails()
     data class Event(val eventLocation: String, val timing: String) : ListingDetails()
-    data class HomeBusiness(val category: String, val operatesFromFlat: String, val businessHours: String, val priceRange: String) : ListingDetails()
+    data class HomeBusiness(
+        val category: String,
+        val operatesFromFlat: String,
+        val businessHours: String,
+        val priceRange: String,
+        val whatsappNumber: String? = null,
+        val instagramHandle: String? = null,
+        val isRecurring: Boolean = true
+    ) : ListingDetails()
     object GeneralFeed : ListingDetails()
 }

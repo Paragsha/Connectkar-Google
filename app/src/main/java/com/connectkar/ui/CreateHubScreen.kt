@@ -1,5 +1,6 @@
 package com.connectkar.ui
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -64,6 +66,7 @@ fun CreateHubScreen(
 ) {
     val searchQuery by viewModel.searchQuery.collectAsState()
     val recentlyUsedIds by viewModel.recentlyUsed.collectAsState()
+    val context = LocalContext.current
 
     // Retrieve active society name dynamically (with fallback)
     val societyName = remember(currentUser.society) {
@@ -377,8 +380,12 @@ fun CreateHubScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                viewModel.selectCategory(suggestedCategory.id)
-                                onNavigateToCreateFlow(suggestedCategory.id)
+                                if (currentUser.isVerified) {
+                                    viewModel.selectCategory(suggestedCategory.id)
+                                    onNavigateToCreateFlow(suggestedCategory.id)
+                                } else {
+                                    Toast.makeText(context, "Resident verification is required to create listings.", Toast.LENGTH_SHORT).show()
+                                }
                             }
                             .testTag(suggestedCategory.testTag),
                         shape = RoundedCornerShape(20.dp),
@@ -478,8 +485,12 @@ fun CreateHubScreen(
                                     modifier = Modifier
                                         .width(72.dp)
                                         .clickable {
-                                            viewModel.selectCategory(category.id)
-                                            onNavigateToCreateFlow(category.id)
+                                            if (currentUser.isVerified) {
+                                                viewModel.selectCategory(category.id)
+                                                onNavigateToCreateFlow(category.id)
+                                            } else {
+                                                Toast.makeText(context, "Resident verification is required to create listings.", Toast.LENGTH_SHORT).show()
+                                            }
                                         }
                                         .testTag("recently_used_chip_${category.id.lowercase()}")
                                 ) {
@@ -579,8 +590,12 @@ fun CreateHubScreen(
                                     .fillMaxWidth()
                                     .height(136.dp)
                                     .clickable {
-                                        viewModel.selectCategory(category.id)
-                                        onNavigateToCreateFlow(category.id)
+                                        if (currentUser.isVerified) {
+                                            viewModel.selectCategory(category.id)
+                                            onNavigateToCreateFlow(category.id)
+                                        } else {
+                                            Toast.makeText(context, "Resident verification is required to create listings.", Toast.LENGTH_SHORT).show()
+                                        }
                                     }
                                     .testTag(category.testTag),
                                 shape = RoundedCornerShape(20.dp),

@@ -911,47 +911,55 @@ fun ModuleSpecificContent(listing: ListingEntity) {
                     .background(Color(0xFFF1F5F9))
                     .padding(10.dp)
             ) {
+                val categoryText = details.category.ifEmpty { listing.category.ifEmpty { "Home Business" } }
+                val hasPrice = details.priceRange.isNotBlank() || listing.price > 0
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(MaterialTheme.shapes.extraSmall)
-                            .background(ConciergePrimaryContainer.copy(alpha = 0.12f))
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                    ) {
-                        Text(
-                            text = details.category.ifEmpty { listing.category.ifEmpty { "Home Business" } },
-                            color = ConciergePrimaryContainer,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold
-                        )
+                    if (categoryText.isNotBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .clip(MaterialTheme.shapes.extraSmall)
+                                .background(ConciergePrimaryContainer.copy(alpha = 0.12f))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = categoryText,
+                                color = ConciergePrimaryContainer,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
-                    if (details.priceRange.isNotEmpty() || listing.price > 0) {
+                    if (hasPrice) {
                         Text(
-                            text = if (details.priceRange.isNotEmpty()) details.priceRange else "₹${listing.price.toInt()}",
+                            text = if (details.priceRange.isNotBlank()) details.priceRange else "₹${listing.price.toInt()}",
                             color = ConciergePrimaryContainer,
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.ExtraBold
                         )
                     }
                 }
-                if (details.businessHours.isNotEmpty() || details.operatesFromFlat.isNotEmpty()) {
+
+                val hasUnit = details.operatesFromFlat.isNotBlank()
+                val hasHours = details.businessHours.isNotBlank()
+                if (hasUnit || hasHours) {
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        if (details.operatesFromFlat.isNotEmpty()) {
+                        if (hasUnit) {
                             Text(
                                 text = "Unit: ${details.operatesFromFlat}",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = BrandSlate
                             )
                         }
-                        if (details.businessHours.isNotEmpty()) {
+                        if (hasHours) {
                             Text(
                                 text = details.businessHours,
                                 style = MaterialTheme.typography.labelMedium,
@@ -959,6 +967,17 @@ fun ModuleSpecificContent(listing: ListingEntity) {
                             )
                         }
                     }
+                }
+
+                val hasInstagram = !details.instagramHandle.isNullOrBlank()
+                if (hasInstagram) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "@${details.instagramHandle!!.removePrefix("@")}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = BrandIndigo,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
         }

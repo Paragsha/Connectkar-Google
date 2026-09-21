@@ -758,22 +758,24 @@ class TownshipRepository(
         appDao.deleteListingById(id)
     }
 
-    // Modified insertListing to write to Firestore first and then cache locally
+    // Modified insertListing to write to local DB first and then sync to Firestore
     suspend fun insertListing(listing: ListingEntity) {
         val typedListing = listing.withSerializedDetails()
         val firestore = FirebaseManager.firestore
         if (firestore != null) {
             val docRef = firestore.collection("listings").document()
-            val finalListing = typedListing.copy(firestoreId = docRef.id, pendingSync = false)
+            val initialListing = typedListing.copy(firestoreId = docRef.id, pendingSync = true)
+            val insertedRowId = appDao.insertListing(initialListing)
+            val finalListing = initialListing.copy(id = insertedRowId.toInt(), pendingSync = false)
             val listingMap = finalListing.toFirestoreMap()
-            try {
-                docRef.set(listingMap).await()
-                appDao.insertListing(finalListing)
-            } catch (e: Exception) {
-                android.util.Log.e("Firestore", "Error creating listing: ${e.message}")
-                val fallbackListing = typedListing.copy(firestoreId = docRef.id, pendingSync = true)
-                appDao.insertListing(fallbackListing) // fallback to local with pendingSync
-                scheduleSyncJob()
+            scope.launch {
+                try {
+                    docRef.set(listingMap).await()
+                    appDao.updateListing(finalListing)
+                } catch (e: Exception) {
+                    android.util.Log.e("Firestore", "Error creating listing: ${e.message}")
+                    scheduleSyncJob()
+                }
             }
         } else {
             val fallbackListing = typedListing.copy(firestoreId = "local_${System.currentTimeMillis()}", pendingSync = true)

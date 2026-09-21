@@ -5,9 +5,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.connectkar.ConnectKarApplication
 import com.connectkar.data.local.ExtendedMarketplaceDetails
+import com.connectkar.data.local.HomeBusinessDetailsJson
 import com.connectkar.data.local.ListingEntity
 import com.connectkar.data.local.MoshiHelper
 import com.connectkar.data.local.UserEntity
+import com.connectkar.data.local.homeBusinessDetails
 import com.connectkar.data.local.photoUrls
 import com.connectkar.data.repository.TownshipRepository
 import com.squareup.moshi.JsonClass
@@ -136,9 +138,32 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
     private val _verificationRequested = MutableStateFlow(false)
     val verificationRequested: StateFlow<Boolean> = _verificationRequested.asStateFlow()
 
+    // Home Business Specific StateFlows
+    private val _priceRange = MutableStateFlow("")
+    val priceRange: StateFlow<String> = _priceRange.asStateFlow()
+
+    private val _contactPhone = MutableStateFlow("")
+    val contactPhone: StateFlow<String> = _contactPhone.asStateFlow()
+
+    private val _whatsappNumber = MutableStateFlow("")
+    val whatsappNumber: StateFlow<String> = _whatsappNumber.asStateFlow()
+
+    private val _isSameAsContact = MutableStateFlow(true)
+    val isSameAsContact: StateFlow<Boolean> = _isSameAsContact.asStateFlow()
+
+    private val _instagramHandle = MutableStateFlow("")
+    val instagramHandle: StateFlow<String> = _instagramHandle.asStateFlow()
+
+    private val _isRecurring = MutableStateFlow(true)
+    val isRecurring: StateFlow<Boolean> = _isRecurring.asStateFlow()
+
     // Track the active draft ID if any
     private var activeDraftId: Int = 0
     private var activeType: String = "MARKETPLACE"
+
+    fun setActiveType(type: String) {
+        activeType = type
+    }
 
     fun initForFlow(type: String, currentUser: UserEntity) {
         activeType = type
@@ -146,6 +171,42 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
         _errorMessage.value = null
         _fieldErrors.value = emptyMap()
         storageListingKey = "listing_${System.currentTimeMillis()}_${java.util.UUID.randomUUID().toString().take(6)}"
+
+        // Reset state synchronously to avoid racing with immediate user input
+        activeDraftId = 0
+        _title.value = ""
+        _description.value = ""
+        _price.value = ""
+        _category.value = ""
+        _condition.value = "Like New"
+        _isSocietyOnly.value = true
+        _selectedPhotos.value = emptyList()
+        _uploadedPhotoUrls.value = emptyMap()
+        _brand.value = ""
+        _model.value = ""
+        _itemAge.value = "New"
+        _quantity.value = 1
+        _meetupLocation.value = "Main Gate"
+        _preferredDays.value = emptyList()
+        _timePreference.value = "Evening"
+        _isNegotiable.value = true
+        _paymentMethods.value = listOf("UPI", "Cash")
+        _wingFlatNumber.value = ""
+        _bhkType.value = ""
+        _furnishedStatus.value = ""
+        _propertyType.value = ""
+        _beds.value = 0
+        _baths.value = 0
+        _sqft.value = 0
+        _amenities.value = emptyList()
+        _isAvailable.value = true
+        _verificationRequested.value = false
+        _priceRange.value = ""
+        _contactPhone.value = currentUser.phoneNumber
+        _whatsappNumber.value = currentUser.phoneNumber
+        _isSameAsContact.value = true
+        _instagramHandle.value = ""
+        _isRecurring.value = true
 
         viewModelScope.launch {
             val draft = repository.getDraftListing(type)
@@ -174,61 +235,43 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
 
                 // Load step 2 details
                 if (draft.detailsJson.isNotEmpty()) {
-                    val extended = MoshiHelper.fromJson<ExtendedMarketplaceDetails>(draft.detailsJson)
-                    if (extended != null) {
-                        _brand.value = extended.brand
-                        _model.value = extended.model
-                        _itemAge.value = extended.itemAge
-                        _quantity.value = extended.quantity
-                        _meetupLocation.value = extended.meetupLocation
-                        _preferredDays.value = extended.preferredDays
-                        _timePreference.value = extended.timePreference
-                        _isNegotiable.value = extended.isNegotiable
-                        _paymentMethods.value = extended.paymentMethods
-                        // Property fields
-                        _wingFlatNumber.value = extended.wingFlatNumber
-                        _bhkType.value = extended.bhkType
-                        _furnishedStatus.value = extended.furnishedStatus
-                        _propertyType.value = extended.propertyType
-                        _beds.value = extended.beds
-                        _baths.value = extended.baths
-                        _sqft.value = extended.sqft
-                        _amenities.value = extended.amenities
-                        _isAvailable.value = extended.isAvailable
-                        _verificationRequested.value = extended.verificationRequested
+                    if (type == "HOME_BUSINESS") {
+                        val hb = MoshiHelper.fromJson<HomeBusinessDetailsJson>(draft.detailsJson)
+                        if (hb != null) {
+                            _category.value = hb.category
+                            _priceRange.value = hb.priceRange
+                            _whatsappNumber.value = hb.whatsappNumber ?: ""
+                            _instagramHandle.value = hb.instagramHandle ?: ""
+                            _isRecurring.value = hb.isRecurring
+                            _contactPhone.value = draft.authorPhone ?: currentUser.phoneNumber
+                            _isSameAsContact.value = (hb.whatsappNumber == null || hb.whatsappNumber == draft.authorPhone || hb.whatsappNumber == currentUser.phoneNumber)
+                        }
+                    } else {
+                        val extended = MoshiHelper.fromJson<ExtendedMarketplaceDetails>(draft.detailsJson)
+                        if (extended != null) {
+                            _brand.value = extended.brand
+                            _model.value = extended.model
+                            _itemAge.value = extended.itemAge
+                            _quantity.value = extended.quantity
+                            _meetupLocation.value = extended.meetupLocation
+                            _preferredDays.value = extended.preferredDays
+                            _timePreference.value = extended.timePreference
+                            _isNegotiable.value = extended.isNegotiable
+                            _paymentMethods.value = extended.paymentMethods
+                            // Property fields
+                            _wingFlatNumber.value = extended.wingFlatNumber
+                            _bhkType.value = extended.bhkType
+                            _furnishedStatus.value = extended.furnishedStatus
+                            _propertyType.value = extended.propertyType
+                            _beds.value = extended.beds
+                            _baths.value = extended.baths
+                            _sqft.value = extended.sqft
+                            _amenities.value = extended.amenities
+                            _isAvailable.value = extended.isAvailable
+                            _verificationRequested.value = extended.verificationRequested
+                        }
                     }
                 }
-            } else {
-                // Clear state for new creation
-                activeDraftId = 0
-                _title.value = ""
-                _description.value = ""
-                _price.value = ""
-                _category.value = ""
-                _condition.value = "Like New"
-                _isSocietyOnly.value = true
-                _selectedPhotos.value = emptyList()
-                _uploadedPhotoUrls.value = emptyMap()
-                _brand.value = ""
-                _model.value = ""
-                _itemAge.value = "New"
-                _quantity.value = 1
-                _meetupLocation.value = "Main Gate"
-                _preferredDays.value = emptyList()
-                _timePreference.value = "Evening"
-                _isNegotiable.value = true
-                _paymentMethods.value = listOf("UPI", "Cash")
-                // Property defaults
-                _wingFlatNumber.value = ""
-                _bhkType.value = ""
-                _furnishedStatus.value = ""
-                _propertyType.value = ""
-                _beds.value = 0
-                _baths.value = 0
-                _sqft.value = 0
-                _amenities.value = emptyList()
-                _isAvailable.value = true
-                _verificationRequested.value = false
             }
         }
     }
@@ -335,11 +378,51 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
     fun setAvailable(value: Boolean) { _isAvailable.value = value }
     fun setVerificationRequested(value: Boolean) { _verificationRequested.value = value }
 
+    // Home Business Setters
+    fun setPriceRange(value: String) { _priceRange.value = value }
+    fun setContactPhone(value: String) {
+        _contactPhone.value = value
+        if (_isSameAsContact.value) {
+            _whatsappNumber.value = value
+        }
+    }
+    fun setWhatsappNumber(value: String) {
+        _whatsappNumber.value = value
+        clearFieldError("whatsappNumber")
+    }
+    fun setSameAsContact(value: Boolean) {
+        _isSameAsContact.value = value
+        if (value) {
+            _whatsappNumber.value = _contactPhone.value
+            clearFieldError("whatsappNumber")
+        }
+    }
+    fun setInstagramHandle(value: String) {
+        _instagramHandle.value = value
+        clearFieldError("instagramHandle")
+    }
+    fun setRecurring(value: Boolean) { _isRecurring.value = value }
+
     fun validateAllFields(): Map<String, String> {
         val errors = mutableMapOf<String, String>()
         val isProperty = activeType.equals("PROPERTY", ignoreCase = true)
+        val isHomeBusiness = activeType.equals("HOME_BUSINESS", ignoreCase = true)
 
-        if (isProperty) {
+        if (isHomeBusiness) {
+            val hbResult = FormValidators.validateHomeBusiness(
+                title = _title.value,
+                category = _category.value,
+                description = _description.value,
+                whatsappNumber = _whatsappNumber.value,
+                isSameAsContact = _isSameAsContact.value,
+                instagramHandle = _instagramHandle.value
+            )
+            hbResult.titleError?.let { errors["title"] = it }
+            hbResult.categoryError?.let { errors["category"] = it }
+            hbResult.descriptionError?.let { errors["description"] = it }
+            hbResult.whatsappError?.let { errors["whatsappNumber"] = it }
+            hbResult.instagramError?.let { errors["instagramHandle"] = it }
+        } else if (isProperty) {
             if (_wingFlatNumber.value.trim().isBlank()) {
                 errors["wingFlatNumber"] = "Please enter wing / flat number."
             }
@@ -365,6 +448,12 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
             if (!FormValidators.isDescriptionValid(_description.value, 10)) {
                 errors["description"] = "Description must be at least 10 characters."
             }
+        }
+        _fieldErrors.value = errors
+        if (errors.isNotEmpty()) {
+            _errorMessage.value = errors.values.firstOrNull()
+        } else {
+            _errorMessage.value = null
         }
         return errors
     }
@@ -494,7 +583,10 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
             _errorMessage.value = validationError
             // Return to step where the error occurred so user can see inline error
             val isProperty = activeType.equals("PROPERTY", ignoreCase = true)
-            if (isProperty) {
+            val isHomeBusiness = activeType.equals("HOME_BUSINESS", ignoreCase = true)
+            if (isHomeBusiness) {
+                _currentStep.value = 1
+            } else if (isProperty) {
                 if (errors.containsKey("wingFlatNumber") || errors.containsKey("bhkType") || errors.containsKey("propertyType")) {
                     _currentStep.value = 1
                 } else if (errors.containsKey("price")) {
@@ -595,31 +687,49 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
     ): ListingEntity {
         val priceVal = _price.value.toDoubleOrNull() ?: 0.0
         val isProperty = activeType == "PROPERTY"
+        val isHomeBusiness = activeType == "HOME_BUSINESS"
 
-        // Serialize Step 2 details specifically for Marketplace & Property
-        val extendedDetails = ExtendedMarketplaceDetails(
-            brand = _brand.value,
-            model = _model.value,
-            itemAge = _itemAge.value,
-            quantity = _quantity.value,
-            meetupLocation = _meetupLocation.value,
-            preferredDays = _preferredDays.value,
-            timePreference = _timePreference.value,
-            isNegotiable = _isNegotiable.value,
-            paymentMethods = _paymentMethods.value,
-            // Property fields
-            wingFlatNumber = _wingFlatNumber.value,
-            bhkType = _bhkType.value,
-            furnishedStatus = _furnishedStatus.value,
-            propertyType = _propertyType.value,
-            beds = _beds.value,
-            baths = _baths.value,
-            sqft = _sqft.value,
-            amenities = _amenities.value,
-            isAvailable = _isAvailable.value,
-            verificationRequested = _verificationRequested.value
-        )
-        val detailsJsonStr = MoshiHelper.toJson(extendedDetails)
+        val detailsJsonStr = if (isHomeBusiness) {
+            val hbDetails = HomeBusinessDetailsJson(
+                category = _category.value,
+                operatesFromFlat = "${currentUser.blockTower} - ${currentUser.flatNumber}",
+                businessHours = "",
+                priceRange = _priceRange.value,
+                whatsappNumber = if (_isSameAsContact.value) {
+                    _contactPhone.value.ifBlank { currentUser.phoneNumber }
+                } else {
+                    _whatsappNumber.value.ifBlank { null }
+                },
+                instagramHandle = _instagramHandle.value.ifBlank { null },
+                isRecurring = _isRecurring.value
+            )
+            MoshiHelper.toJson(hbDetails)
+        } else {
+            // Serialize Step 2 details specifically for Marketplace & Property
+            val extendedDetails = ExtendedMarketplaceDetails(
+                brand = _brand.value,
+                model = _model.value,
+                itemAge = _itemAge.value,
+                quantity = _quantity.value,
+                meetupLocation = _meetupLocation.value,
+                preferredDays = _preferredDays.value,
+                timePreference = _timePreference.value,
+                isNegotiable = _isNegotiable.value,
+                paymentMethods = _paymentMethods.value,
+                // Property fields
+                wingFlatNumber = _wingFlatNumber.value,
+                bhkType = _bhkType.value,
+                furnishedStatus = _furnishedStatus.value,
+                propertyType = _propertyType.value,
+                beds = _beds.value,
+                baths = _baths.value,
+                sqft = _sqft.value,
+                amenities = _amenities.value,
+                isAvailable = _isAvailable.value,
+                verificationRequested = _verificationRequested.value
+            )
+            MoshiHelper.toJson(extendedDetails)
+        }
 
         // Store resolved Firebase Storage download URLs in extra1 as Moshi JSON array
         val photoListToSave = resolvedPhotos ?: _selectedPhotos.value.mapNotNull { uri ->
@@ -636,17 +746,23 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
         }
         val photosStr = MoshiHelper.serializePhotoUrls(photoListToSave)
 
+        val resolvedPhone = if (isHomeBusiness && _contactPhone.value.isNotBlank()) {
+            _contactPhone.value
+        } else {
+            currentUser.phoneNumber
+        }
+
         return ListingEntity(
             id = if (isDraft) activeDraftId else 0,
             type = activeType,
             title = _title.value,
             description = _description.value,
             price = priceVal,
-            contact = currentUser.phoneNumber,
+            contact = resolvedPhone,
             society = currentUser.society,
             authorName = currentUser.fullName,
             authorFlat = "${currentUser.blockTower} - ${currentUser.flatNumber}",
-            authorPhone = currentUser.phoneNumber,
+            authorPhone = resolvedPhone,
             authorUid = currentUser.uid,
             timestamp = System.currentTimeMillis(),
             category = if (isProperty) _bhkType.value else _category.value,
