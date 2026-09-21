@@ -112,6 +112,15 @@ fun CreateHubScreen(
                         iconBgColor = ConciergeHomeLiving.copy(alpha = 0.15f),
                         iconTintColor = ConciergeHomeLiving,
                         testTag = "category_property_hero_card"
+                    ),
+                    CreateCategory(
+                        id = "HOME_BUSINESS",
+                        title = "Home Business",
+                        subtitle = "Bakers, tutors & crafts",
+                        icon = Icons.Default.Storefront,
+                        iconBgColor = ConciergePrimaryContainer.copy(alpha = 0.15f),
+                        iconTintColor = ConciergePrimaryContainer,
+                        testTag = "category_home_business_card"
                     )
                 )
             ),

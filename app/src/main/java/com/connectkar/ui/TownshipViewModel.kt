@@ -206,6 +206,23 @@ class TownshipViewModel(private val repository: TownshipRepository) : ViewModel(
     val savedPropertyListings: StateFlow<List<ListingEntity>> = repository.getBookmarkedListingsByType("PROPERTY")
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val homeBusinessListings: StateFlow<List<ListingEntity>> = _selectedSociety
+        .flatMapLatest { society ->
+            repository.getListingsByTypeAndSociety("HOME_BUSINESS", society)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val hasPostedHomeBusinessListings: StateFlow<Boolean> = currentUser
+        .flatMapLatest { user ->
+            if (user != null && user.uid.isNotEmpty()) {
+                repository.getListingsByAuthor(user.uid)
+            } else {
+                flowOf(emptyList())
+            }
+        }
+        .map { list -> list.any { it.type == "HOME_BUSINESS" && !it.isDraft } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     init {
         viewModelScope.launch {
             repository.seedMockData()

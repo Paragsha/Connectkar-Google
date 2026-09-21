@@ -91,6 +91,14 @@ data class VehicleDetailsJson(val plateNumber: String, val vehicleModel: String,
 data class EventDetailsJson(val eventLocation: String, val timing: String)
 
 @com.squareup.moshi.JsonClass(generateAdapter = true)
+data class HomeBusinessDetailsJson(
+    val category: String = "All",
+    val operatesFromFlat: String = "",
+    val businessHours: String = "",
+    val priceRange: String = ""
+)
+
+@com.squareup.moshi.JsonClass(generateAdapter = true)
 data class ExtendedMarketplaceDetails(
     val brand: String = "",
     val model: String = "",
@@ -215,6 +223,11 @@ data class ListingEntity(
                         val obj = MoshiHelper.fromJson<EventDetailsJson>(detailsJson)
                         if (obj != null) ListingDetails.Event(obj.eventLocation, obj.timing) else ListingDetails.Event(extra1, extra2)
                     }
+                    "HOME_BUSINESS" -> {
+                        val obj = MoshiHelper.fromJson<HomeBusinessDetailsJson>(detailsJson)
+                        if (obj != null) ListingDetails.HomeBusiness(obj.category, obj.operatesFromFlat, obj.businessHours, obj.priceRange)
+                        else ListingDetails.HomeBusiness(category, extra1, extra2, extra3)
+                    }
                     else -> ListingDetails.GeneralFeed
                 }
             } catch (e: Exception) {
@@ -229,6 +242,7 @@ data class ListingEntity(
             "MEAL" -> ListingDetails.Meal(extra3, price)
             "VEHICLE" -> ListingDetails.Vehicle(extra1, extra2, extra3, extra4)
             "EVENT" -> ListingDetails.Event(extra1, extra2)
+            "HOME_BUSINESS" -> ListingDetails.HomeBusiness(category, extra1, extra2, extra3)
             else -> ListingDetails.GeneralFeed
         }
     }
@@ -243,6 +257,7 @@ fun ListingEntity.withSerializedDetails(): ListingEntity {
         "MEAL" -> MoshiHelper.toJson(MealDetailsJson(extra3, price))
         "VEHICLE" -> MoshiHelper.toJson(VehicleDetailsJson(extra1, extra2, extra3, extra4))
         "EVENT" -> MoshiHelper.toJson(EventDetailsJson(extra1, extra2))
+        "HOME_BUSINESS" -> MoshiHelper.toJson(HomeBusinessDetailsJson(category, extra1, extra2, extra3))
         else -> ""
     }
     return this.copy(detailsJson = jsonStr)
@@ -288,5 +303,6 @@ sealed class ListingDetails {
     data class Meal(val deliveryInfo: String, val mealPrice: Double) : ListingDetails()
     data class Vehicle(val plateNumber: String, val vehicleModel: String, val locationSpot: String, val securityTag: String) : ListingDetails()
     data class Event(val eventLocation: String, val timing: String) : ListingDetails()
+    data class HomeBusiness(val category: String, val operatesFromFlat: String, val businessHours: String, val priceRange: String) : ListingDetails()
     object GeneralFeed : ListingDetails()
 }

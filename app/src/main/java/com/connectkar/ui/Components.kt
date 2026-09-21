@@ -461,6 +461,7 @@ fun ListingCard(
                             "HOUSEHOLD_ITEM" -> Icons.Default.Handyman to "Household Item"
                             "EVENT" -> Icons.Default.Event to "Event"
                             "COMMUNITY_POST" -> Icons.Default.Article to "Community Post"
+                            "HOME_BUSINESS" -> Icons.Default.BusinessCenter to "Home Business"
                             else -> Icons.Default.Tag to listing.type
                         }
                         Icon(
@@ -644,10 +645,43 @@ fun ListingCard(
                         Text(text = "Resident: ${listing.authorName} (${listing.authorFlat})", color = BrandSlate, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
                     }
                     Spacer(modifier = Modifier.height(6.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(16.dp), tint = BrandIndigo)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "Phone/WhatsApp: ${listing.contact}", color = BrandIndigo, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(16.dp), tint = BrandIndigo)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = "Contact: ${listing.contact.ifEmpty { listing.authorPhone }}", color = BrandIndigo, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                        }
+                        val rawNumber = listing.contact.ifEmpty { listing.authorPhone }.replace("+", "").replace(" ", "").replace("-", "")
+                        if (rawNumber.isNotEmpty()) {
+                            IconButton(
+                                onClick = {
+                                    val cleanNumber = if (rawNumber.length == 10) "91$rawNumber" else rawNumber
+                                    val intent = android.content.Intent(
+                                        android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse("https://wa.me/$cleanNumber")
+                                    )
+                                    context.startActivity(intent)
+                                },
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .testTag("whatsapp_button_${listing.id}")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Chat,
+                                    contentDescription = "WhatsApp",
+                                    tint = Color(0xFF25D366),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -866,6 +900,65 @@ fun ModuleSpecificContent(listing: ListingEntity) {
                         style = MaterialTheme.typography.labelMedium,
                         color = Color.Gray
                     )
+                }
+            }
+        }
+        is com.connectkar.data.local.ListingDetails.HomeBusiness -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(MaterialTheme.shapes.extraSmall)
+                    .background(Color(0xFFF1F5F9))
+                    .padding(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(MaterialTheme.shapes.extraSmall)
+                            .background(ConciergePrimaryContainer.copy(alpha = 0.12f))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = details.category.ifEmpty { listing.category.ifEmpty { "Home Business" } },
+                            color = ConciergePrimaryContainer,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    if (details.priceRange.isNotEmpty() || listing.price > 0) {
+                        Text(
+                            text = if (details.priceRange.isNotEmpty()) details.priceRange else "₹${listing.price.toInt()}",
+                            color = ConciergePrimaryContainer,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
+                }
+                if (details.businessHours.isNotEmpty() || details.operatesFromFlat.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        if (details.operatesFromFlat.isNotEmpty()) {
+                            Text(
+                                text = "Unit: ${details.operatesFromFlat}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = BrandSlate
+                            )
+                        }
+                        if (details.businessHours.isNotEmpty()) {
+                            Text(
+                                text = details.businessHours,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.Gray
+                            )
+                        }
+                    }
                 }
             }
         }

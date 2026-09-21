@@ -145,6 +145,16 @@ fun DashboardScreen(
             iconColor = Color.White,
             textColor = Color.White,
             ghostIcon = Icons.Default.DinnerDining
+        ),
+        BentoPillar(
+            id = "HOME_BUSINESS",
+            title = "Home\nBusinesses",
+            subtitle = "Bakers, Tutors & Creators",
+            icon = Icons.Default.Store,
+            bgBrush = Brush.linearGradient(listOf(ConciergePrimaryContainer, Color(0xFF283593))),
+            iconColor = Color.White,
+            textColor = Color.White,
+            ghostIcon = Icons.Default.BusinessCenter
         )
     )
 
@@ -555,7 +565,7 @@ fun DashboardScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Pillar 3: Household Rent / Service
+                    // Pillar 3: Carpool
                     BentoCard(
                         pillar = pillars[2],
                         onClick = { onModuleClicked(pillars[2].id) },
@@ -567,6 +577,20 @@ fun DashboardScreen(
                         onClick = { onModuleClicked(pillars[3].id) },
                         modifier = Modifier.weight(1f)
                     )
+                }
+                if (pillars.size > 4) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // Pillar 5: Home Businesses
+                        BentoCard(
+                            pillar = pillars[4],
+                            onClick = { onModuleClicked(pillars[4].id) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
 

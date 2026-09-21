@@ -54,6 +54,8 @@ class MainActivity : ComponentActivity() {
                 val syncState by viewModel.syncState.collectAsStateWithLifecycle()
                 val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
                 val hasPostedListings by viewModel.hasPostedListings.collectAsStateWithLifecycle()
+                val homeBusinessListings by viewModel.homeBusinessListings.collectAsStateWithLifecycle()
+                val hasPostedHomeBusinessListings by viewModel.hasPostedHomeBusinessListings.collectAsStateWithLifecycle()
                 val mealListings by viewModel.mealListingsForSociety.collectAsStateWithLifecycle()
                 val operationsState by viewModel.operationsState.collectAsStateWithLifecycle()
 
@@ -128,6 +130,9 @@ class MainActivity : ComponentActivity() {
                                             navController.navigate("meal_discover")
                                         } else if (moduleId == "RENTALS_HUB") {
                                             navController.navigate("rentals_hub")
+                                        } else if (moduleId == "HOME_BUSINESS") {
+                                            viewModel.setActiveModule("HOME_BUSINESS")
+                                            navController.navigate("home_business_list")
                                         } else {
                                             viewModel.setActiveModule(moduleId)
                                             navController.navigate("module_list/$moduleId")
@@ -428,6 +433,46 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
+                        composable("home_business_list") {
+                            val user = currentUser
+                            if (user != null) {
+                                HomeBusinessListScreen(
+                                    listings = homeBusinessListings,
+                                    currentUser = user,
+                                    selectedSociety = selectedSociety,
+                                    syncState = syncState,
+                                    isRefreshing = isRefreshing,
+                                    hasPostedListings = hasPostedHomeBusinessListings,
+                                    onBack = { navController.popBackStack() },
+                                    onLikeListing = { viewModel.toggleLike(it) },
+                                    onBookmarkListing = { viewModel.toggleBookmark(it) },
+                                    onCreateListingClicked = {
+                                        navController.navigate("create_listing/HOME_BUSINESS")
+                                    },
+                                    onRetrySync = {
+                                        viewModel.triggerSync()
+                                    },
+                                    onRefresh = {
+                                        viewModel.refresh()
+                                    },
+                                    activeTab = "home",
+                                    onBottomNavClick = { target ->
+                                        when (target) {
+                                            "home" -> navController.navigate("dashboard") {
+                                                popUpTo("dashboard") { inclusive = true }
+                                            }
+                                            "explore" -> {
+                                                viewModel.setActiveModule("EXPLORE")
+                                                navController.navigate("module_list/EXPLORE")
+                                            }
+                                            "society" -> navController.navigate("admin")
+                                            "profile" -> navController.navigate("my_listings")
+                                        }
+                                    }
+                                )
+                            }
+                        }
+
                         composable(
                             route = "module_list/{type}",
                             arguments = listOf(navArgument("type") { type = NavType.StringType })
@@ -460,6 +505,41 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onNavigateToMyListings = {
                                             navController.navigate("my_listings")
+                                        },
+                                        activeTab = "home",
+                                        onBottomNavClick = { target ->
+                                            when (target) {
+                                                "home" -> navController.navigate("dashboard") {
+                                                    popUpTo("dashboard") { inclusive = true }
+                                                }
+                                                "explore" -> {
+                                                    viewModel.setActiveModule("EXPLORE")
+                                                    navController.navigate("module_list/EXPLORE")
+                                                }
+                                                "society" -> navController.navigate("admin")
+                                                "profile" -> navController.navigate("my_listings")
+                                            }
+                                        }
+                                    )
+                                } else if (moduleType == "HOME_BUSINESS") {
+                                    HomeBusinessListScreen(
+                                        listings = homeBusinessListings,
+                                        currentUser = user,
+                                        selectedSociety = selectedSociety,
+                                        syncState = syncState,
+                                        isRefreshing = isRefreshing,
+                                        hasPostedListings = hasPostedHomeBusinessListings,
+                                        onBack = { navController.popBackStack() },
+                                        onLikeListing = { viewModel.toggleLike(it) },
+                                        onBookmarkListing = { viewModel.toggleBookmark(it) },
+                                        onCreateListingClicked = {
+                                            navController.navigate("create_listing/HOME_BUSINESS")
+                                        },
+                                        onRetrySync = {
+                                            viewModel.triggerSync()
+                                        },
+                                        onRefresh = {
+                                            viewModel.refresh()
                                         },
                                         activeTab = "home",
                                         onBottomNavClick = { target ->

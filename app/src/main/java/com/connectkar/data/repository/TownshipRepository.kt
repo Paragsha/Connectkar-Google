@@ -822,14 +822,7 @@ class TownshipRepository(
             val firestore = FirebaseManager.firestore
             if (firestore != null && listing.firestoreId.isNotEmpty()) {
                 try {
-                    // Update aggregate likesCount on parent listing document
-                    firestore.collection("listings").document(listing.firestoreId).update(
-                        "likesCount", newCount,
-                        "timestamp", com.google.firebase.firestore.FieldValue.serverTimestamp(),
-                        "serverTimestamp", com.google.firebase.firestore.FieldValue.serverTimestamp()
-                    ).await()
-
-                    // Write per-user interaction in subcollection
+                    // Write per-user interaction in subcollection (Cloud Function updates likesCount on parent)
                     if (userId.isNotEmpty()) {
                         val interactionData = hashMapOf<String, Any>(
                             "liked" to newLiked,
@@ -1085,6 +1078,51 @@ class TownshipRepository(
                     extra2 = "NON-VEG",
                     extra3 = "By 1:30 PM",
                     extra4 = "HOME_CHEF"
+                ),
+                ListingEntity(
+                    type = "HOME_BUSINESS",
+                    title = "Sweet Treats Bakery",
+                    description = "Freshly baked artisan sourdough bread, custom celebration cakes, and gluten-free pastries made right here in our society kitchen.",
+                    price = 450.0,
+                    contact = "9876543210",
+                    society = "Sylvan County",
+                    authorName = "Pooja Verma",
+                    authorFlat = "Tower B, Flat 402",
+                    authorPhone = "9876543210",
+                    category = "Bakers",
+                    extra1 = "Tower B - 402",
+                    extra2 = "9 AM - 8 PM",
+                    extra3 = "₹150 - ₹1200"
+                ),
+                ListingEntity(
+                    type = "HOME_BUSINESS",
+                    title = "MindCraft Math & Science Tutoring",
+                    description = "Personalized tutoring for grades 6-10 (CBSE/ICSE). Concept clarity, regular worksheets, and weekend batch sessions on campus.",
+                    price = 1200.0,
+                    contact = "9123456780",
+                    society = "Sylvan County",
+                    authorName = "Arjun Rao",
+                    authorFlat = "Wing A, Flat 801",
+                    authorPhone = "9123456780",
+                    category = "Tutors",
+                    extra1 = "Wing A - 801",
+                    extra2 = "4 PM - 7:30 PM",
+                    extra3 = "₹1200 / month"
+                ),
+                ListingEntity(
+                    type = "HOME_BUSINESS",
+                    title = "The Craft Nest - Handmade Decor",
+                    description = "Custom macrame plant hangers, scented soy candles, and resin art coaster sets crafted with love for township homes.",
+                    price = 350.0,
+                    contact = "9812345678",
+                    society = "Nova Apartments",
+                    authorName = "Meera Nair",
+                    authorFlat = "Wing D, Flat 301",
+                    authorPhone = "9812345678",
+                    category = "Handmade & Crafts",
+                    extra1 = "Wing D - 301",
+                    extra2 = "10 AM - 6 PM",
+                    extra3 = "₹250 - ₹950"
                 )
             )
 

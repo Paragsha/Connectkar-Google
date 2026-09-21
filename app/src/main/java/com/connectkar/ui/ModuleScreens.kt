@@ -89,6 +89,7 @@ fun ModuleListScreen(
         "PROPERTY" to "Rentals & Properties",
         "VEHICLE" to "Vehicles for Rent",
         "HOUSEHOLD_ITEM" to "Household Items",
+        "HOME_BUSINESS" to "Home Businesses",
         "EXPLORE" to "Explore"
     )
 
@@ -100,6 +101,7 @@ fun ModuleListScreen(
         "PROPERTY" to "Discover rental properties & item rentals",
         "VEHICLE" to "Rent bikes, cars & more from neighbours",
         "HOUSEHOLD_ITEM" to "Furniture, appliances, tools & more",
+        "HOME_BUSINESS" to "Discover bakers, tutors, and creators in your community",
         "EXPLORE" to "All updates across your township"
     )
 
