@@ -56,6 +56,8 @@ fun CreateListingScreen(
     val currentStep by viewModel.currentStep.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val uploadProgress by viewModel.uploadProgress.collectAsState()
+    val publishedListing by viewModel.publishedListing.collectAsState()
+    var showSuccessSheet by remember { mutableStateOf(false) }
 
     // Ensure activeType is set synchronously
     SideEffect {
@@ -246,8 +248,7 @@ fun CreateListingScreen(
                     viewModel = viewModel,
                     currentUser = currentUser,
                     onSuccess = {
-                        Toast.makeText(context, "Business listed successfully!", Toast.LENGTH_LONG).show()
-                        onBack()
+                        showSuccessSheet = true
                     }
                 )
             }
@@ -361,6 +362,24 @@ fun CreateListingScreen(
                     }
                 }
             }
+        }
+
+        if (showSuccessSheet && publishedListing != null) {
+            val confirmedLive = !publishedListing!!.pendingSync && publishedListing!!.firestoreId.isNotBlank() && !publishedListing!!.firestoreId.startsWith("local_")
+            PublishSuccessSheet(
+                listing = publishedListing!!,
+                isConfirmedLive = confirmedLive,
+                onViewListing = {
+                    showSuccessSheet = false
+                    viewModel.clearPublishedListing()
+                    onBack()
+                },
+                onDismiss = {
+                    showSuccessSheet = false
+                    viewModel.clearPublishedListing()
+                    onBack()
+                }
+            )
         }
     }
 }

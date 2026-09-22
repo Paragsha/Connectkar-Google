@@ -157,6 +157,14 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
     private val _isRecurring = MutableStateFlow(true)
     val isRecurring: StateFlow<Boolean> = _isRecurring.asStateFlow()
 
+    // Holds the newly published listing for the success sheet
+    private val _publishedListing = MutableStateFlow<ListingEntity?>(null)
+    val publishedListing: StateFlow<ListingEntity?> = _publishedListing.asStateFlow()
+
+    fun clearPublishedListing() {
+        _publishedListing.value = null
+    }
+
     // Track the active draft ID if any
     private var activeDraftId: Int = 0
     private var activeType: String = "MARKETPLACE"
@@ -174,6 +182,7 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
 
         // Reset state synchronously to avoid racing with immediate user input
         activeDraftId = 0
+        _publishedListing.value = null
         _title.value = ""
         _description.value = ""
         _price.value = ""
@@ -676,6 +685,7 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
 
             // Insert to local database and sync to Firestore
             repository.insertListing(listing)
+            _publishedListing.value = listing
             onComplete()
         }
     }

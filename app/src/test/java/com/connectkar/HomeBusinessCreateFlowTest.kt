@@ -182,11 +182,31 @@ class HomeBusinessCreateFlowTest {
         composeTestRule.onNodeWithTag("home_business_submit_button").performScrollTo().performClick()
         
         var retries = 0
-        while (!successBackCalled && retries < 50) {
+        var sheetShown = false
+        while (!sheetShown && retries < 50) {
             composeTestRule.waitForIdle()
-            Thread.sleep(50)
-            retries++
+            try {
+                composeTestRule.onNodeWithTag("publish_success_sheet").assertExists()
+                sheetShown = true
+            } catch (e: Throwable) {
+                Thread.sleep(50)
+                retries++
+            }
         }
+
+        // Verify sheet content is displayed
+        composeTestRule.onNodeWithTag("publish_success_sheet").assertExists()
+        composeTestRule.onNodeWithTag("publish_success_title").assertExists()
+        composeTestRule.onNodeWithTag("publish_success_preview_card").assertExists()
+        composeTestRule.onNodeWithTag("publish_success_share_whatsapp").assertExists()
+        composeTestRule.onNodeWithTag("publish_success_share_society_buzz").assertExists()
+        composeTestRule.onNodeWithTag("publish_success_share_copy_link").assertExists()
+        composeTestRule.onNodeWithTag("publish_success_view_listing_button").assertExists()
+        composeTestRule.onNodeWithTag("publish_success_done_button").assertExists()
+
+        // Tap Done button on the sheet to dismiss and navigate back
+        composeTestRule.onNodeWithTag("publish_success_done_button").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
 
         // Verify navigation back triggered
         assertTrue(successBackCalled)
