@@ -201,7 +201,7 @@ class HomeBusinessCreateFlowTest {
         composeTestRule.onNodeWithTag("publish_success_share_whatsapp").assertExists()
         composeTestRule.onNodeWithTag("publish_success_share_society_buzz").assertExists()
         composeTestRule.onNodeWithTag("publish_success_share_copy_link").assertExists()
-        composeTestRule.onNodeWithTag("publish_success_view_listing_button").assertExists()
+        composeTestRule.onNodeWithTag("publish_success_view_listing_button").assertDoesNotExist()
         composeTestRule.onNodeWithTag("publish_success_done_button").assertExists()
 
         // Tap Done button on the sheet to dismiss and navigate back
@@ -221,6 +221,10 @@ class HomeBusinessCreateFlowTest {
             assertEquals("Anita Sharma", biz?.authorName)
             assertEquals("9876543210", biz?.authorPhone)
             assertEquals(0.0, biz?.price ?: -1.0, 0.001)
+            assertEquals("", biz?.extra2)
+            assertEquals("", biz?.extra3)
+            assertEquals("", biz?.extra4)
+            assertTrue("firestoreId should be populated", biz?.firestoreId?.isNotBlank() == true)
 
             // Check detailsJson
             assertNotNull(biz?.detailsJson)
@@ -233,5 +237,33 @@ class HomeBusinessCreateFlowTest {
             assertEquals(true, details?.isRecurring)
             assertEquals("9876543210", details?.whatsappNumber)
         }
+    }
+
+    @Test
+    fun testPublishListing_publishedListingReflectsPostInsertState() {
+        val (viewModel, dao) = setupViewModel()
+        runBlocking { dao.insertUser(verifiedUser) }
+        viewModel.initForFlow("HOME_BUSINESS", verifiedUser)
+
+        viewModel.setTitle("Gourmet Chocolates")
+        viewModel.setCategory("Baking & Food")
+        viewModel.setDescription("Handcrafted artisanal dark chocolates.")
+        viewModel.setPrice("500")
+
+        var published = false
+        viewModel.publishListing(verifiedUser) {
+            published = true
+        }
+
+        composeTestRule.waitForIdle()
+
+        assertTrue("publishListing onComplete callback should be called", published)
+        val publishedListing = viewModel.publishedListing.value
+        assertNotNull("publishedListing should not be null", publishedListing)
+        assertTrue("firestoreId should not be blank", publishedListing!!.firestoreId.isNotBlank())
+        assertEquals("extra2 should be empty string for HOME_BUSINESS", "", publishedListing.extra2)
+        assertEquals("extra3 should be empty string for HOME_BUSINESS", "", publishedListing.extra3)
+        assertEquals("extra4 should be empty string for HOME_BUSINESS", "", publishedListing.extra4)
+        assertTrue("id should be greater than 0 after insertion into Room", publishedListing.id > 0)
     }
 }

@@ -1,3 +1,15 @@
 <resources>
     <string name="app_name">ConnectKar</string>
+    <string name="login_title">Resident Portal Sign In</string>
+    <string name="login_subtitle">Access your community dashboard and resident services</string>
+    <string name="email_label">Registered Resident Email</string>
+    <string name="email_placeholder">resident@society.org</string>
+    <string name="password_label">Resident Password</string>
+    <string name="sign_in_button">Sign In to Community</string>
+    <string name="signing_in">Authenticating Resident…</string>
+    <string name="authorized_domains_label">Authorized Resident Domains:</string>
+    <string name="invalid_email_domain">Access restricted: only registered resident domains (@resident.community, @society.org, @connectkar.com) are authorized.</string>
+    <string name="empty_email_error">Please enter your registered resident email address.</string>
+    <string name="empty_password_error">Please enter your account password.</string>
+    <string name="security_badge">256-bit Encrypted Resident Authentication</string>
 </resources>

@@ -89,17 +89,13 @@ class PublishSuccessSheetTest {
         composeTestRule.onNodeWithTag("publish_success_share_society_buzz").assertExists()
         composeTestRule.onNodeWithText("Coming soon").assertExists() // D2
         composeTestRule.onNodeWithTag("publish_success_share_copy_link").assertExists()
+        composeTestRule.onNodeWithContentDescription("Copy listing details").assertExists()
 
-        // 6. Verify Action Buttons
-        composeTestRule.onNodeWithTag("publish_success_view_listing_button").assertExists()
+        // 6. Verify Action Buttons: View Listing is removed, Done is the primary button
+        composeTestRule.onNodeWithTag("publish_success_view_listing_button").assertDoesNotExist()
         composeTestRule.onNodeWithTag("publish_success_done_button").assertExists()
 
-        // 7. Test View Listing button click
-        composeTestRule.onNodeWithTag("publish_success_view_listing_button").performScrollTo().performClick()
-        composeTestRule.waitForIdle()
-        assertTrue("onViewListing should have been invoked", viewListingClicked)
-
-        // 8. Test Done button click
+        // 7. Test Done button click invokes onDismiss
         composeTestRule.onNodeWithTag("publish_success_done_button").performScrollTo().performClick()
         composeTestRule.waitForIdle()
         assertTrue("onDismiss should have been invoked", dismissClicked)

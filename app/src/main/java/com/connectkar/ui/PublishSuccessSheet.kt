@@ -50,9 +50,9 @@ import com.connectkar.ui.theme.*
 fun PublishSuccessSheet(
     listing: ListingEntity,
     isConfirmedLive: Boolean,
-    onViewListing: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    onViewListing: (() -> Unit)? = null,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 ) {
     val context = LocalContext.current
@@ -442,7 +442,7 @@ fun PublishSuccessSheet(
                     ) {
                         Icon(
                             imageVector = Icons.Default.ContentCopy,
-                            contentDescription = "Copy Link",
+                            contentDescription = "Copy listing details",
                             tint = ConciergePrimary,
                             modifier = Modifier.size(24.dp)
                         )
@@ -460,9 +460,9 @@ fun PublishSuccessSheet(
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // 7. View Listing Primary Button
+            // 7. Done Primary Button (Dismisses to home_business_list)
             Button(
-                onClick = onViewListing,
+                onClick = onDismiss,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = ConciergePrimary,
                     contentColor = Color.White
@@ -471,30 +471,12 @@ fun PublishSuccessSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp)
-                    .testTag("publish_success_view_listing_button")
-            ) {
-                Text(
-                    text = "View Listing",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // 8. Done Text Button (Dismisses to home_business_list)
-            TextButton(
-                onClick = onDismiss,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
                     .testTag("publish_success_done_button")
             ) {
                 Text(
                     text = "Done",
-                    color = ConciergeOnSurfaceVariant,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
                 )
             }
         }

@@ -10,51 +10,53 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme =
-  darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-  )
+private val DarkColorScheme = darkColorScheme(
+    primary = ForestGreen80,
+    secondary = ForestGreenGrey80,
+    tertiary = WarmSand80,
+    background = SurfaceDark,
+    surface = SurfaceDark,
+    surfaceVariant = CardDark,
+    error = ErrorRedDark
+)
 
-private val LightColorScheme =
-  lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40,
-    background = ThemeBackground,
-    surface = ThemeSurface,
-    onPrimary = ThemeSurface,
-    onSecondary = ThemeSurface,
-    onTertiary = ThemeSurface,
-    onBackground = ThemeOnBackground,
-    onSurface = ThemeOnBackground,
-    outline = ThemeOutline,
-    surfaceVariant = ThemeSurfaceVariant,
-    onSurfaceVariant = ThemeOnSurfaceVariant
-  )
+private val LightColorScheme = lightColorScheme(
+    primary = ForestGreen40,
+    secondary = ForestGreenGrey40,
+    tertiary = WarmSand40,
+    background = SurfaceLight,
+    surface = SurfaceLight,
+    surfaceVariant = CardLight,
+    error = ErrorRedLight
+)
+
+@Composable
+fun ConnectKarTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    dynamicColor: Boolean = true,
+    content: @Composable () -> Unit
+) {
+    val colorScheme = when {
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+            val context = LocalContext.current
+            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        }
+        darkTheme -> DarkColorScheme
+        else -> LightColorScheme
+    }
+
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography = Typography,
+        content = content
+    )
+}
 
 @Composable
 fun MyApplicationTheme(
-  darkTheme: Boolean = isSystemInDarkTheme(),
-  dynamicColor: Boolean = false,
-  content: @Composable () -> Unit,
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    dynamicColor: Boolean = true,
+    content: @Composable () -> Unit
 ) {
-  val colorScheme =
-    when {
-      dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-        val context = LocalContext.current
-        if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-      }
-
-      darkTheme -> DarkColorScheme
-      else -> LightColorScheme
-    }
-
-  MaterialTheme(
-    colorScheme = colorScheme,
-    typography = Typography,
-    shapes = ConnectKarShapes,
-    content = content
-  )
+    ConnectKarTheme(darkTheme = darkTheme, dynamicColor = dynamicColor, content = content)
 }

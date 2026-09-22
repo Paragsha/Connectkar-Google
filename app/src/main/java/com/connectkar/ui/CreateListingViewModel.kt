@@ -684,8 +684,20 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
             }
 
             // Insert to local database and sync to Firestore
-            repository.insertListing(listing)
-            _publishedListing.value = listing
+            val persistedListing = repository.insertListing(listing)
+            _publishedListing.value = persistedListing
+            if (persistedListing.pendingSync && persistedListing.id > 0) {
+                viewModelScope.launch {
+                    repeat(10) {
+                        kotlinx.coroutines.delay(1000L)
+                        val updated = repository.getListingById(persistedListing.id)
+                        if (updated != null && !updated.pendingSync) {
+                            _publishedListing.value = updated
+                            return@launch
+                        }
+                    }
+                }
+            }
             onComplete()
         }
     }
@@ -777,9 +789,9 @@ class CreateListingViewModel(application: Application) : AndroidViewModel(applic
             timestamp = System.currentTimeMillis(),
             category = if (isProperty) _bhkType.value else _category.value,
             extra1 = photosStr, // Stores Firebase Storage download URLs for published listings
-            extra2 = if (isProperty) _bhkType.value else _brand.value, // Keep fallback model variables
-            extra3 = if (isProperty) { if (_isAvailable.value) "Available" else "Not Available" } else _condition.value,
-            extra4 = if (isProperty) _propertyType.value else _itemAge.value,
+            extra2 = if (isProperty) _bhkType.value else if (isHomeBusiness) "" else _brand.value, // Keep fallback model variables
+            extra3 = if (isProperty) { if (_isAvailable.value) "Available" else "Not Available" } else if (isHomeBusiness) "" else _condition.value,
+            extra4 = if (isProperty) _propertyType.value else if (isHomeBusiness) "" else _itemAge.value,
             detailsJson = detailsJsonStr,
             isDraft = isDraft,
             isPublic = if (isProperty) false else !_isSocietyOnly.value

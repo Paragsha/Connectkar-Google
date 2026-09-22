@@ -1,6 +1,6 @@
 {
   "name": "ConnectKar",
-  "description": "A Township Super App for closed, verified gated residential communities.",
+  "description": "Resident Community Portal with secure Firebase Authentication and authorized domain validation",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

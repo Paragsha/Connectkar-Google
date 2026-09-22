@@ -759,29 +759,37 @@ class TownshipRepository(
     }
 
     // Modified insertListing to write to local DB first and then sync to Firestore
-    suspend fun insertListing(listing: ListingEntity) {
+    suspend fun insertListing(listing: ListingEntity): ListingEntity {
         val typedListing = listing.withSerializedDetails()
         val firestore = FirebaseManager.firestore
-        if (firestore != null) {
+        return if (firestore != null) {
             val docRef = firestore.collection("listings").document()
             val initialListing = typedListing.copy(firestoreId = docRef.id, pendingSync = true)
             val insertedRowId = appDao.insertListing(initialListing)
-            val finalListing = initialListing.copy(id = insertedRowId.toInt(), pendingSync = false)
+            val persistedListing = initialListing.copy(id = insertedRowId.toInt())
+            val finalListing = persistedListing.copy(pendingSync = false)
             val listingMap = finalListing.toFirestoreMap()
-            scope.launch {
-                try {
+            try {
+                kotlinx.coroutines.withTimeout(5000L) {
                     docRef.set(listingMap).await()
-                    appDao.updateListing(finalListing)
-                } catch (e: Exception) {
-                    android.util.Log.e("Firestore", "Error creating listing: ${e.message}")
-                    scheduleSyncJob()
                 }
+                appDao.updateListing(finalListing)
+                finalListing
+            } catch (e: Exception) {
+                android.util.Log.e("Firestore", "Error creating listing: ${e.message}")
+                scheduleSyncJob()
+                persistedListing
             }
         } else {
             val fallbackListing = typedListing.copy(firestoreId = "local_${System.currentTimeMillis()}", pendingSync = true)
-            appDao.insertListing(fallbackListing)
+            val insertedRowId = appDao.insertListing(fallbackListing)
             scheduleSyncJob()
+            fallbackListing.copy(id = insertedRowId.toInt())
         }
+    }
+
+    suspend fun getListingById(id: Int): ListingEntity? {
+        return appDao.getListingById(id)
     }
 
     suspend fun deleteListing(listingId: Int) {
