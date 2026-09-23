@@ -39,8 +39,12 @@ class ConnectKarApplication : Application(), Configuration.Provider {
         .build()
     }
 
+    val authRepository: com.connectkar.data.repository.AuthRepository by lazy {
+        com.connectkar.data.repository.FirebaseAuthRepository.getInstance(applicationContext)
+    }
+
     val repository: TownshipRepository by lazy {
-        TownshipRepository(database.appDao(), applicationContext)
+        TownshipRepository(database.appDao(), applicationContext, authRepository = authRepository)
     }
 
     override fun onCreate() {

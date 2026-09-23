@@ -1,6 +1,8 @@
 package com.connectkar.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -29,15 +31,21 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Apartment
+import androidx.compose.material.icons.filled.AppRegistration
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mail
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -47,18 +55,25 @@ import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -69,12 +84,15 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.connectkar.auth.AuthMode
 import com.connectkar.auth.AuthUiState
 import com.connectkar.auth.AuthViewModel
 import com.connectkar.auth.DomainValidator
+import com.connectkar.auth.PasswordStrength
+import com.connectkar.auth.PasswordStrengthLevel
+import com.connectkar.auth.ResetPasswordStatus
 import com.connectkar.auth.ResidentAuthState
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FirebaseAuthScreen(
     viewModel: AuthViewModel,
@@ -102,28 +120,149 @@ fun FirebaseAuthScreen(
                     )
                 }
                 else -> {
-                    ResidentLoginForm(
-                        uiState = uiState,
-                        onEmailChanged = viewModel::onEmailChanged,
-                        onPasswordChanged = viewModel::onPasswordChanged,
-                        onTogglePasswordVisibility = viewModel::onTogglePasswordVisibility,
-                        onToggleRemember = viewModel::onToggleRememberResident,
-                        onSignIn = viewModel::signInResident,
-                        onDomainPillClicked = { domain ->
-                            val currentLocal = uiState.email.substringBefore("@")
-                            val newEmail = if (currentLocal.isNotEmpty() && !uiState.email.contains("@")) {
-                                "$currentLocal@$domain"
-                            } else if (uiState.email.contains("@")) {
-                                "$currentLocal@$domain"
-                            } else {
-                                "resident@$domain"
-                            }
-                            viewModel.onEmailChanged(newEmail)
-                        },
+                    Column(
                         modifier = Modifier.fillMaxSize()
-                    )
+                    ) {
+                        when (uiState.authMode) {
+                            AuthMode.SIGN_IN -> {
+                                ResidentLoginForm(
+                                    uiState = uiState,
+                                    onEmailChanged = viewModel::onEmailChanged,
+                                    onPasswordChanged = viewModel::onPasswordChanged,
+                                    onTogglePasswordVisibility = viewModel::onTogglePasswordVisibility,
+                                    onToggleRemember = viewModel::onToggleRememberResident,
+                                    onSignIn = viewModel::signInResident,
+                                    onForgotPasswordClick = viewModel::openForgotPasswordDialog,
+                                    onSwitchToRegister = { viewModel.setAuthMode(AuthMode.REGISTER) },
+                                    onTabSelected = { mode -> viewModel.setAuthMode(mode) },
+                                    onDomainPillClicked = { domain ->
+                                        val currentLocal = uiState.email.substringBefore("@")
+                                        val newEmail = if (currentLocal.isNotEmpty() && !uiState.email.contains("@")) {
+                                            "$currentLocal@$domain"
+                                        } else if (uiState.email.contains("@")) {
+                                            "$currentLocal@$domain"
+                                        } else {
+                                            "resident@$domain"
+                                        }
+                                        viewModel.onEmailChanged(newEmail)
+                                    },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                            AuthMode.REGISTER -> {
+                                ResidentRegistrationForm(
+                                    uiState = uiState,
+                                    onNameChanged = viewModel::onRegNameChanged,
+                                    onUnitChanged = viewModel::onRegUnitChanged,
+                                    onEmailChanged = viewModel::onRegEmailChanged,
+                                    onPasswordChanged = viewModel::onRegPasswordChanged,
+                                    onConfirmPasswordChanged = viewModel::onRegConfirmPasswordChanged,
+                                    onTogglePasswordVisibility = viewModel::onToggleRegPasswordVisibility,
+                                    onToggleConfirmPasswordVisibility = viewModel::onToggleRegConfirmPasswordVisibility,
+                                    onToggleTerms = viewModel::onToggleRegTerms,
+                                    onRegister = viewModel::registerResident,
+                                    onSwitchToLogin = { viewModel.setAuthMode(AuthMode.SIGN_IN) },
+                                    onTabSelected = { mode -> viewModel.setAuthMode(mode) },
+                                    onDomainPillClicked = { domain ->
+                                        val currentLocal = uiState.regEmail.substringBefore("@")
+                                        val newEmail = if (currentLocal.isNotEmpty() && !uiState.regEmail.contains("@")) {
+                                            "$currentLocal@$domain"
+                                        } else if (uiState.regEmail.contains("@")) {
+                                            "$currentLocal@$domain"
+                                        } else {
+                                            "newresident@$domain"
+                                        }
+                                        viewModel.onRegEmailChanged(newEmail)
+                                    },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
+                    }
                 }
             }
+
+            // Forgot Password Modal Dialog
+            if (uiState.showResetPasswordDialog) {
+                ForgotPasswordDialog(
+                    email = uiState.resetPasswordEmail,
+                    onEmailChanged = viewModel::onResetPasswordEmailChanged,
+                    status = uiState.resetPasswordStatus,
+                    error = uiState.resetPasswordError,
+                    onSend = viewModel::sendPasswordReset,
+                    onDismiss = viewModel::dismissForgotPasswordDialog
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AuthTabs(
+    currentMode: AuthMode,
+    onModeSelected: (AuthMode) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val selectedIndex = if (currentMode == AuthMode.SIGN_IN) 0 else 1
+
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp)
+    ) {
+        TabRow(
+            selectedTabIndex = selectedIndex,
+            containerColor = Color.Transparent,
+            contentColor = MaterialTheme.colorScheme.primary,
+            indicator = { tabPositions ->
+                TabRowDefaults.SecondaryIndicator(
+                    modifier = Modifier.tabIndicatorOffset(tabPositions[selectedIndex]),
+                    height = 3.dp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            },
+            divider = {}
+        ) {
+            Tab(
+                selected = selectedIndex == 0,
+                onClick = { onModeSelected(AuthMode.SIGN_IN) },
+                modifier = Modifier.testTag("auth_tab_signin"),
+                text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Login,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Sign In",
+                            fontWeight = if (selectedIndex == 0) FontWeight.Bold else FontWeight.Medium
+                        )
+                    }
+                }
+            )
+            Tab(
+                selected = selectedIndex == 1,
+                onClick = { onModeSelected(AuthMode.REGISTER) },
+                modifier = Modifier.testTag("auth_tab_register"),
+                text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.AppRegistration,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Register",
+                            fontWeight = if (selectedIndex == 1) FontWeight.Bold else FontWeight.Medium
+                        )
+                    }
+                }
+            )
         }
     }
 }
@@ -137,6 +276,9 @@ private fun ResidentLoginForm(
     onTogglePasswordVisibility: () -> Unit,
     onToggleRemember: (Boolean) -> Unit,
     onSignIn: () -> Unit,
+    onForgotPasswordClick: () -> Unit,
+    onSwitchToRegister: () -> Unit,
+    onTabSelected: (AuthMode) -> Unit,
     onDomainPillClicked: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -150,47 +292,78 @@ private fun ResidentLoginForm(
             .padding(horizontal = 24.dp, vertical = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // Community Portal Header Badge
+        // Decorative Header with Security Accent
         Box(
             modifier = Modifier
-                .size(72.dp)
+                .size(76.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
+                        )
+                    )
+                )
+                .border(
+                    width = 2.dp,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                    shape = CircleShape
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.Apartment,
                 contentDescription = "ConnectKar Community Portal",
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(38.dp)
+                modifier = Modifier.size(40.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         Text(
             text = "ConnectKar",
             style = MaterialTheme.typography.headlineLarge,
             color = MaterialTheme.colorScheme.onBackground,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.ExtraBold,
             modifier = Modifier.testTag("app_title")
         )
 
-        Text(
-            text = "Resident Portal Authentication",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.SemiBold
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(top = 4.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Security,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "Resident Portal Authentication",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
 
         Text(
-            text = "Secure sign-in for registered society residents and owners",
+            text = "Secure sign-in for registered township residents & owners",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
+            modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+        )
+
+        // Mode Switching Tabs
+        AuthTabs(
+            currentMode = AuthMode.SIGN_IN,
+            onModeSelected = onTabSelected
         )
 
         // Error Banner
@@ -224,6 +397,38 @@ private fun ResidentLoginForm(
             }
         }
 
+        // Rate Limiting / Brute-Force Alert Shield
+        if (uiState.failedAttempts >= 3) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.85f)
+                ),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+                    .testTag("rate_limit_warning")
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Security,
+                        contentDescription = "Shield Active",
+                        tint = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Security Shield Active: ${uiState.failedAttempts} unverified sign-in attempts detected. Credentials are cryptographically protected via Firebase Auth.",
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+
         // Card Container
         Card(
             modifier = Modifier
@@ -238,13 +443,27 @@ private fun ResidentLoginForm(
             Column(
                 modifier = Modifier.padding(20.dp)
             ) {
-                // Email Field
-                Text(
-                    text = "Resident Email",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                // Email Field Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Resident Email",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (isDomainValid) {
+                        Text(
+                            text = "Domain Verified",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(6.dp))
 
@@ -369,13 +588,29 @@ private fun ResidentLoginForm(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Password Field
-                Text(
-                    text = "Password",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                // Password Field Header with Forgot Password trigger
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Password",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Forgot Password?",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier
+                            .clickable { onForgotPasswordClick() }
+                            .padding(vertical = 4.dp)
+                            .testTag("forgot_password_button")
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(6.dp))
 
@@ -438,6 +673,15 @@ private fun ResidentLoginForm(
                     }
                 }
 
+                // Password Strength Indicator
+                if (uiState.password.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    PasswordStrengthIndicator(
+                        strength = uiState.passwordStrength,
+                        modifier = Modifier.testTag("password_strength_bar")
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Remember Me Row
@@ -498,12 +742,656 @@ private fun ResidentLoginForm(
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Switch to Register Link
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "New resident in the community? ",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "Create an Account",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .clickable { onSwitchToRegister() }
+                            .padding(4.dp)
+                            .testTag("switch_to_register_button")
+                    )
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Security Footprint
+        // Security Footprint & Badges
+        SecurityBadgesFooter()
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ResidentRegistrationForm(
+    uiState: AuthUiState,
+    onNameChanged: (String) -> Unit,
+    onUnitChanged: (String) -> Unit,
+    onEmailChanged: (String) -> Unit,
+    onPasswordChanged: (String) -> Unit,
+    onConfirmPasswordChanged: (String) -> Unit,
+    onTogglePasswordVisibility: () -> Unit,
+    onToggleConfirmPasswordVisibility: () -> Unit,
+    onToggleTerms: (Boolean) -> Unit,
+    onRegister: () -> Unit,
+    onSwitchToLogin: () -> Unit,
+    onTabSelected: (AuthMode) -> Unit,
+    onDomainPillClicked: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val scrollState = rememberScrollState()
+    val isAuthenticating = uiState.authState is ResidentAuthState.Authenticating
+    val isDomainValid = DomainValidator.isAuthorized(uiState.regEmail)
+
+    Column(
+        modifier = modifier
+            .verticalScroll(scrollState)
+            .padding(horizontal = 24.dp, vertical = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Decorative Header
+        Box(
+            modifier = Modifier
+                .size(76.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
+                        )
+                    )
+                )
+                .border(
+                    width = 2.dp,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.AppRegistration,
+                contentDescription = "New Resident Registration",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(38.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        Text(
+            text = "Create Resident Account",
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+            fontWeight = FontWeight.ExtraBold,
+            modifier = Modifier.testTag("reg_title")
+        )
+
+        Text(
+            text = "Register with your verified email and community unit to access amenities, billing, and security",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+        )
+
+        // Mode Switching Tabs
+        AuthTabs(
+            currentMode = AuthMode.REGISTER,
+            onModeSelected = onTabSelected
+        )
+
+        // Error Banner
+        if (uiState.authState is ResidentAuthState.Error) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                ),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+                    .testTag("reg_error_banner")
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Error,
+                        contentDescription = "Error",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = (uiState.authState as ResidentAuthState.Error).message,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
+
+        // Registration Card
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("register_card"),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp)
+            ) {
+                // 1. Full Name
+                Text(
+                    text = "Full Name",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                OutlinedTextField(
+                    value = uiState.regName,
+                    onValueChange = onNameChanged,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("reg_name_input"),
+                    placeholder = { Text("e.g. Alice Smith") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Full Name",
+                            tint = if (uiState.regNameError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    isError = uiState.regNameError != null,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                    )
+                )
+                AnimatedVisibility(
+                    visible = uiState.regNameError != null,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    uiState.regNameError?.let { err ->
+                        Text(
+                            text = err,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier
+                                .padding(top = 4.dp, start = 4.dp)
+                                .testTag("reg_name_error_text")
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // 2. Unit / Flat Number
+                Text(
+                    text = "Apartment / Unit Number",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                OutlinedTextField(
+                    value = uiState.regUnitNumber,
+                    onValueChange = onUnitChanged,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("reg_unit_input"),
+                    placeholder = { Text("e.g. Tower B - 402 or Flat 204") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Home,
+                            contentDescription = "Unit Number",
+                            tint = if (uiState.regUnitError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    isError = uiState.regUnitError != null,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                    )
+                )
+                AnimatedVisibility(
+                    visible = uiState.regUnitError != null,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    uiState.regUnitError?.let { err ->
+                        Text(
+                            text = err,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier
+                                .padding(top = 4.dp, start = 4.dp)
+                                .testTag("reg_unit_error_text")
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // 3. Resident Email
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Resident Email",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (isDomainValid) {
+                        Text(
+                            text = "Authorized Domain",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                OutlinedTextField(
+                    value = uiState.regEmail,
+                    onValueChange = onEmailChanged,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("reg_email_input"),
+                    placeholder = { Text("e.g. resident@connectkar.com") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Mail,
+                            contentDescription = "Email",
+                            tint = if (uiState.regEmailError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    trailingIcon = {
+                        if (isDomainValid) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "Valid domain",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.testTag("reg_email_valid_indicator")
+                            )
+                        } else if (uiState.regEmailError != null) {
+                            Icon(
+                                imageVector = Icons.Default.Error,
+                                contentDescription = "Error indicator",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    },
+                    isError = uiState.regEmailError != null,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Next
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                    )
+                )
+                AnimatedVisibility(
+                    visible = uiState.regEmailError != null,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    uiState.regEmailError?.let { err ->
+                        Text(
+                            text = err,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier
+                                .padding(top = 4.dp, start = 4.dp)
+                                .testTag("reg_email_error_text")
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Domain Whitelist Chips
+                Text(
+                    text = "Authorized Community Domains:",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("reg_domain_chips_row"),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    DomainValidator.AUTHORIZED_RESIDENT_DOMAINS.forEach { domain ->
+                        val isCurrentDomain = uiState.regEmail.endsWith("@$domain")
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isCurrentDomain) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isCurrentDomain) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .clickable { onDomainPillClicked(domain) }
+                                .testTag("reg_domain_pill_$domain")
+                        ) {
+                            Text(
+                                text = "@$domain",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isCurrentDomain) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 4. Password
+                Text(
+                    text = "Create Password",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                OutlinedTextField(
+                    value = uiState.regPassword,
+                    onValueChange = onPasswordChanged,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("reg_password_input"),
+                    placeholder = { Text("At least 6 characters") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Password",
+                            tint = if (uiState.regPasswordError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    trailingIcon = {
+                        IconButton(
+                            onClick = onTogglePasswordVisibility,
+                            modifier = Modifier.testTag("reg_toggle_password_visibility")
+                        ) {
+                            Icon(
+                                imageVector = if (uiState.isRegPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                contentDescription = if (uiState.isRegPasswordVisible) "Hide password" else "Show password"
+                            )
+                        }
+                    },
+                    visualTransformation = if (uiState.isRegPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    isError = uiState.regPasswordError != null,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Next
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                    )
+                )
+                AnimatedVisibility(
+                    visible = uiState.regPasswordError != null,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    uiState.regPasswordError?.let { err ->
+                        Text(
+                            text = err,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier
+                                .padding(top = 4.dp, start = 4.dp)
+                                .testTag("reg_password_error_text")
+                        )
+                    }
+                }
+
+                // Real-time Strength Meter for registration
+                if (uiState.regPassword.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    PasswordStrengthIndicator(
+                        strength = uiState.regPasswordStrength,
+                        modifier = Modifier.testTag("reg_password_strength_bar")
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // 5. Confirm Password
+                Text(
+                    text = "Confirm Password",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                OutlinedTextField(
+                    value = uiState.regConfirmPassword,
+                    onValueChange = onConfirmPasswordChanged,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("reg_confirm_password_input"),
+                    placeholder = { Text("Re-type password") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Confirm Password",
+                            tint = if (uiState.regConfirmPasswordError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    trailingIcon = {
+                        IconButton(
+                            onClick = onToggleConfirmPasswordVisibility,
+                            modifier = Modifier.testTag("reg_toggle_confirm_password_visibility")
+                        ) {
+                            Icon(
+                                imageVector = if (uiState.isRegConfirmPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                contentDescription = if (uiState.isRegConfirmPasswordVisible) "Hide password" else "Show password"
+                            )
+                        }
+                    },
+                    visualTransformation = if (uiState.isRegConfirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    isError = uiState.regConfirmPasswordError != null,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = { onRegister() }
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                    )
+                )
+                AnimatedVisibility(
+                    visible = uiState.regConfirmPasswordError != null,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    uiState.regConfirmPasswordError?.let { err ->
+                        Text(
+                            text = err,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier
+                                .padding(top = 4.dp, start = 4.dp)
+                                .testTag("reg_confirm_password_error_text")
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // 6. Community Guidelines Checkbox
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = uiState.regTermsAccepted,
+                        onCheckedChange = onToggleTerms,
+                        modifier = Modifier.testTag("reg_terms_checkbox"),
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = MaterialTheme.colorScheme.primary
+                        )
+                    )
+                    Text(
+                        text = "I agree to ConnectKar Community Guidelines & Terms of Service",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                AnimatedVisibility(
+                    visible = uiState.regTermsError != null,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    uiState.regTermsError?.let { err ->
+                        Text(
+                            text = err,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier
+                                .padding(top = 2.dp, start = 8.dp)
+                                .testTag("reg_terms_error_text")
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // Submit Button
+                Button(
+                    onClick = onRegister,
+                    enabled = !isAuthenticating,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .testTag("register_button"),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    if (isAuthenticating) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier
+                                .size(24.dp)
+                                .testTag("reg_progress_indicator")
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text("Creating Resident Account…")
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.AppRegistration,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Create Resident Account",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Switch to Login Link
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Already have an account? ",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "Sign In",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .clickable { onSwitchToLogin() }
+                            .padding(4.dp)
+                            .testTag("switch_to_login_button")
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Security Badges Footer
+        SecurityBadgesFooter()
+    }
+}
+
+@Composable
+private fun SecurityBadgesFooter() {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth()
+    ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
@@ -523,7 +1411,247 @@ private fun ResidentLoginForm(
                 textAlign = TextAlign.Center
             )
         }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SecurityFeatureBadge(label = "256-Bit SSL/TLS")
+            SecurityFeatureBadge(label = "OAuth 2.0 / Firebase")
+            SecurityFeatureBadge(label = "Encrypted Store")
+        }
     }
+}
+
+@Composable
+private fun PasswordStrengthIndicator(
+    strength: PasswordStrength,
+    modifier: Modifier = Modifier
+) {
+    val progress = when (strength.level) {
+        PasswordStrengthLevel.EMPTY -> 0f
+        PasswordStrengthLevel.WEAK -> 0.33f
+        PasswordStrengthLevel.MEDIUM -> 0.66f
+        PasswordStrengthLevel.STRONG -> 1f
+    }
+
+    val color = when (strength.level) {
+        PasswordStrengthLevel.EMPTY -> Color.Gray
+        PasswordStrengthLevel.WEAK -> MaterialTheme.colorScheme.error
+        PasswordStrengthLevel.MEDIUM -> Color(0xFFF59E0B) // Amber
+        PasswordStrengthLevel.STRONG -> Color(0xFF10B981) // Emerald Green
+    }
+
+    val animatedProgress by animateFloatAsState(targetValue = progress, label = "strengthProgress")
+    val animatedColor by animateColorAsState(targetValue = color, label = "strengthColor")
+
+    Column(
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Password Strength",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = strength.level.name.lowercase().replaceFirstChar { it.uppercase() },
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = animatedColor
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        LinearProgressIndicator(
+            progress = { animatedProgress },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+                .clip(RoundedCornerShape(2.dp)),
+            color = animatedColor,
+            trackColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            StrengthCheckCriterion(label = "6+ chars", met = strength.hasMinLength)
+            StrengthCheckCriterion(label = "Uppercase", met = strength.hasUppercase)
+            StrengthCheckCriterion(label = "Number", met = strength.hasNumber)
+            StrengthCheckCriterion(label = "Symbol", met = strength.hasSpecial)
+        }
+    }
+}
+
+@Composable
+private fun StrengthCheckCriterion(label: String, met: Boolean) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            imageVector = if (met) Icons.Default.Check else Icons.Default.Close,
+            contentDescription = null,
+            tint = if (met) Color(0xFF10B981) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            modifier = Modifier.size(12.dp)
+        )
+        Spacer(modifier = Modifier.width(2.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+            color = if (met) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+        )
+    }
+}
+
+@Composable
+private fun SecurityFeatureBadge(label: String) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        )
+    }
+}
+
+@Composable
+private fun ForgotPasswordDialog(
+    email: String,
+    onEmailChanged: (String) -> Unit,
+    status: ResetPasswordStatus,
+    error: String?,
+    onSend: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.testTag("reset_password_dialog"),
+        icon = {
+            Icon(
+                imageVector = Icons.Default.Lock,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+        },
+        title = {
+            Text(
+                text = "Reset Resident Password",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Enter your registered township resident email to receive a secure Firebase recovery link.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = onEmailChanged,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("reset_password_input"),
+                    placeholder = { Text("resident@connectkar.com") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Mail,
+                            contentDescription = "Email",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                )
+
+                if (error != null) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                when (status) {
+                    is ResetPasswordStatus.Sending -> {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Dispatching password reset email…", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                    is ResetPasswordStatus.Success -> {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFECFDF5)),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = Color(0xFF10B981),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = status.message,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFF065F46)
+                                )
+                            }
+                        }
+                    }
+                    is ResetPasswordStatus.Error -> {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = status.message,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    is ResetPasswordStatus.Idle -> {}
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onSend,
+                enabled = status !is ResetPasswordStatus.Sending,
+                modifier = Modifier.testTag("send_reset_button")
+            ) {
+                Text("Send Reset Link")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @Composable
@@ -578,52 +1706,56 @@ private fun ResidentVerifiedDashboard(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .testTag("resident_id_card"),
+                .padding(vertical = 8.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
             )
         ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                ResidentInfoRow(label = "Resident Email", value = state.email, tag = "resident_email_value")
-                ResidentInfoRow(label = "Allocated Unit", value = state.unitNumber, tag = "resident_unit_value")
-                ResidentInfoRow(label = "Verification Status", value = "Verified Resident", tag = "resident_status_value")
-                ResidentInfoRow(label = "Auth Provider", value = state.authProvider, tag = "resident_provider_value")
+            Column(modifier = Modifier.padding(18.dp)) {
+                ResidentDetailRow(label = "Resident Email", value = state.email)
+                Spacer(modifier = Modifier.height(8.dp))
+                ResidentDetailRow(label = "Assigned Residence", value = state.unitNumber)
+                Spacer(modifier = Modifier.height(8.dp))
+                ResidentDetailRow(label = "Authentication Provider", value = state.authProvider)
+                Spacer(modifier = Modifier.height(8.dp))
+                ResidentDetailRow(
+                    label = "Security Verification",
+                    value = if (state.isVerified) "Verified Community Resident" else "Pending Verification"
+                )
             }
         }
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Button(
             onClick = onSignOut,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.error
-            ),
-            shape = RoundedCornerShape(12.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp)
-                .testTag("sign_out_button")
+                .height(50.dp)
+                .testTag("sign_out_button"),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.error
+            )
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.Logout,
-                contentDescription = "Sign Out"
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onError
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Sign Out")
+            Text(
+                text = "Sign Out from Resident Session",
+                color = MaterialTheme.colorScheme.onError,
+                fontWeight = FontWeight.SemiBold
+            )
         }
     }
 }
 
 @Composable
-private fun ResidentInfoRow(
-    label: String,
-    value: String,
-    tag: String
-) {
+private fun ResidentDetailRow(label: String, value: String) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -631,15 +1763,14 @@ private fun ResidentInfoRow(
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.testTag(tag)
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }

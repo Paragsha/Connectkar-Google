@@ -28,7 +28,8 @@ import kotlinx.coroutines.launch
 class TownshipRepository(
     private val appDao: AppDao,
     private val context: android.content.Context,
-    private val firestore: com.google.firebase.firestore.FirebaseFirestore? = FirebaseManager.firestore
+    private val firestore: com.google.firebase.firestore.FirebaseFirestore? = FirebaseManager.firestore,
+    private val authRepository: AuthRepository = FirebaseAuthRepository.getInstance(context)
 ) : java.io.Closeable {
 
     private val repositoryJob = kotlinx.coroutines.SupervisorJob()
@@ -521,7 +522,7 @@ class TownshipRepository(
         val trimmed = society.trim()
         if (trimmed.isEmpty()) return
         val current = appDao.getCurrentUserDirect()
-        val uid = FirebaseManager.auth?.currentUser?.uid ?: current?.uid ?: return
+        val uid = authRepository.currentAuthUser?.uid ?: current?.uid ?: return
         val user = appDao.getUserByUidDirect(uid) ?: current ?: return
 
         if (trimmed == user.society) return
@@ -547,7 +548,7 @@ class TownshipRepository(
     suspend fun removeExploredSociety(society: String) {
         val trimmed = society.trim()
         val current = appDao.getCurrentUserDirect()
-        val uid = FirebaseManager.auth?.currentUser?.uid ?: current?.uid ?: return
+        val uid = authRepository.currentAuthUser?.uid ?: current?.uid ?: return
         val user = appDao.getUserByUidDirect(uid) ?: current ?: return
 
         if (!user.exploredSocietyIds.contains(trimmed)) return
@@ -621,7 +622,7 @@ class TownshipRepository(
         // Clear previous current users
         appDao.clearCurrentUserFlag()
         
-        val uid = FirebaseManager.auth?.currentUser?.uid ?: "user_${System.currentTimeMillis()}"
+        val uid = authRepository.currentAuthUser?.uid ?: "user_${System.currentTimeMillis()}"
         
         val newUser = UserEntity(
             uid = uid,
@@ -686,7 +687,8 @@ class TownshipRepository(
     }
 
     suspend fun logout() {
-        // Sign out from FirebaseAuth
+        // Sign out from authentication repository
+        authRepository.signOut()
         FirebaseManager.auth?.signOut()
         appDao.clearCurrentUserFlag()
     }
@@ -812,7 +814,7 @@ class TownshipRepository(
         val listing = appDao.getListingById(listingId)
         if (listing != null) {
             val currentUser = appDao.getCurrentUserDirect()
-            val userId = currentUser?.uid ?: FirebaseManager.auth?.currentUser?.uid ?: ""
+            val userId = currentUser?.uid ?: authRepository.currentAuthUser?.uid ?: ""
             val interaction = if (userId.isNotEmpty()) appDao.getInteraction(userId, listingId) else null
             val currentLiked = interaction?.isLiked ?: listing.isLikedByMe
             val newLiked = !currentLiked
@@ -859,7 +861,7 @@ class TownshipRepository(
         val listing = appDao.getListingById(listingId)
         if (listing != null) {
             val currentUser = appDao.getCurrentUserDirect()
-            val userId = currentUser?.uid ?: FirebaseManager.auth?.currentUser?.uid ?: ""
+            val userId = currentUser?.uid ?: authRepository.currentAuthUser?.uid ?: ""
             val interaction = if (userId.isNotEmpty()) appDao.getInteraction(userId, listingId) else null
             val currentBookmarked = interaction?.isBookmarked ?: listing.isBookmarked
             val newBookmarked = !currentBookmarked

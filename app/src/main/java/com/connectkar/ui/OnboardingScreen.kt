@@ -34,10 +34,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.connectkar.data.FirebaseManager
 import com.connectkar.BuildConfig
-import com.google.firebase.FirebaseException
-import com.google.firebase.auth.PhoneAuthCredential
-import com.google.firebase.auth.PhoneAuthOptions
-import com.google.firebase.auth.PhoneAuthProvider
+import com.connectkar.data.repository.AuthRepository
+import com.connectkar.data.repository.FirebaseAuthRepository
+import com.connectkar.data.repository.PhoneVerificationState
+import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,7 +55,8 @@ fun OnboardingScreen(
         moveInDate: String,
         proofDocumentUri: String
     ) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    authRepository: AuthRepository = FirebaseAuthRepository.getInstance()
 ) {
     // Current Step: 1 = Phone Entry, 2 = Residence Details, 3 = Success Screen
     var currentStep by remember { mutableStateOf(1) }
@@ -140,115 +141,68 @@ fun OnboardingScreen(
     val societies = TownshipSocieties
     val residentTypes = listOf("OWNER", "TENANT")
 
-    // Firebase Phone Auth Callbacks
-    val callbacks = remember {
-        object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
-            override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                // Instantly verified - auto transition to Step 2
+    // Observe phone verification state from centralized repository
+    val phoneVerificationState by authRepository.phoneVerificationState.collectAsState()
+
+    androidx.compose.runtime.LaunchedEffect(phoneVerificationState) {
+        when (val state = phoneVerificationState) {
+            is PhoneVerificationState.CodeSent -> {
+                verificationId = state.verificationId
+                isOtpSent = true
+                isVerifyingOtp = false
+                if (BuildConfig.DEBUG && state.verificationId == "simulated_verification_id") {
+                    errorMessage = "Developer Simulation: Use test code '123456' to verify."
+                } else {
+                    errorMessage = null
+                }
+            }
+            is PhoneVerificationState.AutoVerified -> {
                 isVerifyingOtp = false
                 isOtpSent = false
                 errorMessage = null
                 currentStep = 2
             }
-
-            override fun onVerificationFailed(e: FirebaseException) {
-                errorMessage = "Verification failed: ${e.message}"
+            is PhoneVerificationState.Error -> {
+                errorMessage = state.message
                 isVerifyingOtp = false
-                isOtpSent = false
             }
-
-            override fun onCodeSent(id: String, token: PhoneAuthProvider.ForceResendingToken) {
-                verificationId = id
-                isOtpSent = true
-                isVerifyingOtp = false
+            is PhoneVerificationState.SendingCode -> {
+                isVerifyingOtp = true
                 errorMessage = null
+            }
+            is PhoneVerificationState.Idle -> {
+                isVerifyingOtp = false
             }
         }
     }
 
     // Trigger Phone OTP Verification
     fun startPhoneVerification() {
-        val auth = FirebaseManager.auth
-        val isTestOrDebug = BuildConfig.DEBUG || 
-                            System.getProperty("robolectric.active") != null || 
-                            System.getProperty("java.runtime.name")?.contains("Android") == false
-
-        if (isTestOrDebug && (BuildConfig.DEBUG || auth == null || activity == null)) {
-            android.util.Log.i("Onboarding", "Simulation fallback active. OTP sent.")
-            isOtpSent = true
-            verificationId = "simulated_verification_id"
-            if (BuildConfig.DEBUG) {
-                errorMessage = "Developer Simulation: Use test code '123456' to verify."
-            }
-            return
-        }
-        
-        isVerifyingOtp = true
         errorMessage = null
-        
-        val formattedPhone = if (phoneNumber.startsWith("+")) phoneNumber else "+91$phoneNumber"
-        
-        try {
-            val firebaseAuth = auth ?: throw IllegalStateException("Firebase Auth is unavailable.")
-            val act = activity ?: throw IllegalStateException("Activity context is missing.")
-            val options = PhoneAuthOptions.newBuilder(firebaseAuth)
-                .setPhoneNumber(formattedPhone)
-                .setTimeout(60L, java.util.concurrent.TimeUnit.SECONDS)
-                .setActivity(act)
-                .setCallbacks(callbacks)
-                .build()
-                
-            PhoneAuthProvider.verifyPhoneNumber(options)
-        } catch (e: Exception) {
-            errorMessage = "Phone verification setup failed: ${e.message}"
-            isVerifyingOtp = false
-        }
+        isVerifyingOtp = true
+        authRepository.startPhoneNumberVerification(activity, phoneNumber)
     }
 
     // Verify OTP Code
     fun verifyOtpCode(code: String) {
-        val auth = FirebaseManager.auth
-
-        if (BuildConfig.DEBUG && verificationId == "simulated_verification_id") {
-            if (code == "123456") {
-                isOtpSent = false
-                errorMessage = null
-                currentStep = 2
-            } else {
-                errorMessage = "Invalid code. Please enter '123456'."
-            }
+        val vId = verificationId
+        if (vId == null) {
+            errorMessage = "Verification ID is missing. Please request OTP again."
             return
         }
-        
         isVerifyingOtp = true
-        try {
-            val vId = verificationId
-            if (vId == null) {
-                errorMessage = "Verification ID is missing. Please request OTP again."
+        coroutineScope.launch {
+            val result = authRepository.signInWithPhoneCredential(vId, code)
+            result.onSuccess {
+                isOtpSent = false
+                errorMessage = null
                 isVerifyingOtp = false
-                return
-            }
-            val firebaseAuth = auth
-            if (firebaseAuth == null) {
-                errorMessage = "Firebase Auth is unavailable."
+                currentStep = 2
+                authRepository.resetPhoneVerificationState()
+            }.onFailure { e ->
+                errorMessage = e.message ?: "Verification failed"
                 isVerifyingOtp = false
-                return
             }
-            val credential = PhoneAuthProvider.getCredential(vId, code)
-            firebaseAuth.signInWithCredential(credential)
-                .addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        isOtpSent = false
-                        errorMessage = null
-                        currentStep = 2
-                    } else {
-                        errorMessage = "Invalid OTP verification code. Please try again."
-                        isVerifyingOtp = false
-                    }
-                }
-        } catch (e: Exception) {
-            errorMessage = "Verification failed: ${e.message}"
-            isVerifyingOtp = false
         }
     }
 
@@ -978,7 +932,10 @@ fun OnboardingScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.End
                         ) {
-                            TextButton(onClick = { isOtpSent = false }) {
+                            TextButton(onClick = {
+                                isOtpSent = false
+                                authRepository.resetPhoneVerificationState()
+                            }) {
                                 Text("Cancel", color = Color.Gray)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
