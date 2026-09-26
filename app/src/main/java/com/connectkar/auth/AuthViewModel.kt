@@ -2,9 +2,12 @@ package com.connectkar.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.connectkar.ConnectKarApplication
 import com.connectkar.data.repository.AuthRepository
 import com.connectkar.data.repository.AuthState
 import com.connectkar.data.repository.FirebaseAuthRepository
+import com.connectkar.data.repository.TownshipRepository
+import com.connectkar.ui.TownshipSocieties
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -97,6 +100,8 @@ data class AuthUiState(
     // Registration Form State
     val regName: String = "",
     val regUnitNumber: String = "",
+    val regSociety: String = TownshipSocieties.firstOrNull() ?: "Aqualily Estate",
+    val regIsAdult: Boolean = false,
     val regEmail: String = "",
     val regPassword: String = "",
     val regConfirmPassword: String = "",
@@ -105,6 +110,8 @@ data class AuthUiState(
     val regTermsAccepted: Boolean = false,
     val regNameError: String? = null,
     val regUnitError: String? = null,
+    val regSocietyError: String? = null,
+    val regIsAdultError: String? = null,
     val regEmailError: String? = null,
     val regPasswordError: String? = null,
     val regConfirmPasswordError: String? = null,
@@ -126,8 +133,18 @@ data class AuthUiState(
  */
 class AuthViewModel(
     private val authRepository: AuthRepository = FirebaseAuthRepository.getInstance(),
+    private val townshipRepository: TownshipRepository? = null,
     private val dispatcher: CoroutineDispatcher = Dispatchers.Main
 ) : ViewModel() {
+
+    private fun getRepository(): TownshipRepository? {
+        if (townshipRepository != null) return townshipRepository
+        return try {
+            ConnectKarApplication.instance.repository
+        } catch (_: Throwable) {
+            null
+        }
+    }
 
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
@@ -137,6 +154,16 @@ class AuthViewModel(
             authRepository.authState.collect { repoAuthState ->
                 when (repoAuthState) {
                     is AuthState.Authenticated -> {
+                        try {
+                            val repo = getRepository()
+                            if (repo != null && repoAuthState.user.uid.isNotEmpty()) {
+                                val existing = repo.getUserByUidDirect(repoAuthState.user.uid)
+                                if (existing != null && !existing.isCurrent) {
+                                    repo.loginAsUser(existing)
+                                }
+                            }
+                        } catch (_: Throwable) {}
+
                         _uiState.update { current ->
                             if (current.authState !is ResidentAuthState.Success) {
                                 val unit = if (current.regUnitNumber.isNotBlank()) current.regUnitNumber else "Tower B - 402"
@@ -256,6 +283,18 @@ class AuthViewModel(
         viewModelScope.launch(dispatcher) {
             val result = authRepository.signInWithEmailAndPassword(email, password)
             result.onSuccess { user ->
+                try {
+                    val repo = getRepository()
+                    if (repo != null && user.uid.isNotEmpty()) {
+                        val existing = repo.getUserByUidDirect(user.uid)
+                        if (existing != null) {
+                            repo.loginAsUser(existing)
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("AuthViewModel", "Failed to set current user on sign-in: ${e.message}")
+                }
+
                 _uiState.update {
                     it.copy(
                         failedAttempts = 0,
@@ -356,10 +395,30 @@ class AuthViewModel(
         }
     }
 
+    fun onRegSocietyChanged(society: String) {
+        _uiState.update {
+            it.copy(
+                regSociety = society,
+                regSocietyError = null
+            )
+        }
+    }
+
+    fun onToggleRegIsAdult(isAdult: Boolean) {
+        _uiState.update {
+            it.copy(
+                regIsAdult = isAdult,
+                regIsAdultError = if (isAdult) null else it.regIsAdultError
+            )
+        }
+    }
+
     fun registerResident() {
         val current = _uiState.value
         val name = current.regName.trim()
         val unit = current.regUnitNumber.trim()
+        val society = current.regSociety.trim()
+        val isAdult = current.regIsAdult
         val email = current.regEmail.trim()
         val password = current.regPassword
         val confirmPassword = current.regConfirmPassword
@@ -368,6 +427,8 @@ class AuthViewModel(
         var hasError = false
         var nameErr: String? = null
         var unitErr: String? = null
+        var societyErr: String? = null
+        var isAdultErr: String? = null
         var emailErr: String? = null
         var passErr: String? = null
         var confirmErr: String? = null
@@ -385,6 +446,12 @@ class AuthViewModel(
         // 2. Unit Number Validation
         if (unit.isEmpty()) {
             unitErr = "Please enter your apartment / unit number."
+            hasError = true
+        }
+
+        // Society Validation
+        if (society.isEmpty()) {
+            societyErr = "Please select your society."
             hasError = true
         }
 
@@ -424,6 +491,12 @@ class AuthViewModel(
             hasError = true
         }
 
+        // Age Verification Validation
+        if (!isAdult) {
+            isAdultErr = "You must confirm you are 18 years of age or older to register."
+            hasError = true
+        }
+
         // 6. Community Guidelines / Terms Agreement Validation
         if (!termsAccepted) {
             termsErr = "You must agree to Community Guidelines & Terms of Service."
@@ -435,6 +508,8 @@ class AuthViewModel(
                 it.copy(
                     regNameError = nameErr,
                     regUnitError = unitErr,
+                    regSocietyError = societyErr,
+                    regIsAdultError = isAdultErr,
                     regEmailError = emailErr,
                     regPasswordError = passErr,
                     regConfirmPasswordError = confirmErr,
@@ -449,6 +524,8 @@ class AuthViewModel(
             it.copy(
                 regNameError = null,
                 regUnitError = null,
+                regSocietyError = null,
+                regIsAdultError = null,
                 regEmailError = null,
                 regPasswordError = null,
                 regConfirmPasswordError = null,
@@ -464,13 +541,29 @@ class AuthViewModel(
                 displayName = name
             )
             result.onSuccess { user ->
+                try {
+                    val repo = getRepository()
+                    repo?.registerUser(
+                        fullName = if (user.displayName.isNotBlank()) user.displayName else name,
+                        phoneNumber = "",
+                        society = society.ifBlank { TownshipSocieties.first() },
+                        blockTower = "",
+                        flatNumber = unit,
+                        avatarIndex = 0,
+                        isAdult = isAdult,
+                        isVerifiedOnSignup = true
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.e("AuthViewModel", "Failed to register user in Room on sign up: ${e.message}")
+                }
+
                 _uiState.update {
                     it.copy(
                         authState = ResidentAuthState.Success(
                             email = user.email,
                             displayName = if (user.displayName.isNotBlank()) user.displayName else name,
                             unitNumber = unit,
-                            isVerified = user.isVerified,
+                            isVerified = true,
                             authProvider = user.authProvider
                         )
                     )
@@ -582,11 +675,14 @@ class AuthViewModel(
                 password = "",
                 regPassword = "",
                 regConfirmPassword = "",
+                regIsAdult = false,
                 authState = ResidentAuthState.Idle,
                 emailError = null,
                 passwordError = null,
                 regNameError = null,
                 regUnitError = null,
+                regSocietyError = null,
+                regIsAdultError = null,
                 regEmailError = null,
                 regPasswordError = null,
                 regConfirmPasswordError = null,

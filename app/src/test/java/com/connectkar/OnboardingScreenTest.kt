@@ -54,6 +54,7 @@ class OnboardingScreenTest {
         // 2. Input valid name and phone
         composeTestRule.onNodeWithTag("onboarding_fullname").performTextInput("Rahul Kumar")
         composeTestRule.onNodeWithTag("onboarding_phone").performTextInput("9876543210")
+        composeTestRule.onNodeWithTag("onboarding_age_gate_checkbox").performScrollTo().performClick()
 
         // 3. Now, the "Send Verification OTP" button should be enabled
         composeTestRule.onNodeWithTag("submit_onboarding_button").assertIsEnabled()

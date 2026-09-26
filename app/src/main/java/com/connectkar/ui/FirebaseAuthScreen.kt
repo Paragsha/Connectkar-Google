@@ -92,10 +92,22 @@ import com.connectkar.auth.PasswordStrength
 import com.connectkar.auth.PasswordStrengthLevel
 import com.connectkar.auth.ResetPasswordStatus
 import com.connectkar.auth.ResidentAuthState
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.connectkar.data.local.UserEntity
+import com.connectkar.ui.TownshipSocieties
+import com.connectkar.ui.TownshipViewModel
+import com.connectkar.ui.DashboardScreen
 
 @Composable
 fun FirebaseAuthScreen(
     viewModel: AuthViewModel,
+    townshipViewModel: TownshipViewModel? = null,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -113,11 +125,57 @@ fun FirebaseAuthScreen(
         ) {
             when (val authState = uiState.authState) {
                 is ResidentAuthState.Success -> {
-                    ResidentVerifiedDashboard(
-                        state = authState,
-                        onSignOut = { viewModel.signOut() },
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    if (townshipViewModel != null) {
+                        val currentUser by townshipViewModel.currentUser.collectAsState()
+                        val selectedSociety by townshipViewModel.selectedSociety.collectAsState()
+                        val syncState by townshipViewModel.syncState.collectAsState()
+                        val isRefreshing by townshipViewModel.isRefreshing.collectAsState()
+                        val mealListings by townshipViewModel.mealListingsForSociety.collectAsState()
+                        val isExploreMode by townshipViewModel.isExploreMode.collectAsState()
+                        val exploredSocieties by townshipViewModel.exploredSocieties.collectAsState()
+
+                        val activeUser = currentUser ?: UserEntity(
+                            uid = "",
+                            fullName = authState.displayName.ifBlank { "Resident" },
+                            phoneNumber = "",
+                            society = selectedSociety.ifBlank { TownshipSocieties.first() },
+                            blockTower = "",
+                            flatNumber = authState.unitNumber,
+                            avatarIndex = 0,
+                            isVerified = authState.isVerified,
+                            isPending = !authState.isVerified,
+                            isCurrent = true,
+                            role = "RESIDENT"
+                        )
+
+                        DashboardScreen(
+                            currentUser = activeUser,
+                            selectedSociety = selectedSociety,
+                            syncState = syncState,
+                            isRefreshing = isRefreshing,
+                            mealListings = mealListings,
+                            isExploreMode = isExploreMode,
+                            exploredSocieties = exploredSocieties,
+                            onEnterExploreMode = { townshipViewModel.enterExploreMode(it) },
+                            onExitExploreMode = { townshipViewModel.exitExploreMode() },
+                            onSocietySelected = { townshipViewModel.selectSociety(it) },
+                            onModuleClicked = { townshipViewModel.setActiveModule(it) },
+                            onSimulateApprove = { townshipViewModel.simulateAdminVerificationOfCurrentUser() },
+                            onLogout = {
+                                townshipViewModel.logout()
+                                viewModel.signOut()
+                            },
+                            onRetrySync = { townshipViewModel.triggerSync() },
+                            onRefresh = { townshipViewModel.refresh() },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        ResidentVerifiedDashboard(
+                            state = authState,
+                            onSignOut = { viewModel.signOut() },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
                 else -> {
                     Column(
@@ -154,6 +212,8 @@ fun FirebaseAuthScreen(
                                     uiState = uiState,
                                     onNameChanged = viewModel::onRegNameChanged,
                                     onUnitChanged = viewModel::onRegUnitChanged,
+                                    onSocietyChanged = viewModel::onRegSocietyChanged,
+                                    onToggleIsAdult = viewModel::onToggleRegIsAdult,
                                     onEmailChanged = viewModel::onRegEmailChanged,
                                     onPasswordChanged = viewModel::onRegPasswordChanged,
                                     onConfirmPasswordChanged = viewModel::onRegConfirmPasswordChanged,
@@ -777,12 +837,14 @@ private fun ResidentLoginForm(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun ResidentRegistrationForm(
     uiState: AuthUiState,
     onNameChanged: (String) -> Unit,
     onUnitChanged: (String) -> Unit,
+    onSocietyChanged: (String) -> Unit,
+    onToggleIsAdult: (Boolean) -> Unit,
     onEmailChanged: (String) -> Unit,
     onPasswordChanged: (String) -> Unit,
     onConfirmPasswordChanged: (String) -> Unit,
@@ -951,6 +1013,79 @@ private fun ResidentRegistrationForm(
                             modifier = Modifier
                                 .padding(top = 4.dp, start = 4.dp)
                                 .testTag("reg_name_error_text")
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Society / Gated Community Dropdown
+                Text(
+                    text = "Society / Gated Community",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                var showSocietyDropdown by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = showSocietyDropdown,
+                    onExpandedChange = { showSocietyDropdown = !showSocietyDropdown },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = uiState.regSociety,
+                        onValueChange = {},
+                        readOnly = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor()
+                            .testTag("reg_society_input"),
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Apartment,
+                                contentDescription = "Society",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = showSocietyDropdown)
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                        )
+                    )
+                    ExposedDropdownMenu(
+                        expanded = showSocietyDropdown,
+                        onDismissRequest = { showSocietyDropdown = false }
+                    ) {
+                        TownshipSocieties.forEach { society ->
+                            DropdownMenuItem(
+                                text = { Text(society) },
+                                onClick = {
+                                    onSocietyChanged(society)
+                                    showSocietyDropdown = false
+                                },
+                                modifier = Modifier.testTag("reg_society_option_$society")
+                            )
+                        }
+                    }
+                }
+                AnimatedVisibility(
+                    visible = uiState.regSocietyError != null,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    uiState.regSocietyError?.let { err ->
+                        Text(
+                            text = err,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier
+                                .padding(top = 4.dp, start = 4.dp)
+                                .testTag("reg_society_error_text")
                         )
                     }
                 }
@@ -1276,6 +1411,48 @@ private fun ResidentRegistrationForm(
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
+
+                // 18+ Age Gate Checkbox
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onToggleIsAdult(!uiState.regIsAdult) }
+                        .testTag("reg_age_gate_row"),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = uiState.regIsAdult,
+                        onCheckedChange = onToggleIsAdult,
+                        modifier = Modifier.testTag("reg_is_adult_checkbox"),
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = MaterialTheme.colorScheme.primary
+                        )
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "I confirm I am 18 years of age or older",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                AnimatedVisibility(
+                    visible = uiState.regIsAdultError != null,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    uiState.regIsAdultError?.let { err ->
+                        Text(
+                            text = err,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier
+                                .padding(top = 2.dp, start = 8.dp)
+                                .testTag("reg_is_adult_error_text")
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // 6. Community Guidelines Checkbox
                 Row(

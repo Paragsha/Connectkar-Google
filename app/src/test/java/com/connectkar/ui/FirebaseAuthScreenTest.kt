@@ -121,11 +121,13 @@ class FirebaseAuthScreenTest {
 
         composeTestRule.onNodeWithTag("reg_title").assertIsDisplayed()
         composeTestRule.onNodeWithTag("reg_name_input").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithTag("reg_society_input").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithTag("reg_unit_input").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithTag("reg_email_input").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithTag("reg_domain_chips_row").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithTag("reg_password_input").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithTag("reg_confirm_password_input").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithTag("reg_is_adult_checkbox").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithTag("reg_terms_checkbox").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithTag("register_button").performScrollTo().assertIsDisplayed()
     }
@@ -144,6 +146,7 @@ class FirebaseAuthScreenTest {
         composeTestRule.onNodeWithTag("reg_email_error_text").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithTag("reg_password_error_text").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithTag("reg_confirm_password_error_text").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithTag("reg_is_adult_error_text").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithTag("reg_terms_error_text").performScrollTo().assertIsDisplayed()
 
         // 2. Test password mismatch
@@ -152,6 +155,7 @@ class FirebaseAuthScreenTest {
         composeTestRule.onNodeWithTag("reg_email_input").performScrollTo().performTextInput("john@resident.community")
         composeTestRule.onNodeWithTag("reg_password_input").performScrollTo().performTextInput("Password123")
         composeTestRule.onNodeWithTag("reg_confirm_password_input").performScrollTo().performTextInput("Mismatch456")
+        composeTestRule.onNodeWithTag("reg_is_adult_checkbox").performScrollTo().performClick()
         composeTestRule.onNodeWithTag("reg_terms_checkbox").performScrollTo().performClick()
 
         composeTestRule.onNodeWithTag("register_button").performScrollTo().performClick()
@@ -170,6 +174,7 @@ class FirebaseAuthScreenTest {
         composeTestRule.onNodeWithTag("reg_email_input").performScrollTo().performTextInput("eleanor@connectkar.com")
         composeTestRule.onNodeWithTag("reg_password_input").performScrollTo().performTextInput("StrongPass!99")
         composeTestRule.onNodeWithTag("reg_confirm_password_input").performScrollTo().performTextInput("StrongPass!99")
+        composeTestRule.onNodeWithTag("reg_is_adult_checkbox").performScrollTo().performClick()
         composeTestRule.onNodeWithTag("reg_terms_checkbox").performScrollTo().performClick()
 
         composeTestRule.onNodeWithTag("register_button").performScrollTo().performClick()

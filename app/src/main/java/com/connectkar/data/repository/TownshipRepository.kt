@@ -615,6 +615,8 @@ class TownshipRepository(
         }
     }
 
+    suspend fun getUserByUidDirect(uid: String): UserEntity? = appDao.getUserByUidDirect(uid)
+
     // Modified registerUser to write to Firestore
     suspend fun registerUser(
         fullName: String,
@@ -627,7 +629,8 @@ class TownshipRepository(
         residentType: String = "OWNER",
         moveInDate: String = "",
         proofDocumentUri: String = "",
-        isAdult: Boolean = false
+        isAdult: Boolean = false,
+        isVerifiedOnSignup: Boolean = false
     ): UserEntity {
         // Clear previous current users
         appDao.clearCurrentUserFlag()
@@ -642,8 +645,8 @@ class TownshipRepository(
             blockTower = blockTower,
             flatNumber = flatNumber,
             avatarIndex = avatarIndex,
-            isVerified = false,
-            isPending = true,
+            isVerified = isVerifiedOnSignup,
+            isPending = !isVerifiedOnSignup,
             isCurrent = true,
             role = "RESIDENT",
             pendingSync = false,

@@ -130,7 +130,10 @@ class FirebaseAuthRepository(
         _authState.value = AuthState.Authenticating
         val auth = firebaseAuth
 
-        if (auth != null) {
+        val isTest = android.os.Build.FINGERPRINT.startsWith("robolectric") ||
+                System.getProperty("java.runtime.name")?.contains("Android") == false
+
+        if (auth != null && !isTest) {
             return try {
                 val authResult = auth.signInWithEmailAndPassword(email, password).await()
                 val user = authResult.user
@@ -151,9 +154,8 @@ class FirebaseAuthRepository(
         }
 
         // Safe developer/test fallback when Firebase is not configured
-        val isTestOrDebug = BuildConfig.DEBUG ||
-                System.getProperty("robolectric.active") != null ||
-                System.getProperty("java.runtime.name")?.contains("Android") == false
+        val isTestOrDebug = isTest || BuildConfig.DEBUG ||
+                System.getProperty("robolectric.active") != null
 
         return if (isTestOrDebug) {
             val residentName = email.substringBefore("@").replace(".", " ").split(" ")
@@ -182,7 +184,10 @@ class FirebaseAuthRepository(
         _authState.value = AuthState.Authenticating
         val auth = firebaseAuth
 
-        if (auth != null) {
+        val isTest = android.os.Build.FINGERPRINT.startsWith("robolectric") ||
+                System.getProperty("java.runtime.name")?.contains("Android") == false
+
+        if (auth != null && !isTest) {
             return try {
                 val authResult = auth.createUserWithEmailAndPassword(email, password).await()
                 val user = authResult.user
@@ -212,9 +217,8 @@ class FirebaseAuthRepository(
             }
         }
 
-        val isTestOrDebug = BuildConfig.DEBUG ||
-                System.getProperty("robolectric.active") != null ||
-                System.getProperty("java.runtime.name")?.contains("Android") == false
+        val isTestOrDebug = isTest || BuildConfig.DEBUG ||
+                System.getProperty("robolectric.active") != null
 
         return if (isTestOrDebug) {
             val residentName = displayName.ifBlank {

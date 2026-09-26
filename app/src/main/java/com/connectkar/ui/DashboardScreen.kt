@@ -60,6 +60,12 @@ data class ChefMeal(
     val gradientColors: List<Color>
 )
 
+enum class DashboardSheet {
+    SETTINGS,
+    GRIEVANCE_OFFICER,
+    PRIVACY_POLICY
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
@@ -91,18 +97,21 @@ fun DashboardScreen(
     var selectedListingMealForOrder by remember { mutableStateOf<ListingEntity?>(null) }
     var societyToConfirmExplore by remember { mutableStateOf<String?>(null) }
     var isBannerDismissed by remember { mutableStateOf(false) }
-    var currentOverlayRoute by remember { mutableStateOf<String?>(null) }
+    var currentSheet by remember { mutableStateOf<DashboardSheet?>(null) }
 
-    if (currentOverlayRoute == AppRoutes.GRIEVANCE_OFFICER) {
-        GrievanceOfficerScreen(onBack = { currentOverlayRoute = null })
-        return
-    }
-    if (currentOverlayRoute == AppRoutes.PRIVACY_POLICY) {
-        PrivacyPolicyScreen(
-            onBack = { currentOverlayRoute = null },
-            onNavigateToGrievanceOfficer = { currentOverlayRoute = AppRoutes.GRIEVANCE_OFFICER }
-        )
-        return
+    when (currentSheet) {
+        DashboardSheet.GRIEVANCE_OFFICER -> {
+            GrievanceOfficerScreen(onBack = { currentSheet = null })
+            return
+        }
+        DashboardSheet.PRIVACY_POLICY -> {
+            PrivacyPolicyScreen(
+                onBack = { currentSheet = null },
+                onNavigateToGrievanceOfficer = { currentSheet = DashboardSheet.GRIEVANCE_OFFICER }
+            )
+            return
+        }
+        else -> {}
     }
 
     LaunchedEffect(selectedSociety, isExploreMode) {
@@ -298,6 +307,22 @@ fun DashboardScreen(
 
                     // Top Bar Actions
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = { currentSheet = DashboardSheet.SETTINGS },
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(colorGrayLight)
+                                .size(36.dp)
+                                .testTag("dashboard_settings_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Settings",
+                                tint = BrandSlate,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
                         IconButton(
                             onClick = { /* Simulated Notifications */ },
                             modifier = Modifier
@@ -1103,7 +1128,7 @@ fun DashboardScreen(
                     OutlinedButton(
                         onClick = {
                             showProfileDetailsDialog = false
-                            currentOverlayRoute = AppRoutes.PRIVACY_POLICY
+                            currentSheet = DashboardSheet.PRIVACY_POLICY
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1128,7 +1153,7 @@ fun DashboardScreen(
                     OutlinedButton(
                         onClick = {
                             showProfileDetailsDialog = false
-                            currentOverlayRoute = AppRoutes.GRIEVANCE_OFFICER
+                            currentSheet = DashboardSheet.GRIEVANCE_OFFICER
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1167,6 +1192,98 @@ fun DashboardScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showProfileDetailsDialog = false }) {
+                    Text("Close", color = ConciergeBrandNavy, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
+    // 2b. Settings Dialog
+    if (currentSheet == DashboardSheet.SETTINGS) {
+        AlertDialog(
+            onDismissRequest = { currentSheet = null },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = null,
+                    tint = ConciergeBrandNavy,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "App Settings & Compliance",
+                    fontWeight = FontWeight.Bold,
+                    color = ConciergeBrandNavy,
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "ConnectKar Community Portal v1.0",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.DarkGray
+                    )
+                    Text(
+                        text = "Registered Society: ${currentUser.society}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    OutlinedButton(
+                        onClick = {
+                            currentSheet = DashboardSheet.PRIVACY_POLICY
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("settings_privacy_policy_button"),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PrivacyTip,
+                            contentDescription = null,
+                            tint = ConciergeBrandNavy,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Privacy Policy",
+                            color = ConciergeBrandNavy,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedButton(
+                        onClick = {
+                            currentSheet = DashboardSheet.GRIEVANCE_OFFICER
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("settings_grievance_officer_button"),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Gavel,
+                            contentDescription = null,
+                            tint = ConciergeBrandNavy,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Grievance Officer (IT Rules)",
+                            color = ConciergeBrandNavy,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { currentSheet = null }) {
                     Text("Close", color = ConciergeBrandNavy, fontWeight = FontWeight.Bold)
                 }
             }
