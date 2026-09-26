@@ -228,4 +228,23 @@ interface AppDao {
         ORDER BY l.timestamp DESC
     """)
     fun getBookmarkedListingIds(userId: String, type: String): Flow<List<Int>>
+
+    // --- Content Report Operations ---
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(report: ReportEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertReport(report: ReportEntity): Long
+
+    @Query("SELECT * FROM reports WHERE status = :status ORDER BY timestamp DESC")
+    fun getReportsByStatus(status: String): Flow<List<ReportEntity>>
+
+    @Query("SELECT * FROM reports WHERE pendingSync = 1 ORDER BY timestamp ASC")
+    suspend fun getUnsyncedReports(): List<ReportEntity>
+
+    @Update
+    suspend fun updateReport(report: ReportEntity)
+
+    @Query("SELECT * FROM reports WHERE reportId = :reportId LIMIT 1")
+    suspend fun getReportByIdDirect(reportId: String): ReportEntity?
 }

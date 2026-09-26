@@ -11,9 +11,10 @@ import androidx.room.RoomDatabase
         MenuItemEntity::class,
         MealOrderEntity::class,
         MealSubscriptionEntity::class,
-        UserListingInteractionEntity::class
+        UserListingInteractionEntity::class,
+        ReportEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 @androidx.room.TypeConverters(UserConverters::class)
@@ -127,6 +128,29 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_10_11 = object : androidx.room.migration.Migration(10, 11) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE users ADD COLUMN exploredSocietyIds TEXT NOT NULL DEFAULT '[]'")
+            }
+        }
+
+        val MIGRATION_11_12 = object : androidx.room.migration.Migration(11, 12) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE users ADD COLUMN isAdult INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `reports` (
+                        `reportId` TEXT NOT NULL,
+                        `contentType` TEXT NOT NULL,
+                        `contentId` TEXT NOT NULL,
+                        `reporterId` TEXT NOT NULL,
+                        `reason` TEXT NOT NULL,
+                        `details` TEXT NOT NULL,
+                        `status` TEXT NOT NULL,
+                        `timestamp` INTEGER NOT NULL,
+                        `pendingSync` INTEGER NOT NULL DEFAULT 1,
+                        PRIMARY KEY(`reportId`)
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_reports_status` ON `reports` (`status`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_reports_contentId` ON `reports` (`contentId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_reports_reporterId` ON `reports` (`reporterId`)")
             }
         }
     }

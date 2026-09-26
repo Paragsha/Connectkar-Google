@@ -64,6 +64,7 @@ fun OnboardingScreen(
     // Onboarding Form States
     var fullName by remember { mutableStateOf("") }
     var phoneNumber by remember { mutableStateOf("") }
+    var isAdult by remember { mutableStateOf(false) }
     var selectedSociety by remember { mutableStateOf("Sylvan County") }
     var blockTower by remember { mutableStateOf("") }
     var flatNumber by remember { mutableStateOf("") }
@@ -352,9 +353,32 @@ fun OnboardingScreen(
                                     shape = RoundedCornerShape(12.dp)
                                 )
 
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // Age Gate: 18+ Checkbox
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { isAdult = !isAdult }
+                                        .testTag("onboarding_age_gate_row")
+                                ) {
+                                    Checkbox(
+                                        checked = isAdult,
+                                        onCheckedChange = { isAdult = it },
+                                        modifier = Modifier.testTag("onboarding_age_gate_checkbox")
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "I confirm that I am 18 years of age or older",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = BrandSlate
+                                    )
+                                }
+
                                 Spacer(modifier = Modifier.height(24.dp))
 
-                                val isStep1Valid = FormValidators.isStep1Valid(fullName, phoneNumber)
+                                val isStep1Valid = FormValidators.isStep1Valid(fullName, phoneNumber, isAdult)
 
                                 Button(
                                     onClick = {

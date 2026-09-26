@@ -1,8 +1,8 @@
 package com.connectkar.ui
 
 object FormValidators {
-    fun isStep1Valid(fullName: String, phoneNumber: String): Boolean {
-        return fullName.trim().isNotBlank() && phoneNumber.trim().length >= 10
+    fun isStep1Valid(fullName: String, phoneNumber: String, isAdult: Boolean = false): Boolean {
+        return fullName.trim().isNotBlank() && phoneNumber.trim().length >= 10 && isAdult
     }
 
     fun isStep2Valid(

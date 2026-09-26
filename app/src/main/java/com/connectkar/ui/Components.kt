@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -390,9 +391,14 @@ fun ListingCard(
     onLike: () -> Unit,
     onBookmark: () -> Unit,
     isCurrentUserVerified: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onReport: (() -> Unit)? = null
 ) {
     var showContactInfo by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
+    var showReportSheet by remember { mutableStateOf(false) }
+    var isSubmittingReport by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     Card(
         modifier = modifier
@@ -489,6 +495,43 @@ fun ListingCard(
                         contentDescription = "Bookmark",
                         tint = if (listing.isBookmarked) BrandIndigo else Color.Gray
                     )
+                }
+
+                Box {
+                    IconButton(
+                        onClick = { showOverflowMenu = true },
+                        modifier = Modifier.testTag("overflow_button_${listing.id}")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "More Options",
+                            tint = Color.Gray
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showOverflowMenu,
+                        onDismissRequest = { showOverflowMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Report Content") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Flag,
+                                    contentDescription = null,
+                                    tint = Color(0xFFDC2626)
+                                )
+                            },
+                            onClick = {
+                                showOverflowMenu = false
+                                if (onReport != null) {
+                                    onReport()
+                                } else {
+                                    showReportSheet = true
+                                }
+                            },
+                            modifier = Modifier.testTag("report_listing_menu_item_${listing.id}")
+                        )
+                    }
                 }
             }
 
@@ -686,6 +729,44 @@ fun ListingCard(
                 }
             }
         }
+    }
+
+    if (showReportSheet) {
+        val app = context.applicationContext as? com.connectkar.ConnectKarApplication
+        val repo = app?.repository
+        val scope = rememberCoroutineScope()
+
+        ReportContentSheet(
+            contentType = listing.type,
+            contentId = if (listing.firestoreId.isNotEmpty()) listing.firestoreId else listing.id.toString(),
+            onDismiss = { showReportSheet = false },
+            isSubmitting = isSubmittingReport,
+            onSubmitReport = { reason, details ->
+                isSubmittingReport = true
+                scope.launch {
+                    val currentUser = repo?.getCurrentUser()
+                    val reporterId = currentUser?.uid ?: "anonymous_user"
+                    val reportEntity = com.connectkar.data.local.ReportEntity(
+                        reportId = java.util.UUID.randomUUID().toString(),
+                        contentType = listing.type,
+                        contentId = if (listing.firestoreId.isNotEmpty()) listing.firestoreId else listing.id.toString(),
+                        reporterId = reporterId,
+                        reason = reason,
+                        details = details,
+                        status = "SUBMITTED",
+                        timestamp = System.currentTimeMillis()
+                    )
+                    repo?.submitReport(reportEntity)
+                    isSubmittingReport = false
+                    showReportSheet = false
+                    android.widget.Toast.makeText(
+                        context,
+                        "Report submitted to Grievance Officer under IT Rules 2021",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        )
     }
 }
 

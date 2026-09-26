@@ -310,5 +310,11 @@ service cloud.firestore {
         resource.data.buyerUid == request.auth.uid
       );
     }
+
+    match /contentReports/{reportId} {
+      // IT Rules 2021: Any authenticated user can create reports, only admin role can read or update
+      allow create: if request.auth != null;
+      allow read, update, delete: if isAdmin();
+    }
   }
 }

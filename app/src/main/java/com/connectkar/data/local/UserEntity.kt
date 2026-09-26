@@ -46,7 +46,8 @@ data class UserEntity(
     val moveInDate: String = "",
     val proofDocumentUri: String = "",
     val timestamp: Long = System.currentTimeMillis(),
-    val exploredSocietyIds: List<String> = emptyList()
+    val exploredSocietyIds: List<String> = emptyList(),
+    val isAdult: Boolean = false
 )
 
 fun UserEntity.toFirestoreMap(): HashMap<String, Any?> {
@@ -67,6 +68,7 @@ fun UserEntity.toFirestoreMap(): HashMap<String, Any?> {
         "moveInDate" to moveInDate,
         "proofDocumentUri" to proofDocumentUri,
         "exploredSocietyIds" to exploredSocietyIds,
+        "isAdult" to isAdult,
         "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
         "serverTimestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
         "clientTimestamp" to timestamp

@@ -91,6 +91,19 @@ fun DashboardScreen(
     var selectedListingMealForOrder by remember { mutableStateOf<ListingEntity?>(null) }
     var societyToConfirmExplore by remember { mutableStateOf<String?>(null) }
     var isBannerDismissed by remember { mutableStateOf(false) }
+    var currentOverlayRoute by remember { mutableStateOf<String?>(null) }
+
+    if (currentOverlayRoute == AppRoutes.GRIEVANCE_OFFICER) {
+        GrievanceOfficerScreen(onBack = { currentOverlayRoute = null })
+        return
+    }
+    if (currentOverlayRoute == AppRoutes.PRIVACY_POLICY) {
+        PrivacyPolicyScreen(
+            onBack = { currentOverlayRoute = null },
+            onNavigateToGrievanceOfficer = { currentOverlayRoute = AppRoutes.GRIEVANCE_OFFICER }
+        )
+        return
+    }
 
     LaunchedEffect(selectedSociety, isExploreMode) {
         if (isExploreMode) {
@@ -1086,7 +1099,57 @@ fun DashboardScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = brandGreen
                     )
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedButton(
+                        onClick = {
+                            showProfileDetailsDialog = false
+                            currentOverlayRoute = AppRoutes.PRIVACY_POLICY
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("profile_privacy_policy_button"),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PrivacyTip,
+                            contentDescription = null,
+                            tint = ConciergeBrandNavy,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Privacy Policy",
+                            color = ConciergeBrandNavy,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = {
+                            showProfileDetailsDialog = false
+                            currentOverlayRoute = AppRoutes.GRIEVANCE_OFFICER
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("profile_grievance_officer_button"),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Gavel,
+                            contentDescription = null,
+                            tint = ConciergeBrandNavy,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Grievance Officer (IT Rules)",
+                            color = ConciergeBrandNavy,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
                     Button(
                         onClick = {
                             showProfileDetailsDialog = false

@@ -218,6 +218,25 @@ class SyncWorker(
             hasFailure = true
         }
 
+        // 7. Sync Content Reports
+        try {
+            val unsyncedReports = appDao.getUnsyncedReports()
+            for (rep in unsyncedReports) {
+                try {
+                    val docRef = firestore.collection("contentReports").document(rep.reportId)
+                    val finalRep = rep.copy(pendingSync = false)
+                    docRef.set(finalRep.toFirestoreMap()).await()
+                    appDao.updateReport(finalRep)
+                } catch (e: Exception) {
+                    android.util.Log.e("SyncWorker", "Error syncing report ${rep.reportId}: ${e.message}", e)
+                    hasFailure = true
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("SyncWorker", "Error syncing reports stage: ${e.message}", e)
+            hasFailure = true
+        }
+
         return if (hasFailure) {
             Result.retry()
         } else {

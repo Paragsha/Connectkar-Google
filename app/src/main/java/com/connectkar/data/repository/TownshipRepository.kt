@@ -9,6 +9,7 @@ import com.connectkar.data.local.ChefProfileEntity
 import com.connectkar.data.local.MenuItemEntity
 import com.connectkar.data.local.MealOrderEntity
 import com.connectkar.data.local.MealSubscriptionEntity
+import com.connectkar.data.local.ReportEntity
 import com.connectkar.data.local.toFirestoreMap
 import com.connectkar.data.local.withSerializedDetails
 import com.connectkar.data.toListingEntity
@@ -163,6 +164,14 @@ class TownshipRepository(
                     val finalSub = sub.copy(firestoreId = docRef.id, pendingSync = false)
                     docRef.set(finalSub.toFirestoreMap()).await()
                     appDao.updateMealSubscription(finalSub)
+                }
+
+                val unsyncedReports = appDao.getUnsyncedReports()
+                for (rep in unsyncedReports) {
+                    val docRef = fs.collection("contentReports").document(rep.reportId)
+                    val finalRep = rep.copy(pendingSync = false)
+                    docRef.set(finalRep.toFirestoreMap()).await()
+                    appDao.updateReport(finalRep)
                 }
 
                 // 2. Fetch fresh remote data for current society
@@ -617,7 +626,8 @@ class TownshipRepository(
         floor: String = "",
         residentType: String = "OWNER",
         moveInDate: String = "",
-        proofDocumentUri: String = ""
+        proofDocumentUri: String = "",
+        isAdult: Boolean = false
     ): UserEntity {
         // Clear previous current users
         appDao.clearCurrentUserFlag()
@@ -640,7 +650,8 @@ class TownshipRepository(
             floor = floor,
             residentType = residentType,
             moveInDate = moveInDate,
-            proofDocumentUri = proofDocumentUri
+            proofDocumentUri = proofDocumentUri,
+            isAdult = isAdult
         )
         
         val insertedId = appDao.insertUser(newUser)
@@ -792,6 +803,39 @@ class TownshipRepository(
 
     suspend fun getListingById(id: Int): ListingEntity? {
         return appDao.getListingById(id)
+    }
+
+    suspend fun submitReport(report: ReportEntity): ReportEntity {
+        val firestore = FirebaseManager.firestore
+        val reportWithId = if (report.reportId.isBlank()) {
+            report.copy(reportId = java.util.UUID.randomUUID().toString())
+        } else {
+            report
+        }
+
+        return if (firestore != null) {
+            val initialReport = reportWithId.copy(pendingSync = true)
+            appDao.insert(initialReport)
+            val docRef = firestore.collection("contentReports").document(initialReport.reportId)
+            val finalReport = initialReport.copy(pendingSync = false)
+            val reportMap = finalReport.toFirestoreMap()
+            try {
+                kotlinx.coroutines.withTimeout(5000L) {
+                    docRef.set(reportMap).await()
+                }
+                appDao.updateReport(finalReport)
+                finalReport
+            } catch (e: Exception) {
+                android.util.Log.e("Firestore", "Error submitting report: ${e.message}")
+                scheduleSyncJob()
+                initialReport
+            }
+        } else {
+            val fallbackReport = reportWithId.copy(pendingSync = true)
+            appDao.insert(fallbackReport)
+            scheduleSyncJob()
+            fallbackReport
+        }
     }
 
     suspend fun deleteListing(listingId: Int) {

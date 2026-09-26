@@ -225,4 +225,79 @@ class DatabaseMigrationTest {
         db.close()
         context.deleteDatabase(dbName)
     }
+
+    @Test
+    fun migration_11_to_12_preservesExistingDataAndAddsIsAdultAndReportsTable() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val dbName = "migration_test_db_12"
+        context.deleteDatabase(dbName)
+
+        val config = SupportSQLiteOpenHelper.Configuration.builder(context)
+            .name(dbName)
+            .callback(object : SupportSQLiteOpenHelper.Callback(11) {
+                override fun onCreate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS `users` (
+                            `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                            `uid` TEXT NOT NULL,
+                            `fullName` TEXT NOT NULL,
+                            `phoneNumber` TEXT NOT NULL,
+                            `society` TEXT NOT NULL,
+                            `blockTower` TEXT NOT NULL,
+                            `flatNumber` TEXT NOT NULL,
+                            `avatarIndex` INTEGER NOT NULL,
+                            `isVerified` INTEGER NOT NULL,
+                            `isPending` INTEGER NOT NULL,
+                            `isCurrent` INTEGER NOT NULL,
+                            `role` TEXT NOT NULL,
+                            `pendingSync` INTEGER NOT NULL,
+                            `floor` TEXT NOT NULL,
+                            `residentType` TEXT NOT NULL,
+                            `moveInDate` TEXT NOT NULL,
+                            `proofDocumentUri` TEXT NOT NULL,
+                            `timestamp` INTEGER NOT NULL,
+                            `exploredSocietyIds` TEXT NOT NULL DEFAULT '[]'
+                        )
+                        """.trimIndent()
+                    )
+                    db.execSQL(
+                        """
+                        INSERT INTO `users` (
+                            `uid`, `fullName`, `phoneNumber`, `society`, `blockTower`, `flatNumber`,
+                            `avatarIndex`, `isVerified`, `isPending`, `isCurrent`, `role`, `pendingSync`,
+                            `floor`, `residentType`, `moveInDate`, `proofDocumentUri`, `timestamp`, `exploredSocietyIds`
+                        ) VALUES (
+                            'user_11', 'Rahul Sharma', '9876543210', 'Sunrise Valley', 'B', '204',
+                            2, 1, 0, 1, 'RESIDENT', 0, '2', 'OWNER', '2023-01-01', '', 1700000000000, '[]'
+                        )
+                        """.trimIndent()
+                    )
+                }
+
+                override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {}
+            })
+            .build()
+
+        val helper = FrameworkSQLiteOpenHelperFactory().create(config)
+        val db = helper.writableDatabase
+
+        AppDatabase.MIGRATION_11_12.migrate(db)
+
+        val cursor = db.query("SELECT * FROM users WHERE uid = 'user_11'")
+        assertTrue("User record should exist after migration 11 to 12", cursor.moveToFirst())
+        val colIndex = cursor.getColumnIndex("isAdult")
+        assertTrue("isAdult column must exist", colIndex != -1)
+        assertEquals(0, cursor.getInt(colIndex))
+        assertEquals("Rahul Sharma", cursor.getString(cursor.getColumnIndexOrThrow("fullName")))
+        cursor.close()
+
+        val reportsCursor = db.query("SELECT count(*) FROM reports")
+        assertTrue("reports table must exist and be queryable", reportsCursor.moveToFirst())
+        assertEquals(0, reportsCursor.getInt(0))
+        reportsCursor.close()
+
+        db.close()
+        context.deleteDatabase(dbName)
+    }
 }
